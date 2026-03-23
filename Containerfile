@@ -3,7 +3,7 @@ FROM registry.access.redhat.com/ubi9/nodejs-20 AS deps
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --legacy-peer-deps
 
 
 # Stage 2: builder — build the Next.js standalone output
