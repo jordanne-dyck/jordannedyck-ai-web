@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jordannedyck-ai-web
+  labels:
+    app: jordannedyck-ai-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jordannedyck-ai-web
+  template:
+    metadata:
+      labels:
+        app: jordannedyck-ai-web
+    spec:
+      containers:
+        - name: jordannedyck-ai-web
+          image: YOUR_REGISTRY/jordannedyck-ai-web:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: openai-api-key
+          env:
+            - name: FLASK_API_URL
+              value: "http://jordannedyck-ai:5000"
+            - name: NODE_ENV
+              value: "production"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
