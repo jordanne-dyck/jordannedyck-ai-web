@@ -1,5 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  interactiveWidget: 'resizes-content',
+};
 
 export const metadata: Metadata = {
   title: 'Jordanne Dyck | AI Innovation & Digital Transformation Leader',
@@ -22,7 +35,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://yourdomain.com',
+    url: 'https://jordannedyck.com',
     title: 'Jordanne Dyck | AI Innovation & Digital Transformation Leader',
     description: 'Digital transformation and AI strategy leader specializing in product management, AI innovation, and building scalable AI solutions.',
     siteName: 'Jordanne Dyck Portfolio',
@@ -55,22 +68,15 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
     ],
     apple: [
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    other: [
-      {
-        rel: 'mask-icon',
-        url: '/safari-pinned-tab.svg',
-      },
-    ],
   },
   manifest: '/site.webmanifest',
   alternates: {
-    canonical: 'https://yourdomain.com',
+    canonical: 'https://jordannedyck.com',
   },
 };
 
@@ -80,10 +86,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Structured Data */}
         <script
           type="application/ld+json"
@@ -94,7 +98,7 @@ export default function RootLayout({
               name: 'Jordanne Dyck',
               jobTitle: 'AI Innovation & Digital Transformation Leader',
               description: 'Digital transformation and AI strategy leader with 15+ years of experience in product management, AI innovation, and building high-performing teams.',
-              url: 'https://yourdomain.com',
+              url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
               telephone: '+1-647-454-2244',
               sameAs: [
@@ -108,16 +112,21 @@ export default function RootLayout({
                 'AI Strategy',
                 'LLM Development',
                 'Agentic AI',
+                'RAG & Knowledge Architecture',
+                'E-Commerce',
               ],
-              alumniOf: {
-                '@type': 'Organization',
-                name: 'Various Technology Companies',
-              },
+              alumniOf: [
+                { '@type': 'Organization', name: 'DECIEM' },
+                { '@type': 'Organization', name: 'Loblaw Digital' },
+                { '@type': 'CollegeOrUniversity', name: 'University of Toronto' },
+                { '@type': 'CollegeOrUniversity', name: 'University of Guelph' },
+                { '@type': 'Organization', name: 'Maven' },
+              ],
             }),
           }}
         />
       </head>
-      <body>{children}</body>
+      <body className="font-[family-name:var(--font-inter)]">{children}</body>
     </html>
   );
 }
