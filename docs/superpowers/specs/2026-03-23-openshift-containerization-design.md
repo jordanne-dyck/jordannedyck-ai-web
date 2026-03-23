@@ -61,13 +61,14 @@ Multi-stage build:
 
 **Stage 2 — runtime** (`ubi9/python-311`):
 - Copy `/install` from builder (build tools absent from final image)
-- Copy `api_server.py` and `mcp_server/`
+- Copy `api_server.py` only (`mcp_server/` is dev/testing tooling, excluded from runtime image)
 - No `faiss_db/` (mounted from PVC at runtime)
 - No `venv/`, `chroma_db/`, `scripts/`, test files
+- `WORKDIR /app` — `api_server.py` uses relative path `faiss_db/resume.index`, so the PVC must be mounted at `/app/faiss_db` and `WORKDIR` must be `/app`
 - Runs as non-root (OpenShift default)
 - `CMD: python3 api_server.py`
 
-**`.dockerignore`**: excludes `venv/`, `faiss_db/`, `chroma_db/`, `__pycache__/`, `.git/`, test files.
+**`.dockerignore`**: excludes `venv/`, `faiss_db/`, `chroma_db/`, `__pycache__/`, `*.pyc`, `.git/`, test files, `.env`.
 
 ### Next.js Frontend (`jordannedyck-ai-web/Containerfile`)
 
@@ -86,7 +87,7 @@ Three-stage build:
 - Target size: ~150MB
 - `CMD: node server.js`
 
-**`.dockerignore`**: excludes `node_modules/`, `.next/`, `.git/`.
+**`.dockerignore`**: excludes `node_modules/`, `.next/`, `.git/`, `.env.local`, `coverage/`.
 
 ---
 
@@ -101,6 +102,28 @@ Replace hardcoded `http://localhost:5000/search` with:
 const apiUrl = process.env.FLASK_API_URL ?? 'http://localhost:5000';
 // ...
 const response = await fetch(`${apiUrl}/search`, { ... });
+```
+
+### `jordannedyck-ai/api_server.py`
+Change the `app.run()` call from dev defaults to cluster-accessible production settings:
+```python
+# Before:
+app.run(port=5000, debug=True)
+
+# After:
+app.run(host='0.0.0.0', port=5000, debug=False)
+```
+Without `host='0.0.0.0'`, Flask binds to localhost only and is unreachable from other pods.
+
+### `jordannedyck-ai/requirements.txt` (new file)
+Create a `requirements.txt` since none currently exists:
+```
+flask>=2.0
+flask-cors>=3.0
+faiss-cpu>=1.7.0
+numpy>=1.20
+openai>=1.0
+python-dotenv>=0.19
 ```
 
 ---
@@ -120,9 +143,12 @@ All manifests live in `jordannedyck-ai-web/k8s/`:
 | `route.yaml` | OpenShift Route → `service-web` |
 
 **Notes:**
-- `secret.yaml` uses a placeholder value; real key is applied manually via `oc apply`
+- `secret.yaml` uses a placeholder value (`OPENAI_API_KEY: <base64-encoded-value>`); real key is applied manually via `oc apply -f secret.yaml` after editing — never committed with a real value
 - PVC is `ReadWriteOnce`; to re-run embeddings, scale Flask to 0, run a Job, scale back up
-- Both Deployments use `envFrom` to reference the Secret
+- Both Deployments use `envFrom` to reference the Secret — both Flask (`os.getenv("OPENAI_API_KEY")`) and Next.js (`process.env.OPENAI_API_KEY`) need it
+- `deployment-web.yaml` also sets `FLASK_API_URL=http://jordannedyck-ai:5000` as a plain env var (not from Secret)
+- PVC size: 500Mi is sufficient for the FAISS index + pickle files; `storageClassName` left to cluster default
+- Readiness probes: Flask — HTTP GET `/search` is stateful; use a TCP probe on port 5000. Next.js — HTTP GET on port 3000 path `/`
 
 ---
 
