@@ -22,11 +22,11 @@ FROM registry.access.redhat.com/ubi9/nodejs-20
 WORKDIR /opt/app-root/src
 
 # Copy standalone server and its minimal node_modules
-COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /opt/app-root/src/.next/standalone ./
 # Copy static assets (CSS, JS chunks) into the expected location
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /opt/app-root/src/.next/static ./.next/static
 # Copy public assets (images, icons, robots.txt, etc.)
-COPY --from=builder /app/public ./public
+COPY --from=builder /opt/app-root/src/public ./public
 
 EXPOSE 3000
 
