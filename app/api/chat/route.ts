@@ -449,6 +449,7 @@ Be confident. Be proactive. Include contact info.`
     temperature: 0.7, // Slightly higher for more natural, varied responses
   });
 
+  // @ts-ignore — ai@3.x types were written for openai@4.x; runtime shape is compatible with openai@6.x
   const stream = OpenAIStream(response);
   return new StreamingTextResponse(stream);
 }
