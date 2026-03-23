@@ -10,7 +10,7 @@ RUN npm ci --legacy-peer-deps
 FROM registry.access.redhat.com/ubi9/nodejs-20 AS builder
 
 WORKDIR /opt/app-root/src
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /opt/app-root/src/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
