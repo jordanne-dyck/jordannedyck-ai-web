@@ -1,7 +1,7 @@
 # Stage 1: deps — install dependencies from lockfile
 FROM registry.access.redhat.com/ubi9/nodejs-20 AS deps
 
-WORKDIR /app
+WORKDIR /opt/app-root/src
 COPY package.json package-lock.json ./
 RUN npm ci --legacy-peer-deps
 
@@ -9,7 +9,7 @@ RUN npm ci --legacy-peer-deps
 # Stage 2: builder — build the Next.js standalone output
 FROM registry.access.redhat.com/ubi9/nodejs-20 AS builder
 
-WORKDIR /app
+WORKDIR /opt/app-root/src
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
@@ -18,7 +18,7 @@ RUN npm run build
 # Stage 3: runtime — only the standalone output (~150-300MB final image)
 FROM registry.access.redhat.com/ubi9/nodejs-20
 
-WORKDIR /app
+WORKDIR /opt/app-root/src
 
 # Copy standalone server and its minimal node_modules
 COPY --from=builder /app/.next/standalone ./
