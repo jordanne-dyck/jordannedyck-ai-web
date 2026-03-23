@@ -12,7 +12,8 @@ FROM registry.access.redhat.com/ubi9/nodejs-20 AS builder
 WORKDIR /opt/app-root/src
 COPY --from=deps /opt/app-root/src/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# Dummy key lets Next.js evaluate the route module at build time without making API calls
+RUN OPENAI_API_KEY=build-placeholder npm run build
 
 
 # Stage 3: runtime — only the standalone output (~150-300MB final image)
