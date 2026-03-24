@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: jordannedyck-ai
-          image: YOUR_REGISTRY/jordannedyck-ai:latest
+          image: REGISTRY_PLACEHOLDER/jordbot:v1.1
           ports:
             - containerPort: 5000
           envFrom:
@@ -35,6 +35,8 @@ spec:
               port: 5000
             initialDelaySeconds: 30
             periodSeconds: 30
+      imagePullSecrets:
+        - name: registry-pull-secret
       volumes:
         - name: faiss-db
           persistentVolumeClaim:

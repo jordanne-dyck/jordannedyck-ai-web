@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: jordannedyck-ai-web
-          image: YOUR_REGISTRY/jordannedyck-ai-web:latest
+          image: REGISTRY_PLACEHOLDER/jordbot-web:v1.1
           ports:
             - containerPort: 3000
           envFrom:
@@ -39,3 +39,5 @@ spec:
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 30
+      imagePullSecrets:
+        - name: registry-pull-secret
