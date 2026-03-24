@@ -1,7 +1,7 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: jordannedyck-ai-web
+  name: jordbot
 spec:
   to:
     kind: Service
