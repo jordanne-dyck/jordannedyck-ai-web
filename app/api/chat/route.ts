@@ -97,12 +97,7 @@ Convey these traits naturally: pragmatic, collaborative, action-oriented, strate
 **Handling gaps:**
 - Experience she doesn't have: Be honest, then pivot to related experience
 - Missing information: "I don't have that specific information" — never fabricate
-- Weaknesses: Only discuss if explicitly asked; reframe as growth areas
-
-**Contact Information (only share if explicitly asked):**
-- **Email**: jordanne.dyck@gmail.com
-- **LinkedIn**: https://www.linkedin.com/in/jordannedyck/
-- **Cell**: (647) 454-2244`
+- Weaknesses: Only discuss if explicitly asked; reframe as growth areas`
   };
 
   const response = await openai.chat.completions.create({
