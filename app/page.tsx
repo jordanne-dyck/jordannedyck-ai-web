@@ -32,14 +32,14 @@ export default function Home() {
   };
 
   const allPrompts = [
-    "Tell me about the Agentic Personal Shopper Jordanne built at DECIEM.",
-    "How does Jordanne approach AI governance and human-in-the-loop design?",
-    "What was the Regimen Builder and how did it evolve into AI?",
+    "How does Jordanne approach scaling a product for millions of users?",
+    "Tell me about the 'instinct' that drives her to build.",
+    "What is Jordanne's philosophy on the future of AI-driven customer experience?",
+    "What is 'FundLocal' and why did Jordanne build it?",
+    "How does Jordanne balance automation with maintaining trust at scale?",
+    "What is Jordanne's process for moving from concept to production?",
     "How does Jordanne lead and influence across technical and non-technical teams?",
-    "What is Abnormal Innovation and what did it achieve?",
-    "How does Jordanne use data and experimentation to validate a new direction?",
-    "What is Jordanne's experience with e-commerce and customer lifecycle?",
-    "How does Jordanne balance automation with maintaining trust at scale?"
+    "How does Jordanne use data and experimentation to validate a new direction?"
   ];
 
   const visiblePrompts = allPrompts.filter((_, index) => !usedPrompts.has(index));
@@ -103,7 +103,7 @@ export default function Home() {
                       I&apos;m an AI-native representative of Jordanne&apos;s career.
                     </p>
                     <p className="text-[11px] sm:text-xs text-[#666666] leading-relaxed">
-                      Try asking me about her experience shipping production AI, her approach to agentic customer experience, or how she leads cross-functional teams.
+                      Try asking me about her experience shipping production AI, the instinct that drives her to build, or how she bridges strategy with hands-on execution.
                     </p>
                   </div>
                 </div>
