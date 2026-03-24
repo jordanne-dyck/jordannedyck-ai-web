@@ -15,18 +15,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Jordanne Dyck | AI Innovation & Digital Transformation Leader',
-  description: 'Jordanne Dyck is a digital transformation and AI strategy leader with 15+ years of experience in product management, AI innovation, and building high-performing teams. Expert in LLMs, RAG systems, and agentic AI.',
+  title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
+  description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
   keywords: [
     'Jordanne Dyck',
-    'AI Innovation',
-    'Digital Transformation',
+    'AI Builder',
     'Product Strategy',
-    'AI Strategy',
-    'Machine Learning',
-    'Product Management',
-    'LLM Development',
     'Agentic AI',
+    'Digital Transformation',
+    'Production AI',
+    'E-Commerce',
+    'RAG',
+    'Knowledge Architecture',
+    'Customer Experience',
+    'LLM Development',
     'Digital Product Management'
   ],
   authors: [{ name: 'Jordanne Dyck' }],
@@ -36,8 +38,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://jordannedyck.com',
-    title: 'Jordanne Dyck | AI Innovation & Digital Transformation Leader',
-    description: 'Digital transformation and AI strategy leader specializing in product management, AI innovation, and building scalable AI solutions.',
+    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
+    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
     siteName: 'Jordanne Dyck Portfolio',
     images: [
       {
@@ -50,8 +52,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Jordanne Dyck | AI Innovation & Digital Transformation Leader',
-    description: 'Digital transformation and AI strategy leader specializing in product management and AI innovation.',
+    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
+    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
     images: ['/og-image.png'],
   },
   robots: {
@@ -96,8 +98,8 @@ export default function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'Person',
               name: 'Jordanne Dyck',
-              jobTitle: 'AI Innovation & Digital Transformation Leader',
-              description: 'Digital transformation and AI strategy leader with 15+ years of experience in product management, AI innovation, and building high-performing teams.',
+              jobTitle: 'AI Builder & Product Strategy Leader',
+              description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
               url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
               telephone: '+1-647-454-2244',
