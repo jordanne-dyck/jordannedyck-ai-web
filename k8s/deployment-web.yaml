@@ -17,6 +17,7 @@ spec:
       containers:
         - name: jordannedyck-ai-web
           image: REGISTRY_PLACEHOLDER/jordbot-web:v1.1
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           envFrom:
