@@ -1,0 +1,20 @@
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: jordbot-ai
+  namespace: jordbot-dev
+spec:
+  source:
+    type: Git
+    git:
+      url: https://github.com/jordanne-dyck/jordannedyck-ai.git
+      revision: master
+  strategy:
+    kind: ClusterBuildStrategy
+    name: buildah
+  paramValues:
+  - name: dockerfile
+    value: Containerfile
+  output:
+    image: REGISTRY_PLACEHOLDER/jordbot:dev
+    pushSecret: registry-pull-secret
