@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private registry / cluster coordinates — never commit real values.
+# Manifests use REGISTRY_PLACEHOLDER; substitute locally at deploy time.
+*.local.env
+*.local.yaml
+k8s/overlay/
