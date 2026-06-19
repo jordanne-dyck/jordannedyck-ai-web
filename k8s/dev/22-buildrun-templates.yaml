@@ -1,0 +1,17 @@
+apiVersion: shipwright.io/v1beta1
+kind: BuildRun
+metadata:
+  generateName: jordbot-ai-
+  namespace: jordbot-dev
+spec:
+  build:
+    name: jordbot-ai
+---
+apiVersion: shipwright.io/v1beta1
+kind: BuildRun
+metadata:
+  generateName: jordbot-web-
+  namespace: jordbot-dev
+spec:
+  build:
+    name: jordbot-web

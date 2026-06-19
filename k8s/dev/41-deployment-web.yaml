@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jordannedyck-ai-web
+  namespace: jordbot-dev
+  labels:
+    app: jordannedyck-ai-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jordannedyck-ai-web
+  template:
+    metadata:
+      labels:
+        app: jordannedyck-ai-web
+    spec:
+      imagePullSecrets:
+      - name: registry-pull-secret
+      containers:
+      - name: jordannedyck-ai-web
+        image: REGISTRY_PLACEHOLDER/jordbot-web:dev
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        env:
+        - name: FLASK_API_URL
+          value: "http://jordannedyck-ai:5000"
+        - name: NODE_ENV
+          value: "production"
+        envFrom:
+        - secretRef:
+            name: openai-api-key

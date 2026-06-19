@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jordannedyck-ai
+  namespace: jordbot-dev
+spec:
+  selector:
+    app: jordannedyck-ai
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jordannedyck-ai-web
+  namespace: jordbot-dev
+spec:
+  selector:
+    app: jordannedyck-ai-web
+  ports:
+  - port: 3000
+    targetPort: 3000
