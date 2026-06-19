@@ -2,6 +2,12 @@ import { OpenAI } from 'openai';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
 import { NextRequest } from 'next/server';
 
+type SearchResult = {
+  similarity: number;
+  metadata: { filename: string; category: string };
+  content: string;
+};
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -19,7 +25,7 @@ async function searchExperience(query: string): Promise<string> {
 
     if (data.results && data.results.length > 0) {
       return data.results
-        .map((r: any, i: number) =>
+        .map((r: SearchResult, i: number) =>
           `### Result ${i + 1} (Relevance: ${r.similarity.toFixed(2)})\n` +
           `**Source**: ${r.metadata.filename}\n` +
           `**Category**: ${r.metadata.category}\n\n` +
@@ -108,7 +114,7 @@ Convey these traits naturally: pragmatic, collaborative, action-oriented, strate
     temperature: 0.7,
   });
 
-  // @ts-ignore — ai@3.x types were written for openai@4.x; runtime shape is compatible with openai@6.x
+  // @ts-expect-error — ai@3.x types were written for openai@4.x; runtime shape is compatible with openai@6.x
   const stream = OpenAIStream(response);
   return new StreamingTextResponse(stream);
 }

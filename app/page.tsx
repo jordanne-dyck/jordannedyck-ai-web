@@ -127,22 +127,22 @@ export default function Home() {
                       <div className="ai-message">
                         <ReactMarkdown
                           components={{
-                            p: ({node, ...props}) => (
+                            p: ({node: _node, ...props}) => (
                               <p className="my-3 leading-relaxed first:mt-0 last:mb-0" {...props} />
                             ),
-                            ul: ({node, ...props}) => (
+                            ul: ({node: _node, ...props}) => (
                               <ul className="my-3 ml-6 list-disc space-y-2 first:mt-0 last:mb-0" {...props} />
                             ),
-                            li: ({node, ...props}) => (
+                            li: ({node: _node, ...props}) => (
                               <li className="leading-relaxed" {...props} />
                             ),
-                            strong: ({node, ...props}) => (
+                            strong: ({node: _node, ...props}) => (
                               <strong className="font-semibold" {...props} />
                             ),
-                            h2: ({node, ...props}) => (
+                            h2: ({node: _node, ...props}) => (
                               <h2 className="text-base sm:text-lg font-bold mt-4 mb-2 first:mt-0" {...props} />
                             ),
-                            h3: ({node, ...props}) => (
+                            h3: ({node: _node, ...props}) => (
                               <h3 className="text-sm sm:text-base font-semibold mt-3 mb-1.5 first:mt-0" {...props} />
                             ),
                           }}
