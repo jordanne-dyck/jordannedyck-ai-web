@@ -64,6 +64,33 @@ Returns a streaming SSE response.
 
 ---
 
+## CI (GitHub Actions)
+
+Both repos have a CI workflow at `.github/workflows/ci.yml` that runs on every push to `master`, every PR, and weekly on Monday 08:00 UTC.
+
+**Jobs (run in parallel):**
+- **Lint** — `ruff check` (backend) or `npm run lint` (frontend)
+- **Vulnerability scan** — Trivy `fs` scan; HIGH/CRITICAL CVEs block the build; all severities uploaded to the GitHub Security tab as informational
+
+**Backend scan** reads `uv.lock` (31 pinned packages). To update the lockfile after changing `pyproject.toml`:
+```bash
+cd /home/peter/workdir/jordannedyck-ai
+uv lock
+git add uv.lock && git commit -m "chore: update uv.lock"
+```
+
+**Check CI status** before triggering a Shipwright build:
+```bash
+gh run list --repo jordanne-dyck/jordannedyck-ai --limit 3
+gh run list --repo jordanne-dyck/jordannedyck-ai-web --limit 3
+# or watch a specific run:
+gh run watch <run-id> --repo jordanne-dyck/jordannedyck-ai
+```
+
+CI does not trigger Shipwright — the cluster is not reachable from GitHub runners. Trigger the build manually after CI passes.
+
+---
+
 ## Development workflow (jordbot-dev)
 
 Use `jordbot-dev` for all code changes. **Never test directly in `jordbot`.**
@@ -81,7 +108,17 @@ gitleaks git --no-banner
 git push origin master
 ```
 
-### 2. Trigger a Shipwright build
+### 2. Wait for CI to pass
+
+```bash
+# Check the latest run — both lint and scan must succeed before building
+gh run list --repo jordanne-dyck/jordannedyck-ai --limit 1      # backend
+gh run list --repo jordanne-dyck/jordannedyck-ai-web --limit 1  # frontend
+```
+
+Do not trigger a Shipwright build if CI is failing.
+
+### 3. Trigger a Shipwright build
 
 Build only what changed. If both repos changed, run both commands.
 
