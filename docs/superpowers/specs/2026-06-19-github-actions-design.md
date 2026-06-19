@@ -70,5 +70,5 @@ Both repos are public so no registry credentials are needed.
 ## What is NOT in scope
 
 - Container image builds (handled by Shipwright in-cluster)
-- Deployment to `jordbot-dev` or `jordbot` namespaces
+- Deployment to cluster namespaces
 - Type-checking beyond what ESLint catches (can be added later)
