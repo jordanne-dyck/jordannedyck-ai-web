@@ -41,4 +41,4 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
       imagePullSecrets:
-        - name: registry-pull-secret
+        - name: PULL_SECRET_PLACEHOLDER
