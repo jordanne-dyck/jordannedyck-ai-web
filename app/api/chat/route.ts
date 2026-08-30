@@ -1,6 +1,6 @@
 import { OpenAI } from 'openai';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 type SearchResult = {
   similarity: number;
@@ -11,6 +11,52 @@ type SearchResult = {
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Basic in-memory, per-IP rate limit and payload caps. Good enough for a
+// single-instance deployment; not a substitute for a shared store if this
+// ever runs behind multiple replicas or an edge runtime.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const MAX_MESSAGES = 20;
+const MAX_MESSAGE_LENGTH = 4_000;
+
+const requestLog = new Map<string, number[]>();
+
+function getClientIp(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return req.headers.get('x-real-ip') ?? 'unknown';
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = (requestLog.get(ip) ?? []).filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS
+  );
+
+  if (timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestLog.set(ip, timestamps);
+    return true;
+  }
+
+  timestamps.push(now);
+  requestLog.set(ip, timestamps);
+  return false;
+}
+
+function exceedsPayloadCaps(messages: unknown): boolean {
+  if (!Array.isArray(messages)) return false;
+  if (messages.length > MAX_MESSAGES) return true;
+  return messages.some(
+    (m) =>
+      typeof m === 'object' &&
+      m !== null &&
+      typeof (m as { content?: unknown }).content === 'string' &&
+      (m as { content: string }).content.length > MAX_MESSAGE_LENGTH
+  );
+}
 
 async function searchExperience(query: string): Promise<string> {
   try {
@@ -42,7 +88,22 @@ async function searchExperience(query: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again shortly.' },
+      { status: 429 }
+    );
+  }
+
   const { messages } = await req.json();
+
+  if (exceedsPayloadCaps(messages)) {
+    return NextResponse.json(
+      { error: `Request too large: max ${MAX_MESSAGES} messages, ${MAX_MESSAGE_LENGTH} characters each.` },
+      { status: 413 }
+    );
+  }
 
   const lastMessage = messages[messages.length - 1];
   const context = await searchExperience(lastMessage.content);
