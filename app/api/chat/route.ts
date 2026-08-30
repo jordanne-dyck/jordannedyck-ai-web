@@ -1,6 +1,6 @@
 import { OpenAI } from 'openai';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 type SearchResult = {
   similarity: number;
@@ -41,8 +41,38 @@ async function searchExperience(query: string): Promise<string> {
   }
 }
 
+function isValidMessages(
+  messages: unknown
+): messages is { role: string; content: string }[] {
+  return (
+    Array.isArray(messages) &&
+    messages.length > 0 &&
+    messages.every(
+      (m) =>
+        typeof m === 'object' &&
+        m !== null &&
+        typeof (m as { role?: unknown }).role === 'string' &&
+        typeof (m as { content?: unknown }).content === 'string'
+    )
+  );
+}
+
 export async function POST(req: NextRequest) {
-  const { messages } = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+  }
+
+  const { messages } = (body ?? {}) as { messages?: unknown };
+
+  if (!isValidMessages(messages)) {
+    return NextResponse.json(
+      { error: 'Request must include a non-empty "messages" array of { role, content } objects.' },
+      { status: 400 }
+    );
+  }
 
   const lastMessage = messages[messages.length - 1];
   const context = await searchExperience(lastMessage.content);
@@ -110,7 +140,7 @@ Convey these traits naturally: pragmatic, collaborative, action-oriented, strate
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     stream: true,
-    messages: [systemMessage, ...messages],
+    messages: [systemMessage, ...messages] as OpenAI.ChatCompletionMessageParam[],
     temperature: 0.7,
   });
 
