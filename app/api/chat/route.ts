@@ -41,14 +41,29 @@ async function searchExperience(query: string): Promise<string> {
   }
 }
 
+function sanitizeMessages(messages: unknown[]): { role: 'user' | 'assistant'; content: string }[] {
+  return messages
+    .filter(
+      (m): m is { role: unknown; content: unknown } =>
+        typeof m === 'object' && m !== null
+    )
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: typeof m.content === 'string' ? m.content : '',
+    }));
+}
+
 export async function POST(req: NextRequest) {
-  const { messages } = await req.json();
+  const { messages: rawMessages } = await req.json();
+
+  const messages = sanitizeMessages(rawMessages);
 
   const lastMessage = messages[messages.length - 1];
   const context = await searchExperience(lastMessage.content);
 
   const systemMessage = {
-    role: 'system',
+    role: 'system' as const,
     content: `You are an AI assistant representing Jordanne Dyck for recruitment and hiring conversations. Your goal is to position Jordanne as an exceptional candidate for Director+ level roles in Digital Innovation, Strategy, Product Management, and AI Transformation.
 
 # CORE POSITIONING
