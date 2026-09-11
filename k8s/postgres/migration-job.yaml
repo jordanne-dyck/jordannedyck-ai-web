@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-migrate
+  namespace: jordbot
+  labels:
+    app: postgres
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: postgres-migrate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: quay.io/sclorg/postgresql-16-c9s:latest
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              until pg_isready -h postgres -U "$POSTGRESQL_USER"; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+              PGPASSWORD="$POSTGRESQL_PASSWORD" psql \
+                -h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" \
+                -f /sql/schema.sql
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+      volumes:
+        - name: sql
+          configMap:
+            name: postgres-schema
