@@ -16,13 +16,18 @@ spec:
     spec:
       containers:
         - name: jordannedyck-ai-web
-          image: REGISTRY_PLACEHOLDER/jordbot-web:v1.4
+          image: REGISTRY_PLACEHOLDER/jordbot-web:v1.5
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
           envFrom:
             - secretRef:
                 name: openai-api-key
+            # Observability: DATABASE_URL (Postgres) + IP_HASH_SALT + DASHBOARD_ADMIN_PASSWORD
+            - secretRef:
+                name: app-database-url
+            - secretRef:
+                name: app-observability
           env:
             - name: FLASK_API_URL
               value: "http://jordannedyck-ai:5000"
