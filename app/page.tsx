@@ -32,14 +32,15 @@ export default function Home() {
   };
 
   const allPrompts = [
-    "How does Jordanne approach scaling a product for millions of users?",
-    "Tell me about the 'instinct' that drives her to build.",
-    "What is Jordanne's philosophy on the future of AI-driven customer experience?",
-    "What is 'FundLocal' and why did Jordanne build it?",
-    "How does Jordanne balance automation with maintaining trust at scale?",
+    "How has Jordanne demonstrated systems thinking?",
+    "What did Jordanne build herself, hands on keyboard?",
+    "Why did Jordanne turn the store off for Black Friday?",
+    "How does Jordanne prove an idea before the data exists?",
+    "Why does Jordanne say your next customer never sees your interface?",
+    "What is the instinct that drives Jordanne to build?",
     "What is Jordanne's process for moving from concept to production?",
-    "How does Jordanne lead and influence across technical and non-technical teams?",
-    "How does Jordanne use data and experimentation to validate a new direction?"
+    "What is FundLocal and why did Jordanne build it?",
+    "How does Jordanne work with engineers and designers as a counterpart?"
   ];
 
   const visiblePrompts = allPrompts.filter((_, index) => !usedPrompts.has(index));
@@ -103,7 +104,7 @@ export default function Home() {
                       I&apos;m an AI-native representative of Jordanne&apos;s career.
                     </p>
                     <p className="text-[11px] sm:text-xs text-[#666666] leading-relaxed">
-                      Try asking me about her experience shipping production AI, the instinct that drives her to build, or how she bridges strategy with hands-on execution.
+                      Try asking about the digital ecosystem she owned at DECIEM, the production AI she shipped, or why she builds for companies pushing what&apos;s possible.
                     </p>
                   </div>
                 </div>
@@ -192,7 +193,7 @@ export default function Home() {
 
                 {visiblePrompts.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
-                    {visiblePrompts.slice(0, 4).map((prompt, idx) => (
+                    {visiblePrompts.slice(0, 2).map((prompt, idx) => (
                       <button
                         key={idx}
                         onClick={() => handlePromptClick(prompt, allPrompts.indexOf(prompt))}
