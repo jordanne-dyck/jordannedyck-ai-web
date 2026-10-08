@@ -10,8 +10,10 @@ import { estimateCostUsd } from '@/lib/cost';
 const MODEL = 'gpt-4o';
 
 async function searchExperience(query: string): Promise<string> {
+  // Read at request time (not module scope) so the pod's FLASK_API_URL is used, not a build-time value.
+  const apiUrl = process.env.FLASK_API_URL ?? 'http://localhost:5000';
   try {
-    const response = await fetch('http://localhost:5000/search', {
+    const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, n_results: 5 })
