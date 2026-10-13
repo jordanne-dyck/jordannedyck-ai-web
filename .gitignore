@@ -45,3 +45,10 @@ next-env.d.ts
 *.local.env
 *.local.yaml
 k8s/overlay/
+
+# Local planning notes (public repo)
+nimbalyst-local/
+
+# Checkly credentials
+monitoring/.env
+monitoring/node_modules/

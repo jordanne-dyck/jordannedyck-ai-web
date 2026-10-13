@@ -1,0 +1,13 @@
+{
+  "name": "jordbot-monitoring",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "checkly test",
+    "deploy": "checkly deploy"
+  },
+  "devDependencies": {
+    "checkly": "^9.5.0",
+    "typescript": "^5"
+  }
+}
