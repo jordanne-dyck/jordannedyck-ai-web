@@ -15,6 +15,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://jordannedyck.com'),
   title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
   description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
   keywords: [
@@ -43,10 +44,10 @@ export const metadata: Metadata = {
     siteName: 'Jordanne Dyck Portfolio',
     images: [
       {
-        url: '/og-image.png',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Jordanne Dyck - AI Innovation & Digital Transformation',
+        alt: 'Jordanne Dyck holding her cat, next to her name and title',
       },
     ],
   },
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
     description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
-    images: ['/og-image.png'],
+    images: ['/og-image.jpg'],
   },
   robots: {
     index: true,

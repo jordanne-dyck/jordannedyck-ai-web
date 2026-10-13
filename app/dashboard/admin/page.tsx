@@ -11,7 +11,6 @@ import { LoginForm } from './LoginForm';
 import { logoutAction } from './actions';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 const PAGE_SIZE = 50;
 

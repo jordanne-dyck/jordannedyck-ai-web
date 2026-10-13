@@ -3,7 +3,6 @@ import { StatCard } from './components/StatCard';
 import { HourlyChart } from './components/HourlyChart';
 import { DailyCostChart } from './components/DailyCostChart';
 
-export const revalidate = 60;
 export const dynamic = 'force-dynamic';
 
 const fmtMs = (n: number | null) => (n == null ? '—' : `${n} ms`);
@@ -22,10 +21,10 @@ export default async function DashboardPage() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight">
-            jordanedyck.com — chatbot observability
+            jordannedyck.com — chatbot observability
           </h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Live metrics from the AI assistant at jordanedyck.com. Updated every minute.
+            Live metrics from the AI assistant at jordannedyck.com.
           </p>
         </header>
 

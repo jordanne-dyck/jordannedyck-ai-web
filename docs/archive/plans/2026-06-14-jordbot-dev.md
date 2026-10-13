@@ -8,7 +8,7 @@
 
 **Tech Stack:** OpenShift 4.20, Shipwright (buildah ClusterBuildStrategy), External Secrets Operator (Doppler ClusterSecretStore), Quay registry, `oc` CLI.
 
-**Spec:** `docs/superpowers/specs/2026-06-14-jordbot-dev-design.md`
+**Spec:** `docs/archive/specs/2026-06-14-jordbot-dev-design.md`
 
 **Conventions for this plan:**
 - All `oc` commands assume the `kube:admin` context already in use.
@@ -547,7 +547,7 @@ git commit -m "feat(dev): internal-only Route for jordbot-dev"
 # jordbot-dev
 
 In-cluster dev mirror of the `jordbot` namespace. See
-`docs/superpowers/specs/2026-06-14-jordbot-dev-design.md`.
+`docs/archive/specs/2026-06-14-jordbot-dev-design.md`.
 
 ## Rebuild after a code change
 1. `git push` to the relevant GitHub repo (master).

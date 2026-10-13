@@ -52,3 +52,6 @@ nimbalyst-local/
 # Checkly credentials
 monitoring/.env
 monitoring/node_modules/
+
+# Committed template with names only, no values
+!.env.example

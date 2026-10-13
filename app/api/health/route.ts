@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { backendUrl } from '@/lib/backend';
 import { checkOpenAiKey, isMonitorRequest, type KeyStatus } from '@/lib/monitor';
 import { getAnomalyFlags, getMonitorStats } from '@/lib/queries';
 
@@ -24,7 +25,7 @@ async function checkDb(): Promise<boolean> {
 // Expects the backend contract from the site-monitoring plan:
 // GET /health -> {"ok": true, "chunks": 131, "index_bytes": ..., "openai": "ok|auth_failed|unreachable"}
 async function checkBackend(): Promise<BackendHealth> {
-  const apiUrl = process.env.FLASK_API_URL ?? 'http://localhost:5000';
+  const apiUrl = backendUrl();
   try {
     const res = await fetch(`${apiUrl}/health`, {
       signal: AbortSignal.timeout(5000),
