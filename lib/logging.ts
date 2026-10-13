@@ -14,6 +14,16 @@ export type ChatEvent = {
   timeToFirstTokenMs: number | null;
   error: string | null;
   rateLimited: boolean;
+  // Monitoring fields. Optional so call sites that never reach retrieval
+  // (rate-limited, rejected) can leave them out and get NULL or the default.
+  queryLength?: number;
+  turnIndex?: number | null;
+  retrievalStatus?: 'ok' | 'empty' | 'error' | null;
+  chunkIds?: string[] | null;
+  topSimilarity?: number | null;
+  isSynthetic?: boolean;
+  clientId?: string | null;
+  flags?: Record<string, unknown>;
 };
 
 // Fire-and-forget: errors are logged but do not propagate to the chat response.
@@ -39,20 +49,24 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
          query, query_length,
          response_length, prompt_tokens, completion_tokens, cost_usd, model,
          latency_ms, time_to_first_token_ms,
-         error, rate_limited
+         error, rate_limited,
+         response_text, turn_index, retrieval_status, chunk_ids, top_similarity,
+         is_synthetic, client_id, flags
        ) VALUES (
          $1, $2, $3,
          $4, $5,
          $6, $7, $8, $9, $10,
          $11, $12,
-         $13, $14
+         $13, $14,
+         $15, $16, $17, $18, $19,
+         $20, $21, $22
        )`,
       [
         event.sessionId,
         event.ipHash,
         event.userAgent,
         event.query,
-        event.query.length,
+        event.queryLength ?? event.query.length,
         event.responseText?.length ?? null,
         event.promptTokens,
         event.completionTokens,
@@ -62,6 +76,14 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
         event.timeToFirstTokenMs,
         event.error,
         event.rateLimited,
+        event.responseText,
+        event.turnIndex ?? null,
+        event.retrievalStatus ?? null,
+        event.chunkIds ?? null,
+        event.topSimilarity ?? null,
+        event.isSynthetic ?? false,
+        event.clientId ?? null,
+        JSON.stringify(event.flags ?? {}),
       ],
     );
   } catch (err) {

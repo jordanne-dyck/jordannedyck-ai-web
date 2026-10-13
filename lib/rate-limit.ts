@@ -29,7 +29,7 @@ export async function checkRateLimit(ipHash: string): Promise<RateLimitResult> {
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour')::int AS hourly,
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int AS daily
      FROM chat_events
-     WHERE ip_hash = $1 AND rate_limited = FALSE`,
+     WHERE ip_hash = $1 AND rate_limited = FALSE AND is_synthetic = FALSE`,
     [ipHash],
   );
 

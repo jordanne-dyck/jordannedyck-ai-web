@@ -177,6 +177,7 @@ export default function Home() {
                     value={input}
                     onChange={handleInputChange}
                     placeholder="Ask about experience, projects, skills..."
+                    maxLength={2000}
                     className="flex-1 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-sm md:text-base bg-white/80 border border-[#E0E0DB] focus:outline-none focus:ring-2 focus:ring-[#0055D4]/30 focus:border-transparent text-[#1A1A1A] placeholder-[#999999]"
                     disabled={isLoading}
                     aria-label="Message input"
@@ -190,6 +191,11 @@ export default function Home() {
                     <Send className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </form>
+
+                {/* Retention matches k8s/postgres/retention-cronjob.yaml. Change both together. */}
+                <p className="text-center text-[10px] sm:text-[11px] text-[#999999] leading-tight">
+                  Questions and answers are stored to improve this assistant and deleted after 180 days.
+                </p>
 
                 {visiblePrompts.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">

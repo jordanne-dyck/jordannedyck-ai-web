@@ -32,7 +32,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
        AVG(latency_ms) FILTER (WHERE created_at >= CURRENT_DATE AND error IS NULL) AS avg_latency_ms,
        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)
          FILTER (WHERE created_at >= CURRENT_DATE AND error IS NULL) AS p95_latency_ms
-     FROM chat_events`,
+     FROM chat_events
+     WHERE is_synthetic = FALSE`,
   );
   const r = rows[0];
   return {
@@ -56,7 +57,7 @@ export async function getHourlyHistogram(): Promise<HourlyBucket[]> {
        COUNT(*) AS requests,
        COALESCE(SUM(cost_usd), 0) AS cost
      FROM chat_events
-     WHERE created_at > NOW() - INTERVAL '24 hours'
+     WHERE created_at > NOW() - INTERVAL '24 hours' AND is_synthetic = FALSE
      GROUP BY 1
      ORDER BY 1`,
   );
@@ -82,12 +83,21 @@ export type EventRow = {
   timeToFirstTokenMs: number | null;
   error: string | null;
   rateLimited: boolean;
+  responseText: string | null;
+  turnIndex: number | null;
+  retrievalStatus: string | null;
+  chunkIds: string[] | null;
+  topSimilarity: number | null;
+  isSynthetic: boolean;
+  flags: Record<string, unknown>;
 };
 
 export type EventFilters = {
   range: '1h' | '24h' | '7d' | '30d';
   onlyErrors?: boolean;
   onlyRateLimited?: boolean;
+  // Synthetic (Checkly) rows are hidden unless this is set, and then only they show.
+  onlySynthetic?: boolean;
   ipHash?: string;
 };
 
@@ -104,7 +114,10 @@ export async function getEventsList(
   pageSize: number = 50,
 ): Promise<{ rows: EventRow[]; total: number }> {
   const interval = RANGE_INTERVAL[filters.range];
-  const where: string[] = [`created_at > NOW() - INTERVAL '${interval}'`];
+  const where: string[] = [
+    `created_at > NOW() - INTERVAL '${interval}'`,
+    `is_synthetic = ${filters.onlySynthetic ? 'TRUE' : 'FALSE'}`,
+  ];
   const params: unknown[] = [];
 
   if (filters.onlyErrors) {
@@ -142,11 +155,20 @@ export async function getEventsList(
     time_to_first_token_ms: number | null;
     error: string | null;
     rate_limited: boolean;
+    response_text: string | null;
+    turn_index: number | null;
+    retrieval_status: string | null;
+    chunk_ids: string[] | null;
+    top_similarity: number | null;
+    is_synthetic: boolean;
+    flags: Record<string, unknown>;
   }>(
     `SELECT id, created_at, session_id, ip_hash, user_agent,
             query, query_length, response_length,
             cost_usd, model, latency_ms, time_to_first_token_ms,
-            error, rate_limited
+            error, rate_limited,
+            response_text, turn_index, retrieval_status, chunk_ids, top_similarity,
+            is_synthetic, flags
        FROM chat_events
        WHERE ${whereSql}
        ORDER BY created_at DESC
@@ -171,7 +193,51 @@ export async function getEventsList(
       timeToFirstTokenMs: r.time_to_first_token_ms,
       error: r.error,
       rateLimited: r.rate_limited,
+      responseText: r.response_text,
+      turnIndex: r.turn_index,
+      retrievalStatus: r.retrieval_status,
+      chunkIds: r.chunk_ids,
+      topSimilarity: r.top_similarity,
+      isSynthetic: r.is_synthetic,
+      flags: r.flags ?? {},
     })),
+  };
+}
+
+export type MonitorStats = {
+  requestsLastHour: number;
+  errorRateLastHour: number;
+  retrievalFailureRateLastHour: number;
+  oversizeLastHour: number;
+};
+
+// For the deep health view (Checkly abuse-thresholds check). Real traffic only.
+// Rates are 0 when there were no requests, so a quiet hour never alerts.
+export async function getMonitorStats(): Promise<MonitorStats> {
+  const { rows } = await pool.query<{
+    requests: string;
+    errors: string;
+    retrieval_attempts: string;
+    retrieval_failures: string;
+    oversize: string;
+  }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE rate_limited = FALSE)::TEXT AS requests,
+       COUNT(*) FILTER (WHERE error IS NOT NULL AND rate_limited = FALSE)::TEXT AS errors,
+       COUNT(*) FILTER (WHERE retrieval_status IS NOT NULL)::TEXT AS retrieval_attempts,
+       COUNT(*) FILTER (WHERE retrieval_status = 'error')::TEXT AS retrieval_failures,
+       COUNT(*) FILTER (WHERE (flags->>'oversize')::BOOLEAN IS TRUE)::TEXT AS oversize
+     FROM chat_events
+     WHERE created_at > NOW() - INTERVAL '1 hour' AND is_synthetic = FALSE`,
+  );
+  const r = rows[0];
+  const requests = Number(r.requests);
+  const attempts = Number(r.retrieval_attempts);
+  return {
+    requestsLastHour: requests,
+    errorRateLastHour: requests ? Number(r.errors) / requests : 0,
+    retrievalFailureRateLastHour: attempts ? Number(r.retrieval_failures) / attempts : 0,
+    oversizeLastHour: Number(r.oversize),
   };
 }
 
@@ -194,13 +260,13 @@ export async function getAnomalyFlags(): Promise<AnomalyFlags> {
        COUNT(*) FILTER (WHERE error IS NOT NULL AND rate_limited = FALSE)::TEXT AS errors,
        COUNT(*) FILTER (WHERE rate_limited = TRUE)::TEXT AS rate_limited
      FROM chat_events
-     WHERE created_at > NOW() - INTERVAL '1 hour'`,
+     WHERE created_at > NOW() - INTERVAL '1 hour' AND is_synthetic = FALSE`,
   );
 
   const { rows: topIp } = await pool.query<{ ip_hash: string; requests: string }>(
     `SELECT ip_hash, COUNT(*)::TEXT AS requests
        FROM chat_events
-       WHERE created_at > NOW() - INTERVAL '1 hour'
+       WHERE created_at > NOW() - INTERVAL '1 hour' AND is_synthetic = FALSE
        GROUP BY ip_hash
        ORDER BY COUNT(*) DESC
        LIMIT 1`,
@@ -209,7 +275,7 @@ export async function getAnomalyFlags(): Promise<AnomalyFlags> {
   const { rows: topSession } = await pool.query<{ session_id: string; requests: string }>(
     `SELECT session_id, COUNT(*)::TEXT AS requests
        FROM chat_events
-       WHERE created_at > NOW() - INTERVAL '24 hours'
+       WHERE created_at > NOW() - INTERVAL '24 hours' AND is_synthetic = FALSE
        GROUP BY session_id
        HAVING COUNT(*) > 20
        ORDER BY COUNT(*) DESC
@@ -239,7 +305,7 @@ export async function getDailyTrend(days: number = 30): Promise<DailyBucket[]> {
        COUNT(*) AS requests,
        COALESCE(SUM(cost_usd), 0) AS cost
      FROM chat_events
-     WHERE created_at > NOW() - ($1 || ' days')::INTERVAL
+     WHERE created_at > NOW() - ($1 || ' days')::INTERVAL AND is_synthetic = FALSE
      GROUP BY 1
      ORDER BY 1`,
     [String(days)],
