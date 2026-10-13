@@ -6,12 +6,15 @@ import { getOrCreateSessionId } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
+import { isMonitorRequest } from '@/lib/monitor';
+import { parseChatInput, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 
 const MODEL = 'gpt-4o';
 
 // Emitted to the client as an `8:` message annotation so the e2e eval runner
-// (jordannedyck-ai/run_e2e.py) can see what was retrieved. Only written when
-// EMIT_RETRIEVAL is set, so production visitors never see knowledge-base
+// (jordannedyck-ai/run_e2e.py) and the Checkly chat check can see what was
+// retrieved. Only written when EMIT_RETRIEVAL is set or the request carries a
+// valid x-monitor-token, so production visitors never see knowledge-base
 // filenames, chunk ids or text.
 type RetrievalAnnotation = {
   type: 'retrieval';
@@ -77,19 +80,27 @@ async function searchExperience(
 
 export async function POST(req: NextRequest) {
   const requestStart = Date.now();
-  const { messages } = await req.json();
-  const lastMessage = messages[messages.length - 1];
+  const body = await req.json().catch(() => null);
+  const input = parseChatInput(body);
+  if (!input.ok && input.status === 400) {
+    return NextResponse.json({ error: input.reason }, { status: 400 });
+  }
 
   const ip = getClientIp(req);
   const ipHash = hashIp(ip);
   const { sessionId } = await getOrCreateSessionId();
   const userAgent = req.headers.get('user-agent');
+  const isSynthetic = isMonitorRequest(req);
+  const query = input.lastUserContent;
 
-  const limit = await checkRateLimit(ipHash);
+  // Monitor requests skip the rate limit so Checkly never trips it.
+  const limit = isSynthetic ? { allowed: true as const } : await checkRateLimit(ipHash);
   if (!limit.allowed) {
     logChatEvent({
       sessionId, ipHash, userAgent,
-      query: lastMessage.content,
+      // Stored truncated: a rate-limited request may also be oversize.
+      query: query.slice(0, MAX_USER_MESSAGE_CHARS),
+      queryLength: query.length,
       responseText: null,
       promptTokens: null, completionTokens: null, costUsd: null,
       model: MODEL,
@@ -97,6 +108,8 @@ export async function POST(req: NextRequest) {
       timeToFirstTokenMs: null,
       error: `rate_limited:${limit.reason}`,
       rateLimited: true,
+      turnIndex: input.turnIndex,
+      isSynthetic,
     });
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please try again later.' },
@@ -104,7 +117,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { context, retrieval } = await searchExperience(lastMessage.content);
+  if (!input.ok) {
+    logChatEvent({
+      sessionId, ipHash, userAgent,
+      query: query.slice(0, MAX_USER_MESSAGE_CHARS),
+      queryLength: query.length,
+      responseText: null,
+      promptTokens: null, completionTokens: null, costUsd: null,
+      model: MODEL,
+      latencyMs: Date.now() - requestStart,
+      timeToFirstTokenMs: null,
+      error: `rejected:oversize`,
+      rateLimited: false,
+      turnIndex: input.turnIndex,
+      isSynthetic,
+      flags: { oversize: true, oversize_reason: input.reason },
+    });
+    return NextResponse.json(
+      { error: 'Message or conversation too long. Please start a new conversation.' },
+      { status: 413 },
+    );
+  }
+
+  const { messages, turnIndex } = input;
+  const { context, retrieval } = await searchExperience(query);
 
   // MUST STAY IN SYNC with SYSTEM_PROMPT in jordannedyck-ai/run_eval.py.
   // The eval harness carries a verbatim copy of this prompt; any drift silently
@@ -188,14 +224,24 @@ Third person, professional, direct. Concrete examples over generic statements. C
     sessionId,
     ipHash,
     userAgent,
-    query: lastMessage.content,
+    query,
     model: MODEL,
+    turnIndex,
+    retrievalStatus: retrieval.status,
+    chunkIds: retrieval.chunks
+      .map((c) => c.chunk_id)
+      .filter((id): id is string => id !== null),
+    topSimilarity: retrieval.chunks.length
+      ? Math.max(...retrieval.chunks.map((c) => c.similarity))
+      : null,
+    isSynthetic,
+    flags: input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {},
   };
 
   try {
     return createDataStreamResponse({
       execute: (dataStream) => {
-        if (process.env.EMIT_RETRIEVAL) {
+        if (process.env.EMIT_RETRIEVAL || isSynthetic) {
           dataStream.writeMessageAnnotation(retrieval);
         }
         const result = streamText({

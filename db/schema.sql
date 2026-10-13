@@ -48,3 +48,23 @@ CREATE INDEX IF NOT EXISTS idx_chat_events_rate_limited
 
 CREATE INDEX IF NOT EXISTS idx_chat_events_errors
   ON chat_events (created_at DESC) WHERE error IS NOT NULL;
+
+-- Monitoring columns (site-monitoring plan, Phase 1, 2026-10-13).
+-- Additive and idempotent: the migration Job re-runs this whole file, so every
+-- statement below must be safe to run against a table that already has it.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS response_text    TEXT;
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS turn_index       INTEGER;
+-- 'ok' | 'empty' | 'error', as reported by searchExperience() in route.ts.
+-- NULL on rows that never reached retrieval (rate-limited, rejected).
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS retrieval_status TEXT;
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS chunk_ids        TEXT[];
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS top_similarity   REAL;
+-- TRUE for requests carrying a valid x-monitor-token (Checkly).
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS is_synthetic     BOOLEAN NOT NULL DEFAULT FALSE;
+-- Join key to a client analytics tool, if one is adopted (Phase 2).
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS client_id        TEXT;
+-- Open-ended labels: oversize, dropped_roles, later abuse classification and feedback.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS flags            JSONB NOT NULL DEFAULT '{}';
+
+CREATE INDEX IF NOT EXISTS idx_chat_events_synthetic
+  ON chat_events (is_synthetic, created_at DESC);

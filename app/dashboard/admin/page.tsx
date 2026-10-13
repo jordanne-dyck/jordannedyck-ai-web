@@ -19,6 +19,7 @@ type SearchParams = {
   range?: string;
   errors?: string;
   rl?: string;
+  syn?: string;
   ip?: string;
   page?: string;
   error?: string;
@@ -34,6 +35,7 @@ function parseFilters(sp: SearchParams): { filters: EventFilters; page: number }
       range,
       onlyErrors: sp.errors === '1',
       onlyRateLimited: sp.rl === '1',
+      onlySynthetic: sp.syn === '1',
       ipHash: sp.ip || undefined,
     },
     page: Math.max(0, Number(sp.page) || 0),
@@ -50,6 +52,7 @@ function buildQuery(
   params.set('range', merged.range);
   if (merged.onlyErrors) params.set('errors', '1');
   if (merged.onlyRateLimited) params.set('rl', '1');
+  if (merged.onlySynthetic) params.set('syn', '1');
   if (merged.ipHash) params.set('ip', merged.ipHash);
   if (merged.page) params.set('page', String(merged.page));
   return `?${params.toString()}`;
@@ -189,6 +192,12 @@ function FilterBar({ filters }: { filters: EventFilters }) {
       >
         Rate-limited
       </Link>
+      <Link
+        href={buildQuery(filters, 0, { onlySynthetic: !filters.onlySynthetic })}
+        className={`${linkBase} ${filters.onlySynthetic ? active : idle}`}
+      >
+        Synthetic only
+      </Link>
       {filters.ipHash && (
         <Link
           href={buildQuery(filters, 0, { ipHash: undefined })}
@@ -246,6 +255,7 @@ function EventTable({
                 </td>
                 <td className="px-3 py-2 text-zinc-200">
                   <div className="line-clamp-2 max-w-md">{r.query}</div>
+                  <TurnDetails row={r} />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-zinc-400">
                   <Link
@@ -294,6 +304,44 @@ function EventTable({
         </div>
       </div>
     </div>
+  );
+}
+
+// Collapsed by default so the table stays scannable. Rows logged before the
+// monitoring columns existed show only what they have.
+function TurnDetails({ row }: { row: EventRow }) {
+  const flagKeys = Object.keys(row.flags);
+  return (
+    <details className="mt-1 max-w-2xl text-xs text-zinc-400">
+      <summary className="cursor-pointer select-none text-zinc-500 hover:text-zinc-300">
+        details
+        {row.retrievalStatus && ` · retrieval ${row.retrievalStatus}`}
+        {row.turnIndex != null && ` · turn ${row.turnIndex}`}
+      </summary>
+      <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1">
+        <dt className="text-zinc-500">Row id</dt>
+        <dd className="font-mono">{row.id}</dd>
+        <dt className="text-zinc-500">Session</dt>
+        <dd className="font-mono">{row.sessionId}</dd>
+        <dt className="text-zinc-500">Retrieval</dt>
+        <dd>
+          {row.retrievalStatus ?? '—'}
+          {row.topSimilarity != null && ` (top similarity ${row.topSimilarity.toFixed(4)})`}
+        </dd>
+        <dt className="text-zinc-500">Chunk ids</dt>
+        <dd className="font-mono break-all">{row.chunkIds?.length ? row.chunkIds.join(', ') : '—'}</dd>
+        <dt className="text-zinc-500">Flags</dt>
+        <dd className="font-mono break-all">{flagKeys.length ? JSON.stringify(row.flags) : '—'}</dd>
+        {row.error && (
+          <>
+            <dt className="text-zinc-500">Error</dt>
+            <dd className="break-all text-red-300">{row.error}</dd>
+          </>
+        )}
+        <dt className="text-zinc-500">Response</dt>
+        <dd className="whitespace-pre-wrap text-zinc-300">{row.responseText ?? '—'}</dd>
+      </dl>
+    </details>
   );
 }
 

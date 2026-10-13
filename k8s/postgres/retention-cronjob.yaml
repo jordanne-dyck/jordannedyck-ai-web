@@ -1,0 +1,51 @@
+# Deletes chat_events rows older than 180 days, once a day.
+# The retention period is stated to visitors under the chat input in
+# app/page.tsx. Change both together.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: chat-events-retention
+  namespace: jordbot
+  labels:
+    app: postgres
+spec:
+  schedule: "30 7 * * *"  # 07:30 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: chat-events-retention
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: retention
+              image: quay.io/sclorg/postgresql-16-c9s:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -e
+                  PGPASSWORD="$POSTGRESQL_PASSWORD" psql \
+                    -h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" \
+                    -v ON_ERROR_STOP=1 \
+                    -c "DELETE FROM chat_events WHERE created_at < NOW() - INTERVAL '180 days';"
+              env:
+                - name: POSTGRESQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_USER
+                - name: POSTGRESQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRESQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_DB

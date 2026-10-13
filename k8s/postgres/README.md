@@ -80,3 +80,32 @@ oc set env deployment/jordannedyck-ai-web -n jordbot \
 - Single replica is fine for our traffic. If we ever need HA, switch to the Crunchy
   or CloudNativePG operator.
 - Storage: 5Gi NFS RWO. At ~1KB per event row, that holds ~5M events. Plenty.
+
+## Monitoring rollout (site-monitoring plan, Phase 1)
+
+Order matters: the new app code reads columns that only exist after the
+migration, so migrate first, then roll out.
+
+1. Re-run the migration (see "Re-running the migration" above). `db/schema.sql`
+   now ends with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements, safe to
+   re-run.
+2. Add `MONITOR_TOKEN` to the `app-observability` secret (any long random
+   string, e.g. `openssl rand -hex 32`). The same value goes into Checkly as
+   `MONITOR_TOKEN` at `checkly deploy` time. Do not print it in logs.
+3. Confirm `IP_HASH_SALT` is set in `app-observability`. `lib/ip.ts` falls back
+   to a hardcoded default when it is missing.
+4. Roll out the web image built from this branch.
+5. Apply the retention job, which deletes `chat_events` rows older than 180 days
+   daily at 07:30 UTC:
+
+   ```bash
+   oc apply -f k8s/postgres/retention-cronjob.yaml
+   ```
+
+Verify:
+
+```bash
+oc -n jordbot get cronjob chat-events-retention
+curl -s https://www.jordannedyck.com/api/health
+# -> {"ok":...,"db":true,"openai":"ok","backend":{...}}
+```
