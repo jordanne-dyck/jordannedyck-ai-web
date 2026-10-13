@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { createDataStreamResponse, streamText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { getOrCreateSessionId } from '@/lib/session';
@@ -9,7 +9,30 @@ import { estimateCostUsd } from '@/lib/cost';
 
 const MODEL = 'gpt-4o';
 
-async function searchExperience(query: string): Promise<string> {
+// Emitted to the client as an `8:` message annotation so the e2e eval runner
+// (jordannedyck-ai/run_e2e.py) can see what was retrieved. Only written when
+// EMIT_RETRIEVAL is set, so production visitors never see knowledge-base
+// filenames, chunk ids or text.
+type RetrievalAnnotation = {
+  type: 'retrieval';
+  status: 'ok' | 'empty' | 'error';
+  chunks: {
+    chunk_id: string | null;
+    filename: string | null;
+    similarity: number;
+    content: string;
+  }[];
+};
+
+type SearchResult = {
+  content: string;
+  similarity: number;
+  metadata: { filename?: string; category?: string; chunk_id?: string };
+};
+
+async function searchExperience(
+  query: string,
+): Promise<{ context: string; retrieval: RetrievalAnnotation }> {
   // Read at request time (not module scope) so the pod's FLASK_API_URL is used, not a build-time value.
   const apiUrl = process.env.FLASK_API_URL ?? 'http://localhost:5000';
   try {
@@ -19,23 +42,36 @@ async function searchExperience(query: string): Promise<string> {
       body: JSON.stringify({ query, n_results: 5 })
     });
 
-    const data = await response.json();
+    const data: { results?: SearchResult[] } = await response.json();
 
     if (data.results && data.results.length > 0) {
-      return data.results
-        .map((r: any, i: number) =>
+      const context = data.results
+        .map((r, i) =>
           `### Result ${i + 1} (Relevance: ${r.similarity.toFixed(2)})\n` +
           `**Source**: ${r.metadata.filename}\n` +
           `**Category**: ${r.metadata.category}\n\n` +
           `${r.content}\n\n---\n`
         )
         .join('\n');
+      const chunks = data.results.map((r) => ({
+        chunk_id: r.metadata.chunk_id ?? null,
+        filename: r.metadata.filename ?? null,
+        similarity: Math.round(r.similarity * 10000) / 10000,
+        content: r.content,
+      }));
+      return { context, retrieval: { type: 'retrieval', status: 'ok', chunks } };
     }
 
-    return 'No relevant information found.';
+    return {
+      context: 'No relevant information found.',
+      retrieval: { type: 'retrieval', status: 'empty', chunks: [] },
+    };
   } catch (error) {
     console.error('Search error:', error);
-    return 'Unable to search knowledge base.';
+    return {
+      context: 'Unable to search knowledge base.',
+      retrieval: { type: 'retrieval', status: 'error', chunks: [] },
+    };
   }
 }
 
@@ -68,7 +104,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const context = await searchExperience(lastMessage.content);
+  const { context, retrieval } = await searchExperience(lastMessage.content);
 
   // MUST STAY IN SYNC with SYSTEM_PROMPT in jordannedyck-ai/run_eval.py.
   // The eval harness carries a verbatim copy of this prompt; any drift silently
@@ -157,51 +193,58 @@ Third person, professional, direct. Concrete examples over generic statements. C
   };
 
   try {
-    const result = streamText({
-      model: openai(MODEL),
-      system: systemPrompt,
-      messages,
-      temperature: 0.7,
-      onChunk: ({ chunk }) => {
-        if (firstTokenAt === null && chunk.type === 'text-delta') {
-          firstTokenAt = Date.now();
+    return createDataStreamResponse({
+      execute: (dataStream) => {
+        if (process.env.EMIT_RETRIEVAL) {
+          dataStream.writeMessageAnnotation(retrieval);
         }
-      },
-      onFinish: async ({ text, usage }) => {
-        const promptTokens = usage.promptTokens ?? null;
-        const completionTokens = usage.completionTokens ?? null;
-        await logChatEvent({
-          ...baseEvent,
-          responseText: text,
-          promptTokens,
-          completionTokens,
-          costUsd:
-            promptTokens != null && completionTokens != null
-              ? estimateCostUsd(MODEL, promptTokens, completionTokens)
-              : null,
-          latencyMs: Date.now() - requestStart,
-          timeToFirstTokenMs: firstTokenAt ? firstTokenAt - requestStart : null,
-          error: null,
-          rateLimited: false,
+        const result = streamText({
+          model: openai(MODEL),
+          system: systemPrompt,
+          messages,
+          temperature: 0.7,
+          onChunk: ({ chunk }) => {
+            if (firstTokenAt === null && chunk.type === 'text-delta') {
+              firstTokenAt = Date.now();
+            }
+          },
+          onFinish: async ({ text, usage }) => {
+            const promptTokens = usage.promptTokens ?? null;
+            const completionTokens = usage.completionTokens ?? null;
+            await logChatEvent({
+              ...baseEvent,
+              responseText: text,
+              promptTokens,
+              completionTokens,
+              costUsd:
+                promptTokens != null && completionTokens != null
+                  ? estimateCostUsd(MODEL, promptTokens, completionTokens)
+                  : null,
+              latencyMs: Date.now() - requestStart,
+              timeToFirstTokenMs: firstTokenAt ? firstTokenAt - requestStart : null,
+              error: null,
+              rateLimited: false,
+            });
+          },
+          onError: async ({ error }) => {
+            const message = error instanceof Error ? error.message : String(error);
+            await logChatEvent({
+              ...baseEvent,
+              responseText: null,
+              promptTokens: null,
+              completionTokens: null,
+              costUsd: null,
+              latencyMs: Date.now() - requestStart,
+              timeToFirstTokenMs: null,
+              error: message.slice(0, 500),
+              rateLimited: false,
+            });
+          },
         });
-      },
-      onError: async ({ error }) => {
-        const message = error instanceof Error ? error.message : String(error);
-        await logChatEvent({
-          ...baseEvent,
-          responseText: null,
-          promptTokens: null,
-          completionTokens: null,
-          costUsd: null,
-          latencyMs: Date.now() - requestStart,
-          timeToFirstTokenMs: null,
-          error: message.slice(0, 500),
-          rateLimited: false,
-        });
+
+        result.mergeIntoDataStream(dataStream);
       },
     });
-
-    return result.toDataStreamResponse();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logChatEvent({
