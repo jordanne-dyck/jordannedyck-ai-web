@@ -1,8 +1,8 @@
 # jordbot-dev
 
 In-cluster dev mirror of the `jordbot` namespace. See
-`docs/superpowers/specs/2026-06-14-jordbot-dev-design.md` and
-`docs/superpowers/plans/2026-06-14-jordbot-dev.md`.
+`docs/archive/specs/2026-06-14-jordbot-dev-design.md` and
+`docs/archive/plans/2026-06-14-jordbot-dev.md`.
 
 ## Rebuild after a code change
 1. `git push` to the relevant GitHub repo (`master`).

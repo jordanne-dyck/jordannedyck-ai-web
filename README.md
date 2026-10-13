@@ -1,59 +1,48 @@
 # jordannedyck-ai-web
 
-Interactive AI resume website — a conversational chat interface where visitors can ask questions about my professional experience and get grounded, context-aware responses powered by GPT-4o and a RAG knowledge base.
+The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface where visitors ask about my professional experience. Answers are grounded in a knowledge base served by the [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) backend.
 
-## How It Works
+## How a question is answered
 
-The frontend sends user messages to a Next.js API route, which:
-1. Searches the [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) backend for relevant knowledge base context
-2. Injects the results into a system prompt with role-specific guidance
-3. Streams a GPT-4o response back to the chat interface
+1. The browser sends the conversation to `POST /api/chat`.
+2. The route checks the input (user and assistant turns only, 20 turns, 2,000 characters per message) and a per-IP rate limit (20 an hour, 100 a day).
+3. It sends the latest question to the backend's `/search`, which returns the 5 closest knowledge-base chunks.
+4. Those chunks go into the system prompt (`lib/system-prompt.ts`), and GPT-4o streams the answer back.
+5. Each request is logged to Postgres: question, answer, retrieval result, tokens, cost and latency. Rows are deleted after 180 days.
 
-## Features
+## Other pages
 
-- **Streaming chat** with markdown-rendered AI responses
-- **RAG-grounded answers** — responses are backed by a searchable knowledge base, not hallucinated
-- **Suggested prompts** that rotate as they're used
-- **SEO-optimized** with Open Graph tags, JSON-LD structured data, and sitemap
-- **Responsive design** with a clean, minimal aesthetic
+- `/dashboard`: public request, latency and cost metrics.
+- `/dashboard/admin`: per-request log, password protected.
+- `/api/health`: database, OpenAI key and backend status, polled by Checkly (`monitoring/`).
 
-## Tech Stack
+## Stack
 
-- **Next.js 16** (App Router) / **React 19** / **TypeScript**
-- **Tailwind CSS v4**
-- **Vercel AI SDK** + **OpenAI API** (GPT-4o, streaming)
-- **react-markdown** for response rendering
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Vercel AI SDK 4 with the OpenAI provider, Postgres, Recharts. Runs on OpenShift; built with Shipwright.
 
-## Setup
+## Run it locally
 
 ```bash
-npm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Add your OPENAI_API_KEY to .env.local
-
-# Start the backend API first (see jordannedyck-ai repo)
-# Then start the frontend
+npm install --legacy-peer-deps
+cp .env.example .env.local   # then add OPENAI_API_KEY
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the site.
+Start the [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) backend first on `localhost:5000`. Without `DATABASE_URL`, logging and rate limiting are skipped.
 
-> **Note:** The chat requires the [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) backend running on `localhost:5000` to serve knowledge base search results.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Project Structure
+## Layout
 
 ```
-app/
-├── page.tsx              # Chat interface and UI
-├── layout.tsx            # Root layout, metadata, SEO
-├── globals.css           # Tailwind theme and custom styles
-└── api/chat/route.ts     # Chat API endpoint (GPT-4o + RAG)
-public/
-└── ...                   # Static assets, favicon, sitemap
+app/            pages and API routes (api/chat, api/health, dashboard)
+lib/            server code: input checks, rate limit, logging, queries, system prompt
+db/schema.sql   chat_events table
+k8s/prod/       production manifests
+k8s/dev/        dev namespace and Shipwright builds
+k8s/postgres/   Postgres, migration job, retention cronjob
+monitoring/     Checkly checks
+docs/           deploy notes; docs/archive holds finished plans
 ```
 
-## Related
-
-- [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) — The RAG backend that powers the knowledge base search
+Deployment steps are in `CLAUDE.md`.

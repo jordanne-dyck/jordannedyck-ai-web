@@ -1,5 +1,5 @@
 # Stage 1: deps — install dependencies from lockfile
-FROM registry.access.redhat.com/ubi9/nodejs-20 AS deps
+FROM registry.access.redhat.com/ubi9/nodejs-24 AS deps
 
 WORKDIR /opt/app-root/src
 COPY package.json package-lock.json ./
@@ -7,7 +7,7 @@ RUN npm ci --legacy-peer-deps
 
 
 # Stage 2: builder — build the Next.js standalone output
-FROM registry.access.redhat.com/ubi9/nodejs-20 AS builder
+FROM registry.access.redhat.com/ubi9/nodejs-24 AS builder
 
 WORKDIR /opt/app-root/src
 COPY --from=deps /opt/app-root/src/node_modules ./node_modules
@@ -17,7 +17,7 @@ RUN OPENAI_API_KEY=build-placeholder npm run build
 
 
 # Stage 3: runtime — only the standalone output (~150-300MB final image)
-FROM registry.access.redhat.com/ubi9/nodejs-20
+FROM registry.access.redhat.com/ubi9/nodejs-24
 
 WORKDIR /opt/app-root/src
 

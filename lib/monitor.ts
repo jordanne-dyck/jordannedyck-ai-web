@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'crypto';
+import { safeEqual } from './safe-equal';
 import type { NextRequest } from 'next/server';
 
 // True when the request carries the x-monitor-token header and it matches
@@ -9,10 +9,7 @@ export function isMonitorRequest(req: NextRequest): boolean {
   const expected = process.env.MONITOR_TOKEN;
   const supplied = req.headers.get('x-monitor-token');
   if (!expected || !supplied) return false;
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  return safeEqual(supplied, expected);
 }
 
 export type KeyStatus = 'ok' | 'auth_failed' | 'unreachable';

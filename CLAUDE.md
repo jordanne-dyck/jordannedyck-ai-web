@@ -4,10 +4,10 @@ AI agent reference for developing and deploying jordbot. Read this before taking
 
 ## Repos and local paths
 
-| Repo | GitHub | Local path | Purpose |
-|---|---|---|---|
-| jordannedyck-ai | `github.com/jordanne-dyck/jordannedyck-ai` | `/home/peter/workdir/jordannedyck-ai` | Flask backend, port 5000 |
-| jordannedyck-ai-web | `github.com/jordanne-dyck/jordannedyck-ai-web` | `/home/peter/workdir/jordannedyck-ai-web` | Next.js frontend, port 3000 |
+| Repo | GitHub | Local path (Linux host) | Local path (Windows) | Purpose |
+|---|---|---|---|---|
+| jordannedyck-ai | `github.com/jordanne-dyck/jordannedyck-ai` | `/home/peter/workdir/jordannedyck-ai` | `C:\Users\Jord\jordannedyck-ai` | Flask backend, port 5000 |
+| jordannedyck-ai-web | `github.com/jordanne-dyck/jordannedyck-ai-web` | `/home/peter/workdir/jordannedyck-ai-web` | `C:\Users\Jord\jordannedyck-ai-web` | Next.js frontend, port 3000 |
 
 Both repos are **public**. The `master` branch is what Shipwright builds from.
 
@@ -61,6 +61,31 @@ Browser → Route (internal) → jordannedyck-ai-web :3000 (Next.js)
 ```
 
 Returns a streaming SSE response.
+
+### Observability and monitoring
+
+| Piece | Where | Detail |
+|---|---|---|
+| Chat event log | Postgres in `jordbot`, `k8s/postgres/` | One row per `/api/chat` request in `chat_events`. Schema: `db/schema.sql`. Setup: `k8s/postgres/README.md`, `docs/OBSERVABILITY_DEPLOY.md` |
+| Retention | `k8s/postgres/retention-cronjob.yaml` | 180 days. The notice under the chat box in `app/page.tsx` states the same figure; change both together |
+| Public dashboard | `/dashboard` | Aggregates only |
+| Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` |
+| Health | `/api/health` | Public summary; `?deep=1` with `x-monitor-token` adds anomaly stats |
+| Checkly checks | `monitoring/` | Own `package.json`; `npm test` / `npm run deploy` from that folder |
+
+Frontend environment variables: `OPENAI_API_KEY` (secret `openai-api-key`), `DATABASE_URL` (secret `app-database-url`), `IP_HASH_SALT` and `DASHBOARD_ADMIN_PASSWORD` (secret `app-observability`), `MONITOR_TOKEN`, `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; for evals only, never in prod).
+
+### Repo layout
+
+| Path | What |
+|---|---|
+| `app/` | Next.js pages and API routes (`api/chat`, `api/health`, `dashboard`) |
+| `lib/` | Server code. `system-prompt.ts` must stay byte-identical to `SYSTEM_PROMPT` in `jordannedyck-ai/run_eval.py` |
+| `k8s/prod/` | Production manifests (`jordbot`) |
+| `k8s/dev/` | Dev namespace, Shipwright builds (`jordbot-dev`) |
+| `k8s/postgres/` | Postgres, schema migration job, retention cronjob |
+| `monitoring/` | Checkly checks |
+| `docs/archive/` | Finished plans and specs, kept for history |
 
 ---
 
@@ -148,7 +173,7 @@ spec:
 EOF
 ```
 
-### 3. Wait for the build
+### 4. Wait for the build
 
 ```bash
 # Watch until SUCCEEDED=True (takes 3–8 minutes)
@@ -161,14 +186,14 @@ A build that stays in `Running` for more than 15 minutes is stalled — check lo
 oc -n jordbot-dev logs -l buildrun=<name> --all-containers
 ```
 
-### 4. Roll out the new image
+### 5. Roll out the new image
 
 ```bash
 oc -n jordbot-dev rollout restart deploy/jordannedyck-ai deploy/jordannedyck-ai-web
 oc -n jordbot-dev rollout status deploy/jordannedyck-ai deploy/jordannedyck-ai-web
 ```
 
-### 5. Verify
+### 6. Verify
 
 ```bash
 # Get the internal route URL
@@ -247,7 +272,7 @@ rm /tmp/.quay_pw
 
 ### 3. Update the k8s manifests
 
-Edit `k8s/deployment-api.yaml` and/or `k8s/deployment-web.yaml` in this repo to reference the new tag:
+Edit `k8s/prod/deployment-api.yaml` and/or `k8s/prod/deployment-web.yaml` in this repo to reference the new tag:
 
 ```yaml
 image: quay.nekohouse.ca:8443/peter/jordbot:v1.3       # backend
@@ -257,8 +282,8 @@ image: quay.nekohouse.ca:8443/peter/jordbot-web:v1.4   # frontend
 ### 4. Apply to production
 
 ```bash
-oc apply -f k8s/deployment-api.yaml -n jordbot
-oc apply -f k8s/deployment-web.yaml -n jordbot
+oc apply -f k8s/prod/deployment-api.yaml -n jordbot
+oc apply -f k8s/prod/deployment-web.yaml -n jordbot
 oc -n jordbot rollout status deploy/jordannedyck-ai deploy/jordannedyck-ai-web
 ```
 
@@ -275,7 +300,7 @@ oc -n jordbot get route jordbot -o jsonpath='{.spec.host}'
 ```bash
 cd /home/peter/workdir/jordannedyck-ai-web
 gitleaks git --no-banner   # always scan before push
-git add k8s/deployment-api.yaml k8s/deployment-web.yaml
+git add k8s/prod/deployment-api.yaml k8s/prod/deployment-web.yaml
 git commit -m "chore: bump prod image tags to vX.Y/vX.Z"
 git push origin master
 ```
