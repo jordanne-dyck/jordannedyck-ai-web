@@ -4,6 +4,7 @@ import type { EventRow } from '@/lib/queries';
 const tone = {
   abuse: 'bg-red-500/15 text-red-300',
   quality: 'bg-amber-500/10 text-amber-300',
+  positive: 'bg-emerald-500/15 text-emerald-300',
   button: 'bg-sky-500/15 text-sky-300',
   topic: 'bg-violet-500/15 text-violet-300',
   pending: 'bg-zinc-800 text-zinc-400',

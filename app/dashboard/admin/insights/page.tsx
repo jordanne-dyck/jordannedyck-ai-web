@@ -42,6 +42,7 @@ export default async function InsightsPage({
   const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '—');
   const logLink = (extra: string) => `/dashboard/admin?range=${range}&${extra}`;
   const abuse = quality.labels;
+  const votes = quality.labels.thumbs_up + quality.labels.thumbs_down;
 
   return (
     <AdminShell tab="insights">
@@ -63,7 +64,7 @@ export default async function InsightsPage({
       </div>
 
       <Section title={`Live answer quality (${quality.answered} answered questions)`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Card
             label="Grounded (judge)"
             value={pct(quality.judged.grounded, judged)}
@@ -81,6 +82,12 @@ export default async function InsightsPage({
             value={String(quality.firstPerson)}
             hint={'answered as "I" instead of "Jordanne"'}
             href={logLink('label=first_person')}
+          />
+          <Card
+            label="Visitor votes"
+            value={pct(quality.labels.thumbs_up, votes)}
+            hint={`thumbs up · ${quality.labels.thumbs_up} up · ${quality.labels.thumbs_down} down`}
+            href={logLink('label=thumbs_down')}
           />
           <Card
             label="Abuse labels"

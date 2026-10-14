@@ -13,13 +13,15 @@ export type LabelKey =
   | 'not_grounded'
   | 'pii'
   | 'oversize'
-  | 'thumbs_down';
+  | 'thumbs_down'
+  | 'thumbs_up';
 
 export type LabelDef = {
   key: LabelKey;
   name: string;
-  // 'abuse' labels are about the visitor; 'quality' labels are about the answer.
-  kind: 'abuse' | 'quality';
+  // 'abuse' labels are about the visitor; 'quality' labels are about the answer;
+  // 'positive' marks a good answer and never flags a turn.
+  kind: 'abuse' | 'quality' | 'positive';
   sql: string;
 };
 
@@ -52,6 +54,12 @@ export const LABELS: LabelDef[] = [
     name: 'Thumbs down',
     kind: 'quality',
     sql: `flags->'feedback'->>'vote' = 'down'`,
+  },
+  {
+    key: 'thumbs_up',
+    name: 'Thumbs up',
+    kind: 'positive',
+    sql: `flags->'feedback'->>'vote' = 'up'`,
   },
 ];
 
@@ -86,6 +94,8 @@ export function labelsOf(flags: Record<string, unknown>): LabelKey[] {
       }
     } else if (l.key === 'thumbs_down') {
       if ((flags.feedback as { vote?: string } | undefined)?.vote === 'down') out.push(l.key);
+    } else if (l.key === 'thumbs_up') {
+      if ((flags.feedback as { vote?: string } | undefined)?.vote === 'up') out.push(l.key);
     } else if (flags[l.key] === true) {
       out.push(l.key);
     }
