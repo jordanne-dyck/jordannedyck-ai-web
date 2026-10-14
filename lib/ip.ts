@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
-import { NextRequest } from 'next/server';
-
-export function getClientIp(req: NextRequest): string {
+// Takes a request or a bare headers holder, so server actions (which only
+// have next/headers) resolve the IP the same way as route handlers.
+export function getClientIp(req: { headers: { get(name: string): string | null } }): string {
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) {
     return fwd.split(',')[0].trim();

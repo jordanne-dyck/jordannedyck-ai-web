@@ -68,3 +68,34 @@ ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS flags            JSONB NOT NULL
 
 CREATE INDEX IF NOT EXISTS idx_chat_events_synthetic
   ON chat_events (is_synthetic, created_at DESC);
+
+-- Dashboard v2 columns (site-monitoring plan, "Dashboard v2", 2026-10-14).
+-- Additive and idempotent, like the block above.
+-- Time spent in searchExperience(), so time_to_first_token_ms can be split
+-- into search time and model time.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS retrieval_ms     INTEGER;
+-- 'button' | 'typed', as sent by app/page.tsx. NULL on rows from before
+-- 2026-10-14 and on requests that don't say (Checkly, eval runners).
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS source           TEXT;
+-- Short hash of the system-prompt template (lib/prompt-version.ts), so a
+-- quality change can be traced to a prompt edit.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS prompt_version   TEXT;
+-- Fingerprint of the FAISS index that answered. NULL until the backend's
+-- /search reports one.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS index_version    TEXT;
+
+-- The conversation view reads a session's rows in order.
+CREATE INDEX IF NOT EXISTS idx_chat_events_session_asc
+  ON chat_events (session_id, created_at);
+
+-- One row per admin login attempt. lib/admin-login-limit.ts locks an IP hash
+-- out after repeated failures; the admin anomaly banner shows them.
+CREATE TABLE IF NOT EXISTS admin_login_attempts (
+  id          BIGSERIAL PRIMARY KEY,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ip_hash     TEXT NOT NULL,
+  success     BOOLEAN NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_login_attempts_ip
+  ON admin_login_attempts (ip_hash, created_at DESC);

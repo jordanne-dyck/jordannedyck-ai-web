@@ -5,13 +5,59 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
+import { initAnalytics, track, clientId } from '@/lib/analytics';
+import { Feedback } from '@/app/components/Feedback';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
 
+// Read only from event handlers; outside the component so the React
+// compiler's purity rule does not mistake a click handler for render code.
+const now = () => Date.now();
+
+// The logged row id, from the `event` annotation the chat route sends once
+// the answer is stored. Absent for answers that were not logged.
+function rowIdOf(annotations: unknown[] | undefined): string | null {
+  for (const a of annotations ?? []) {
+    const ev = a as { type?: unknown; id?: unknown } | null;
+    if (ev?.type === 'event' && typeof ev.id === 'string') return ev.id;
+  }
+  return null;
+}
+
 export default function Home() {
+  // When the current answer was requested, for stream_completed/abandoned timing.
+  const sentAt = useRef<number | null>(null);
+
   const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
     api: '/api/chat',
+    onFinish: () => {
+      if (sentAt.current !== null) {
+        track({ name: 'stream_completed', props: { ms_elapsed: now() - sentAt.current } });
+        sentAt.current = null;
+      }
+    },
+    // A failed answer is logged server-side; it is not an abandon.
+    onError: () => {
+      sentAt.current = null;
+    },
   });
+
+  useEffect(() => {
+    initAnalytics();
+    // Closing or leaving the tab mid-answer. sendBeacon survives the unload.
+    const onPageHide = () => {
+      if (sentAt.current !== null) {
+        track(
+          { name: 'stream_abandoned', props: { ms_elapsed: now() - sentAt.current } },
+          { beacon: true },
+        );
+        sentAt.current = null;
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -31,23 +77,18 @@ export default function Home() {
     userScrolledUp.current = distanceFromBottom > 80;
   };
 
-  const allPrompts = [
-    "How has Jordanne demonstrated systems thinking?",
-    "What did Jordanne build herself, hands on keyboard?",
-    "Why did Jordanne turn the store off for Black Friday?",
-    "How does Jordanne prove an idea before the data exists?",
-    "Why does Jordanne say your next customer never sees your interface?",
-    "What is the instinct that drives Jordanne to build?",
-    "What is Jordanne's process for moving from concept to production?",
-    "What is FundLocal and why did Jordanne build it?",
-    "How does Jordanne work with engineers and designers as a counterpart?"
-  ];
+  const allPrompts = SUGGESTED_QUESTIONS;
 
   const visiblePrompts = allPrompts.filter((_, index) => !usedPrompts.has(index));
 
   const handlePromptClick = (prompt: string, index: number) => {
     setUsedPrompts(prev => new Set([...prev, index]));
-    append({ role: 'user', content: prompt });
+    track({ name: 'chip_clicked', props: { index, text: prompt } });
+    track({ name: 'message_sent', props: { source: 'chip' } });
+    sentAt.current = now();
+    // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
+    // `clientId` joins the row to its PostHog session (Phase 2).
+    append({ role: 'user', content: prompt }, { body: { source: 'button', clientId: clientId() } });
   };
 
   return (
@@ -96,7 +137,8 @@ export default function Home() {
           </div>
 
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-2xl border border-[#E0E0DB] overflow-hidden flex flex-col h-full" role="region" aria-label="AI Chat Assistant">
-            <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4" role="log" aria-live="polite" aria-atomic="false">
+            {/* ph-mask: session replay records this area's layout, not its words. */}
+            <div ref={chatContainerRef} onScroll={handleScroll} className="ph-mask flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4" role="log" aria-live="polite" aria-atomic="false">
               {messages.length === 0 && (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center max-w-md px-4 space-y-3">
@@ -125,7 +167,10 @@ export default function Home() {
                     {message.role === 'user' ? (
                       message.content
                     ) : (
-                      <div className="ai-message">
+                      <div
+                        className="ai-message"
+                        onCopy={() => track({ name: 'answer_copied', props: {} })}
+                      >
                         <ReactMarkdown
                           components={{
                             p: ({ node: _node, ...props }) => (
@@ -150,6 +195,10 @@ export default function Home() {
                         >
                           {message.content}
                         </ReactMarkdown>
+                        {(() => {
+                          const rowId = rowIdOf(message.annotations);
+                          return rowId ? <Feedback rowId={rowId} /> : null;
+                        })()}
                       </div>
                     )}
                   </div>
@@ -172,7 +221,17 @@ export default function Home() {
 
             <div className="flex-shrink-0 border-t border-[#E0E0DB] bg-white/40 backdrop-blur-sm">
               <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                <form onSubmit={handleSubmit} className="flex gap-2" aria-label="Chat with AI assistant">
+                <form
+                  onSubmit={(e) => {
+                    if (input.trim()) {
+                      track({ name: 'message_sent', props: { source: 'typed' } });
+                      sentAt.current = now();
+                    }
+                    handleSubmit(e, { body: { source: 'typed', clientId: clientId() } });
+                  }}
+                  className="flex gap-2"
+                  aria-label="Chat with AI assistant"
+                >
                   <input
                     value={input}
                     onChange={handleInputChange}

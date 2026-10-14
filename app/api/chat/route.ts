@@ -4,12 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { getOrCreateSessionId } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { logChatEvent } from '@/lib/logging';
+import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
-import { parseChatInput, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
+import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
+import { PROMPT_VERSION } from '@/lib/prompt-version';
 
 const MODEL = 'gpt-4o';
 
@@ -44,10 +46,19 @@ type SearchResult = {
   metadata: { filename?: string; category?: string; chunk_id?: string };
 };
 
+// Stored with the event, never sent to the client.
+type RetrievalMeta = {
+  // KB category of the best match: the free topic label (decided 2026-10-14).
+  topCategory: string | null;
+  // Reported by the backend's /search once it exposes one; null until then.
+  indexVersion: string | null;
+};
+
 async function searchExperience(
   query: string,
-): Promise<{ context: string; retrieval: RetrievalAnnotation }> {
+): Promise<{ context: string; retrieval: RetrievalAnnotation; meta: RetrievalMeta }> {
   const apiUrl = backendUrl();
+  const noMeta: RetrievalMeta = { topCategory: null, indexVersion: null };
   try {
     const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
@@ -55,7 +66,8 @@ async function searchExperience(
       body: JSON.stringify({ query, n_results: 5 })
     });
 
-    const data: { results?: SearchResult[] } = await response.json();
+    const data: { results?: SearchResult[]; index_version?: string } = await response.json();
+    const indexVersion = typeof data.index_version === 'string' ? data.index_version : null;
 
     if (data.results && data.results.length > 0) {
       const context = data.results
@@ -72,20 +84,41 @@ async function searchExperience(
         similarity: Math.round(r.similarity * 10000) / 10000,
         content: r.content,
       }));
-      return { context, retrieval: { type: 'retrieval', status: 'ok', chunks } };
+      const best = data.results.reduce((a, b) => (b.similarity > a.similarity ? b : a));
+      return {
+        context,
+        retrieval: { type: 'retrieval', status: 'ok', chunks },
+        meta: { topCategory: best.metadata.category ?? null, indexVersion },
+      };
     }
 
     return {
       context: 'No relevant information found.',
       retrieval: { type: 'retrieval', status: 'empty', chunks: [] },
+      meta: { ...noMeta, indexVersion },
     };
   } catch (error) {
     console.error('Search error:', error);
     return {
       context: 'Unable to search knowledge base.',
       retrieval: { type: 'retrieval', status: 'error', chunks: [] },
+      meta: noMeta,
     };
   }
+}
+
+// Every row goes through here: visitors' emails and phone numbers are
+// replaced before storage (decided 2026-10-14), and the row is labelled.
+function logRedacted(event: ChatEvent): Promise<string | null> {
+  const q = redactPii(event.query);
+  const r = event.responseText == null ? null : redactPii(event.responseText);
+  const pii = q.found || r?.found;
+  return logChatEvent({
+    ...event,
+    query: q.text,
+    responseText: r ? r.text : null,
+    flags: pii ? { ...event.flags, pii: true } : event.flags,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -101,6 +134,8 @@ export async function POST(req: NextRequest) {
   const { sessionId } = await getOrCreateSessionId();
   const userAgent = req.headers.get('user-agent');
   const isSynthetic = isMonitorRequest(req);
+  const source = parseSource(body);
+  const clientId = parseClientId(body);
   const query = input.lastUserContent;
   const elapsed = () => Date.now() - requestStart;
 
@@ -113,17 +148,21 @@ export async function POST(req: NextRequest) {
     model: MODEL,
     turnIndex: input.turnIndex,
     isSynthetic,
+    source,
+    clientId,
+    promptVersion: PROMPT_VERSION,
     ...NO_RESPONSE,
   };
 
   // Monitor requests skip the rate limit so Checkly never trips it.
   const limit = isSynthetic ? { allowed: true as const } : await checkRateLimit(ipHash);
   if (!limit.allowed) {
-    logChatEvent({
+    logRedacted({
       ...rejectedEvent,
       latencyMs: elapsed(),
       error: `rate_limited:${limit.reason}`,
       rateLimited: true,
+      flags: freeLabels(query, null),
     });
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please try again later.' },
@@ -132,12 +171,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (!input.ok) {
-    logChatEvent({
+    logRedacted({
       ...rejectedEvent,
       latencyMs: elapsed(),
       error: 'rejected:oversize',
       rateLimited: false,
-      flags: { oversize: true, oversize_reason: input.reason },
+      flags: { ...freeLabels(query, null), oversize: true, oversize_reason: input.reason },
     });
     return NextResponse.json(
       { error: 'Message or conversation too long. Please start a new conversation.' },
@@ -146,7 +185,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { messages, turnIndex } = input;
-  const { context, retrieval } = await searchExperience(query);
+  const searchStart = Date.now();
+  const { context, retrieval, meta } = await searchExperience(query);
+  const retrievalMs = Date.now() - searchStart;
 
   const systemPrompt = buildSystemPrompt(context);
 
@@ -157,6 +198,13 @@ export async function POST(req: NextRequest) {
     ipHash,
     userAgent,
     query,
+    queryLength: query.length,
+    source,
+    clientId,
+    promptVersion: PROMPT_VERSION,
+    indexVersion: meta.indexVersion,
+    retrievalMs,
+    topicTags: meta.topCategory ? [meta.topCategory] : null,
     model: MODEL,
     turnIndex,
     retrievalStatus: retrieval.status,
@@ -171,9 +219,10 @@ export async function POST(req: NextRequest) {
   };
 
   const logFailure = (err: unknown) =>
-    logChatEvent({
+    logRedacted({
       ...baseEvent,
       ...NO_RESPONSE,
+      flags: { ...baseEvent.flags, ...freeLabels(query, null) },
       latencyMs: elapsed(),
       error: (err instanceof Error ? err.message : String(err)).slice(0, 500),
       rateLimited: false,
@@ -198,8 +247,9 @@ export async function POST(req: NextRequest) {
           onFinish: async ({ text, usage }) => {
             const promptTokens = usage.promptTokens ?? null;
             const completionTokens = usage.completionTokens ?? null;
-            await logChatEvent({
+            const rowId = await logRedacted({
               ...baseEvent,
+              flags: { ...baseEvent.flags, ...freeLabels(query, text) },
               responseText: text,
               promptTokens,
               completionTokens,
@@ -212,8 +262,28 @@ export async function POST(req: NextRequest) {
               error: null,
               rateLimited: false,
             });
+            // The row id lets the visitor rate this answer (POST /api/feedback,
+            // which also checks the jb_sid cookie). Not sent to Checkly, which
+            // never rates, so the monitor stream is unchanged.
+            if (rowId && !isSynthetic) {
+              dataStream.writeMessageAnnotation({ type: 'event', id: rowId });
+            }
+            // Paid labels run after the insert and update the row. Skipped for
+            // Checkly's test chats, which would only pay to label a fixed question.
+            if (rowId && !isSynthetic) {
+              const userTurns = messages.filter((m) => m.role === 'user');
+              void paidLabels({
+                rowId,
+                query,
+                previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
+                answer: text,
+                chunks: retrieval.chunks.map((c) => c.content),
+              });
+            }
           },
-          onError: ({ error }) => logFailure(error),
+          onError: async ({ error }) => {
+            await logFailure(error);
+          },
         });
 
         result.mergeIntoDataStream(dataStream);

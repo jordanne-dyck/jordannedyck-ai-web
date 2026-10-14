@@ -1,6 +1,7 @@
 import { loginAction } from './actions';
+import { WINDOW_MINUTES } from '@/lib/admin-login-limit';
 
-export function LoginForm({ error }: { error: boolean }) {
+export function LoginForm({ error }: { error: 'wrong' | 'locked' | null }) {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto flex max-w-sm flex-col gap-4 px-6 py-24">
@@ -17,8 +18,13 @@ export function LoginForm({ error }: { error: boolean }) {
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-zinc-500"
             placeholder="Password"
           />
-          {error && (
+          {error === 'wrong' && (
             <p className="text-xs text-red-400">Incorrect password.</p>
+          )}
+          {error === 'locked' && (
+            <p className="text-xs text-red-400">
+              Too many wrong passwords. Try again in {WINDOW_MINUTES} minutes.
+            </p>
           )}
           <button
             type="submit"

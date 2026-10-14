@@ -24,11 +24,18 @@ export type ChatEvent = {
   isSynthetic?: boolean;
   clientId?: string | null;
   flags?: Record<string, unknown>;
+  // Dashboard v2 fields (2026-10-14).
+  retrievalMs?: number | null;
+  source?: 'button' | 'typed' | null;
+  promptVersion?: string | null;
+  indexVersion?: string | null;
+  topicTags?: string[] | null;
 };
 
 // Fire-and-forget: errors are logged but do not propagate to the chat response.
-// A logging failure should never break the chatbot.
-export async function logChatEvent(event: ChatEvent): Promise<void> {
+// A logging failure should never break the chatbot. Resolves to the new row's
+// id, or null when nothing was written, so the paid labels can update the row.
+export async function logChatEvent(event: ChatEvent): Promise<string | null> {
   // Local development without a database: skip silently. The catch below already
   // prevents a dead pool from breaking the response, so this guard exists only to keep
   // the dev console clean — "no pg errors in the console" is the verification step for
@@ -39,11 +46,11 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
   // observability path this branch exists to add is NOT exercised on this run. Any
   // deployed environment sets DATABASE_URL, so production behaviour is unchanged.
   if (!process.env.DATABASE_URL) {
-    return;
+    return null;
   }
 
   try {
-    await pool.query(
+    const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO chat_events (
          session_id, ip_hash, user_agent,
          query, query_length,
@@ -51,7 +58,8 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
          latency_ms, time_to_first_token_ms,
          error, rate_limited,
          response_text, turn_index, retrieval_status, chunk_ids, top_similarity,
-         is_synthetic, client_id, flags
+         is_synthetic, client_id, flags,
+         retrieval_ms, source, prompt_version, index_version, topic_tags
        ) VALUES (
          $1, $2, $3,
          $4, $5,
@@ -59,8 +67,10 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
          $11, $12,
          $13, $14,
          $15, $16, $17, $18, $19,
-         $20, $21, $22
-       )`,
+         $20, $21, $22,
+         $23, $24, $25, $26, $27
+       )
+       RETURNING id::TEXT AS id`,
       [
         event.sessionId,
         event.ipHash,
@@ -84,9 +94,16 @@ export async function logChatEvent(event: ChatEvent): Promise<void> {
         event.isSynthetic ?? false,
         event.clientId ?? null,
         JSON.stringify(event.flags ?? {}),
+        event.retrievalMs ?? null,
+        event.source ?? null,
+        event.promptVersion ?? null,
+        event.indexVersion ?? null,
+        event.topicTags ?? null,
       ],
     );
+    return rows[0]?.id ?? null;
   } catch (err) {
     console.error('logChatEvent failed:', err);
+    return null;
   }
 }

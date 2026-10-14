@@ -8,6 +8,14 @@ import { monitorTokenHeader, monitorTokenVariable } from './monitor-token'
 //   errors     < 3
 //   top IP     under 10 requests (topIpHashLastHour is null below that)
 //   retrieval failure rate < 50%
+// Labels, last 24 hours (Phase 3 thresholds, added 2026-10-14):
+//   injection, prompt leak, moderation: none
+//   off-topic: at most 5
+// Answer quality, last 24 hours: no breaches. The thresholds and the minimum
+// number of answers live in lib/thresholds.ts; the site computes the breaches
+// because a Checkly assertion cannot say "only when there were enough answers".
+// A label stays in the 24-hour window for a day, so the check stays failing
+// that long; Checkly emails on the change, not on every run.
 new ApiCheck('abuse-thresholds', {
   name: 'Abuse and error thresholds',
   frequency: Frequency.EVERY_15M,
@@ -25,6 +33,11 @@ new ApiCheck('abuse-thresholds', {
       AssertionBuilder.jsonBody('$.anomalies.errorsLastHour').lessThan(3),
       AssertionBuilder.jsonBody('$.anomalies.topIpHashLastHour').isNull(),
       AssertionBuilder.jsonBody('$.stats.retrievalFailureRateLastHour').lessThan(0.5),
+      AssertionBuilder.jsonBody('$.labels24h.injection').lessThan(1),
+      AssertionBuilder.jsonBody('$.labels24h.prompt_leak').lessThan(1),
+      AssertionBuilder.jsonBody('$.labels24h.moderation').lessThan(1),
+      AssertionBuilder.jsonBody('$.labels24h.off_topic').lessThan(6),
+      AssertionBuilder.jsonBody('$.quality24h.breachCount').lessThan(1),
     ],
   },
 })
