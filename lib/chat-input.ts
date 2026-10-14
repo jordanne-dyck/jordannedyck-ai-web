@@ -75,3 +75,11 @@ export function parseChatInput(body: unknown): ParsedChatInput {
 
   return { ok: true, messages, lastUserContent: last.content, turnIndex, droppedRoles };
 }
+
+// Where the question came from, as sent by app/page.tsx: a suggested-question
+// button or the text box. Anything else (Checkly, eval runners, old clients)
+// is recorded as unknown (NULL). Added 2026-10-14 for button analytics.
+export function parseSource(body: unknown): 'button' | 'typed' | null {
+  const source = (body as { source?: unknown })?.source;
+  return source === 'button' || source === 'typed' ? source : null;
+}

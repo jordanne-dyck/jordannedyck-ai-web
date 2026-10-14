@@ -31,3 +31,12 @@ spec:
         envFrom:
         - secretRef:
             name: openai-api-key
+        # Dev Postgres and observability settings (60-postgres.yaml, README.md).
+        # Optional, so the pod still starts before Peter creates them; without
+        # app-database-url nothing is logged and the dashboards error.
+        - secretRef:
+            name: app-database-url
+            optional: true
+        - secretRef:
+            name: app-observability
+            optional: true

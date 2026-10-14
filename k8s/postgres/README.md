@@ -109,3 +109,29 @@ oc -n jordbot get cronjob chat-events-retention
 curl -s https://www.jordannedyck.com/api/health
 # -> {"ok":...,"db":true,"openai":"ok","backend":{...}}
 ```
+
+## Dashboard v2 rollout (site-monitoring plan, 2026-10-14)
+
+Order matters again: the v2 web image writes `retrieval_ms`, `source`,
+`prompt_version`, `index_version` and `admin_login_attempts`, which exist only
+after the migration.
+
+1. Test in `jordbot-dev` first (see `k8s/dev/README.md`, "Postgres in dev").
+2. Re-run the migration in `jordbot` (see "Re-running the migration").
+3. Roll out the v2 web image.
+4. Re-apply the retention job, which now also prunes `admin_login_attempts`:
+   `oc apply -f k8s/postgres/retention-cronjob.yaml`
+5. Backups: decide where dumps live first (see the comment at the top of
+   `backup-cronjob.yaml`), then `oc apply -f k8s/postgres/backup-cronjob.yaml`.
+
+Verify the backup by restoring it, not by the job's status:
+
+```bash
+oc -n jordbot create job --from=cronjob/postgres-backup postgres-backup-manual
+oc -n jordbot wait --for=condition=complete job/postgres-backup-manual --timeout=300s
+oc -n jordbot logs job/postgres-backup-manual      # shows the dump file and its size
+```
+
+Then restore that dump into a scratch database and compare
+`SELECT COUNT(*) FROM chat_events` against the live table. The counts should
+match, allowing for rows written since the dump.

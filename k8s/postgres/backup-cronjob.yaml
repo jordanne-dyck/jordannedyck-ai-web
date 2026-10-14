@@ -1,0 +1,82 @@
+# Nightly pg_dump of the monitoring database (site-monitoring plan, 2026-10-14).
+# chat_events is the only copy of every conversation and label; without this a
+# lost postgres-data volume loses all history.
+#
+# Dumps go to the postgres-backups PVC below, keeping the last 14 nights.
+# STORAGE IS PETER'S CALL: a PVC on the same NFS server as postgres-data does
+# not survive losing that server. Point the volume somewhere independent, or
+# copy the dumps off-cluster, before relying on it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backups
+  namespace: jordbot
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: jordbot
+  labels:
+    app: postgres
+spec:
+  schedule: "0 6 * * *"  # 06:00 UTC daily, before the 07:30 retention job
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: quay.io/sclorg/postgresql-16-c9s:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  out="/backups/monitoring-$(date -u +%Y-%m-%d).dump"
+                  PGPASSWORD="$POSTGRESQL_PASSWORD" pg_dump \
+                    -h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" \
+                    --format=custom --file="$out.partial"
+                  mv "$out.partial" "$out"
+                  ls -l "$out"
+                  # Keep the newest 14 dumps.
+                  ls -1t /backups/monitoring-*.dump | tail -n +15 | xargs -r rm --
+              env:
+                - name: POSTGRESQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_USER
+                - name: POSTGRESQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRESQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_DB
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: postgres-backups

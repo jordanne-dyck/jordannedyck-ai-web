@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
 
@@ -31,23 +32,14 @@ export default function Home() {
     userScrolledUp.current = distanceFromBottom > 80;
   };
 
-  const allPrompts = [
-    "How has Jordanne demonstrated systems thinking?",
-    "What did Jordanne build herself, hands on keyboard?",
-    "Why did Jordanne turn the store off for Black Friday?",
-    "How does Jordanne prove an idea before the data exists?",
-    "Why does Jordanne say your next customer never sees your interface?",
-    "What is the instinct that drives Jordanne to build?",
-    "What is Jordanne's process for moving from concept to production?",
-    "What is FundLocal and why did Jordanne build it?",
-    "How does Jordanne work with engineers and designers as a counterpart?"
-  ];
+  const allPrompts = SUGGESTED_QUESTIONS;
 
   const visiblePrompts = allPrompts.filter((_, index) => !usedPrompts.has(index));
 
   const handlePromptClick = (prompt: string, index: number) => {
     setUsedPrompts(prev => new Set([...prev, index]));
-    append({ role: 'user', content: prompt });
+    // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
+    append({ role: 'user', content: prompt }, { body: { source: 'button' } });
   };
 
   return (
@@ -172,7 +164,11 @@ export default function Home() {
 
             <div className="flex-shrink-0 border-t border-[#E0E0DB] bg-white/40 backdrop-blur-sm">
               <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                <form onSubmit={handleSubmit} className="flex gap-2" aria-label="Chat with AI assistant">
+                <form
+                  onSubmit={(e) => handleSubmit(e, { body: { source: 'typed' } })}
+                  className="flex gap-2"
+                  aria-label="Chat with AI assistant"
+                >
                   <input
                     value={input}
                     onChange={handleInputChange}
