@@ -83,3 +83,11 @@ export function parseSource(body: unknown): 'button' | 'typed' | null {
   const source = (body as { source?: unknown })?.source;
   return source === 'button' || source === 'typed' ? source : null;
 }
+
+// PostHog's anonymous distinct id, sent by app/page.tsx when PostHog is loaded,
+// so chat_events.client_id joins a row to its session replay. Free text from
+// the client, so only a short id-shaped value is kept. Added 2026-10-14.
+export function parseClientId(body: unknown): string | null {
+  const id = (body as { clientId?: unknown })?.clientId;
+  return typeof id === 'string' && /^[A-Za-z0-9._-]{1,100}$/.test(id) ? id : null;
+}

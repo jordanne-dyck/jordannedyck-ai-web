@@ -729,7 +729,7 @@ export async function getSessionEvents(sessionId: string): Promise<EventRow[]> {
 // ── What to fix ──────────────────────────────────────────────────────────────
 
 export type FixItem = {
-  kind: 'gap_strong' | 'weak_match' | 'not_grounded' | 'rephrased' | 'slow_search';
+  kind: 'gap_strong' | 'weak_match' | 'not_grounded' | 'thumbs_down' | 'rephrased' | 'slow_search';
   why: string;
   headline: string;
   detail: string;
@@ -755,11 +755,15 @@ function overlap(a: string, b: string): number {
 // candidates only; nothing here changes the prompt, the KB or the eval set.
 export async function getFixList(days = 30): Promise<FixItem[]> {
   const grouped = (cond: string) =>
-    pool.query<{ q: string; example: string; count: string; ids: string[]; sim: number | null; reason: string | null }>(
+    pool.query<{
+      q: string; example: string; count: string; ids: string[];
+      sim: number | null; reason: string | null; note: string | null;
+    }>(
       `SELECT LOWER(BTRIM(query)) AS q, MIN(query) AS example, COUNT(*)::TEXT AS count,
               ARRAY_AGG(id::TEXT ORDER BY created_at DESC) AS ids,
               MAX(top_similarity) AS sim,
-              MIN(flags->'judge'->>'reason') AS reason
+              MIN(flags->'judge'->>'reason') AS reason,
+              MIN(flags->'feedback'->>'note') AS note
          FROM chat_events
          WHERE ${ANSWERED} AND ${sinceDays(days)} AND ${cond}
          GROUP BY 1
@@ -767,10 +771,11 @@ export async function getFixList(days = 30): Promise<FixItem[]> {
          LIMIT 20`,
     );
 
-  const [gapStrong, weak, ungrounded, pairs, slow] = await Promise.all([
+  const [gapStrong, weak, ungrounded, thumbsDown, pairs, slow] = await Promise.all([
     grouped(`${LABEL_BY_KEY.gap_declared.sql} AND top_similarity >= ${STRONG_MATCH}`),
     grouped(`(retrieval_status = 'empty' OR (retrieval_status = 'ok' AND top_similarity < ${WEAK_MATCH}))`),
     grouped(LABEL_BY_KEY.not_grounded.sql),
+    grouped(LABEL_BY_KEY.thumbs_down.sql),
     // Consecutive turns where the follow-up was sent within REPHRASE_SECONDS
     // of the first answer finishing.
     pool.query<{ a_id: string; a_q: string; b_id: string; b_q: string }>(
@@ -831,6 +836,16 @@ export async function getFixList(days = 30): Promise<FixItem[]> {
       why: 'Judge: not grounded',
       headline: r.example,
       detail: r.reason ?? 'The answer made claims the retrieved chunks do not support.',
+      count: Number(r.count),
+      rowIds: r.ids,
+    });
+  }
+  for (const r of thumbsDown.rows) {
+    items.push({
+      kind: 'thumbs_down',
+      why: 'Visitor voted thumbs down',
+      headline: r.example,
+      detail: r.note ? `Note: "${r.note}"` : 'No note left. Read the answer in the row.',
       count: Number(r.count),
       rowIds: r.ids,
     });

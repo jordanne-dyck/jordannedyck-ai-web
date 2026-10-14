@@ -7,7 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
-import { parseChatInput, parseSource, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
   const userAgent = req.headers.get('user-agent');
   const isSynthetic = isMonitorRequest(req);
   const source = parseSource(body);
+  const clientId = parseClientId(body);
   const query = input.lastUserContent;
   const elapsed = () => Date.now() - requestStart;
 
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
     turnIndex: input.turnIndex,
     isSynthetic,
     source,
+    clientId,
     promptVersion: PROMPT_VERSION,
     ...NO_RESPONSE,
   };
@@ -198,6 +200,7 @@ export async function POST(req: NextRequest) {
     query,
     queryLength: query.length,
     source,
+    clientId,
     promptVersion: PROMPT_VERSION,
     indexVersion: meta.indexVersion,
     retrievalMs,
@@ -259,6 +262,12 @@ export async function POST(req: NextRequest) {
               error: null,
               rateLimited: false,
             });
+            // The row id lets the visitor rate this answer (POST /api/feedback,
+            // which also checks the jb_sid cookie). Not sent to Checkly, which
+            // never rates, so the monitor stream is unchanged.
+            if (rowId && !isSynthetic) {
+              dataStream.writeMessageAnnotation({ type: 'event', id: rowId });
+            }
             // Paid labels run after the insert and update the row. Skipped for
             // Checkly's test chats, which would only pay to label a fixed question.
             if (rowId && !isSynthetic) {

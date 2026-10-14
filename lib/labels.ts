@@ -12,7 +12,8 @@ export type LabelKey =
   | 'phone'
   | 'not_grounded'
   | 'pii'
-  | 'oversize';
+  | 'oversize'
+  | 'thumbs_down';
 
 export type LabelDef = {
   key: LabelKey;
@@ -45,6 +46,13 @@ export const LABELS: LabelDef[] = [
   },
   { key: 'pii', name: 'Personal details', kind: 'abuse', sql: flag('pii') },
   { key: 'oversize', name: 'Oversize', kind: 'abuse', sql: flag('oversize') },
+  // The visitor's own vote, written by POST /api/feedback (Phase 2).
+  {
+    key: 'thumbs_down',
+    name: 'Thumbs down',
+    kind: 'quality',
+    sql: `flags->'feedback'->>'vote' = 'down'`,
+  },
 ];
 
 export const LABEL_BY_KEY = Object.fromEntries(LABELS.map((l) => [l.key, l])) as Record<
@@ -64,6 +72,7 @@ export const FLAGGING_LABELS: LabelKey[] = [
   'first_person',
   'phone',
   'not_grounded',
+  'thumbs_down',
 ];
 
 export function labelsOf(flags: Record<string, unknown>): LabelKey[] {
@@ -75,6 +84,8 @@ export function labelsOf(flags: Record<string, unknown>): LabelKey[] {
       if ((flags.judge as { verdict?: string } | undefined)?.verdict === 'not_grounded') {
         out.push(l.key);
       }
+    } else if (l.key === 'thumbs_down') {
+      if ((flags.feedback as { vote?: string } | undefined)?.vote === 'down') out.push(l.key);
     } else if (flags[l.key] === true) {
       out.push(l.key);
     }

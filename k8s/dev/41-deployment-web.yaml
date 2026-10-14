@@ -28,6 +28,12 @@ spec:
           value: "http://jordannedyck-ai:5000"
         - name: NODE_ENV
           value: "production"
+        # PostHog (site-monitoring plan, Phase 2). The project token is public by
+        # design: it can send events, not read them. The project is in the EU region.
+        - name: POSTHOG_PROJECT_TOKEN
+          value: "phc_qco9d4iBCQxQptgYCHXbvBfp2sYvNAToijuoSy2kN9QX"
+        - name: POSTHOG_HOST
+          value: "https://eu.i.posthog.com"
         envFrom:
         - secretRef:
             name: openai-api-key
