@@ -135,3 +135,16 @@ oc -n jordbot logs job/postgres-backup-manual      # shows the dump file and its
 Then restore that dump into a scratch database and compare
 `SELECT COUNT(*) FROM chat_events` against the live table. The counts should
 match, allowing for rows written since the dump.
+
+## Citations rollout (2026-10-15)
+
+Order matters: the citations web image writes and reads `cited_chunk_ids`,
+which exists only after the migration. If the image goes first, every
+`chat_events` insert fails (the chat keeps working, the rows are lost) and the
+admin views error until the migration runs.
+
+1. Test in `jordbot-dev` first (see `k8s/dev/README.md`, "Postgres in dev").
+2. Re-run the migration in `jordbot` (see "Re-running the migration").
+3. Confirm the column exists before rolling out:
+   `oc exec -n jordbot deploy/postgres -- psql -U jordbot -d monitoring -c '\d chat_events' | grep cited_chunk_ids`
+4. Roll out the web image.

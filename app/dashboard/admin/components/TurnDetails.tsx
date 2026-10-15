@@ -36,6 +36,8 @@ export function TurnDetails({ row, ipHref }: { row: EventRow; ipHref?: string })
         </dd>
         <dt className="text-zinc-500">Chunk ids</dt>
         <dd className="font-mono break-all">{row.chunkIds?.length ? row.chunkIds.join(', ') : '—'}</dd>
+        <dt className="text-zinc-500">Cited ids</dt>
+        <dd className="font-mono break-all">{row.citedChunkIds?.length ? row.citedChunkIds.join(', ') : '—'}</dd>
         <dt className="text-zinc-500">Judge</dt>
         <dd>
           <JudgeVerdict row={row} />

@@ -84,6 +84,12 @@ ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS prompt_version   TEXT;
 -- /search reports one.
 ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS index_version    TEXT;
 
+-- Citations (2026-10-15). Chunk ids the answer cited, parsed from the model's
+-- [ops-009] markers (lib/citations.ts), so groundedness can be checked claim by
+-- claim. Compare with chunk_ids, which is what was retrieved. NULL on rows from
+-- before citations and on rows with no answer.
+ALTER TABLE chat_events ADD COLUMN IF NOT EXISTS cited_chunk_ids  TEXT[];
+
 -- The conversation view reads a session's rows in order.
 CREATE INDEX IF NOT EXISTS idx_chat_events_session_asc
   ON chat_events (session_id, created_at);

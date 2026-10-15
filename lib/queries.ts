@@ -118,6 +118,7 @@ export type EventRow = {
   promptVersion: string | null;
   indexVersion: string | null;
   topicTags: string[] | null;
+  citedChunkIds: string[] | null;
 };
 
 const EVENT_COLUMNS = `id, created_at, session_id, ip_hash, user_agent,
@@ -126,7 +127,8 @@ const EVENT_COLUMNS = `id, created_at, session_id, ip_hash, user_agent,
             error, rate_limited,
             response_text, turn_index, retrieval_status, chunk_ids, top_similarity,
             is_synthetic, flags,
-            retrieval_ms, ${IS_BUTTON_SQL} AS is_button, prompt_version, index_version, topic_tags`;
+            retrieval_ms, ${IS_BUTTON_SQL} AS is_button, prompt_version, index_version, topic_tags,
+            cited_chunk_ids`;
 
 type EventDbRow = {
   id: string;
@@ -155,6 +157,7 @@ type EventDbRow = {
   prompt_version: string | null;
   index_version: string | null;
   topic_tags: string[] | null;
+  cited_chunk_ids: string[] | null;
 };
 
 function toEventRow(r: EventDbRow): EventRow {
@@ -185,6 +188,7 @@ function toEventRow(r: EventDbRow): EventRow {
     promptVersion: r.prompt_version,
     indexVersion: r.index_version,
     topicTags: r.topic_tags,
+    citedChunkIds: r.cited_chunk_ids,
   };
 }
 

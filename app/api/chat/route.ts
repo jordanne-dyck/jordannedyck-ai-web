@@ -12,6 +12,7 @@ import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
+import { citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 
 const MODEL = 'gpt-4o';
 
@@ -73,6 +74,7 @@ async function searchExperience(
       const context = data.results
         .map((r, i) =>
           `### Result ${i + 1} (Relevance: ${r.similarity.toFixed(2)})\n` +
+          `**Chunk**: ${r.metadata.chunk_id}\n` +
           `**Source**: ${r.metadata.filename}\n` +
           `**Category**: ${r.metadata.category}\n\n` +
           `${r.content}\n\n---\n`
@@ -234,11 +236,15 @@ export async function POST(req: NextRequest) {
         if (process.env.EMIT_RETRIEVAL || isSynthetic) {
           dataStream.writeMessageAnnotation(retrieval);
         }
+        // The answer with its [chunk-id] citations, which the visitor's stream
+        // and onFinish's `text` no longer carry.
+        const cited = { raw: '' };
         const result = streamText({
           model: openai(MODEL),
           system: systemPrompt,
           messages,
           temperature: 0.7,
+          experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
               firstTokenAt = Date.now();
@@ -247,9 +253,23 @@ export async function POST(req: NextRequest) {
           onFinish: async ({ text, usage }) => {
             const promptTokens = usage.promptTokens ?? null;
             const completionTokens = usage.completionTokens ?? null;
+            const { segments, citedIds } = parseCitations(cited.raw);
+            if (process.env.EMIT_RETRIEVAL || isSynthetic) {
+              dataStream.writeMessageAnnotation({ type: 'citations', answer: cited.raw, segments });
+            }
             const rowId = await logRedacted({
               ...baseEvent,
-              flags: { ...baseEvent.flags, ...freeLabels(query, text) },
+              flags: {
+                ...baseEvent.flags,
+                ...freeLabels(query, text),
+                citations: {
+                  ...citationLabels(segments, retrieval.chunks),
+                  // Redacted like response_text, which holds the same answer
+                  // without its citations.
+                  answer: redactPii(cited.raw).text,
+                },
+              },
+              citedChunkIds: citedIds,
               responseText: text,
               promptTokens,
               completionTokens,
@@ -277,7 +297,8 @@ export async function POST(req: NextRequest) {
                 query,
                 previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
                 answer: text,
-                chunks: retrieval.chunks.map((c) => c.content),
+                segments,
+                chunks: retrieval.chunks,
               });
             }
           },
