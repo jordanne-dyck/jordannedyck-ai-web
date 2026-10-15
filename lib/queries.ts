@@ -1,5 +1,5 @@
 import { pool } from './db';
-import { LABELS, LABEL_BY_KEY, type LabelKey } from './labels';
+import { LABELS, LABEL_BY_KEY, labelsOf, type LabelKey } from './labels';
 import {
   STRONG_MATCH,
   WEAK_MATCH,
@@ -237,7 +237,7 @@ export async function getEventsList(
   if (filters.retrieval === 'empty' || filters.retrieval === 'error') {
     where.push(`retrieval_status = '${filters.retrieval}'`);
   } else if (filters.retrieval === 'weak') {
-    where.push(`retrieval_status = 'ok' AND top_similarity < ${WEAK_MATCH}`);
+    where.push(WEAK_MATCH_SQL);
   }
   if (filters.source === 'button') {
     where.push(IS_BUTTON_SQL);
@@ -399,6 +399,12 @@ export async function getDailyTrend(days: number = 30): Promise<DailyBucket[]> {
 
 const ANSWERED = `is_synthetic = FALSE AND rate_limited = FALSE AND error IS NULL AND retrieval_status IS NOT NULL`;
 const sinceDays = (days: number) => `created_at > NOW() - INTERVAL '${Math.floor(days)} days'`;
+
+// Retrieval-quality conditions, shared by the dashboard, the "what to fix" list
+// and the eval-candidates export so they cannot drift apart.
+export const WEAK_MATCH_SQL = `(retrieval_status = 'ok' AND top_similarity < ${WEAK_MATCH})`;
+export const EMPTY_RETRIEVAL_SQL = `retrieval_status = 'empty'`;
+export const GAP_ON_STRONG_MATCH_SQL = `(${LABEL_BY_KEY.gap_declared.sql} AND top_similarity >= ${STRONG_MATCH})`;
 
 export type RetrievalQuality = {
   answered: number;
@@ -622,7 +628,7 @@ export async function getQualitySummary(days = 30): Promise<QualitySummary> {
          COUNT(*) FILTER (WHERE flags->'judge'->>'verdict' = 'partial')::TEXT AS partial,
          COUNT(*) FILTER (WHERE flags->'judge'->>'verdict' = 'not_grounded')::TEXT AS not_grounded,
          COUNT(*) FILTER (WHERE ${LABEL_BY_KEY.gap_declared.sql})::TEXT AS gap,
-         COUNT(*) FILTER (WHERE ${LABEL_BY_KEY.gap_declared.sql} AND top_similarity >= ${STRONG_MATCH})::TEXT AS gap_strong,
+         COUNT(*) FILTER (WHERE ${GAP_ON_STRONG_MATCH_SQL})::TEXT AS gap_strong,
          COUNT(*) FILTER (WHERE ${LABEL_BY_KEY.first_person.sql})::TEXT AS first_person
        FROM chat_events
        WHERE ${ANSWERED} AND ${sinceDays(days)}`,
@@ -751,6 +757,32 @@ function overlap(a: string, b: string): number {
   return both / Math.min(x.size, y.size);
 }
 
+export type RephrasedPair = { a_id: string; a_q: string; b_id: string; b_q: string };
+
+// Consecutive turns where the follow-up was sent within REPHRASE_SECONDS of
+// the first answer finishing, and worded like it. The first answer probably missed.
+export async function getRephrasedPairs(days = 30): Promise<RephrasedPair[]> {
+  const { rows } = await pool.query<RephrasedPair>(
+    `SELECT a.id::TEXT AS a_id, a.query AS a_q, b.id::TEXT AS b_id, b.query AS b_q
+       FROM chat_events a
+       JOIN chat_events b
+         ON b.session_id = a.session_id
+        AND b.turn_index = a.turn_index + 1
+        AND b.created_at > a.created_at
+        -- created_at is written when the answer finishes, so a.created_at is
+        -- already the end of the first answer, and b was sent latency_ms
+        -- before its own created_at.
+        AND b.created_at - (COALESCE(b.latency_ms, 0) * INTERVAL '1 millisecond')
+              <= a.created_at + INTERVAL '${REPHRASE_SECONDS} seconds'
+       WHERE a.is_synthetic = FALSE AND b.is_synthetic = FALSE
+         AND a.created_at > NOW() - INTERVAL '${Math.floor(days)} days'
+         AND a.latency_ms IS NOT NULL
+       ORDER BY a.created_at DESC
+       LIMIT 500`,
+  );
+  return rows.filter((p) => overlap(p.a_q, p.b_q) >= 0.4);
+}
+
 // Patterns worth acting on, each linked to the rows behind it. Surfaces
 // candidates only; nothing here changes the prompt, the KB or the eval set.
 export async function getFixList(days = 30): Promise<FixItem[]> {
@@ -771,31 +803,12 @@ export async function getFixList(days = 30): Promise<FixItem[]> {
          LIMIT 20`,
     );
 
-  const [gapStrong, weak, ungrounded, thumbsDown, pairs, slow] = await Promise.all([
-    grouped(`${LABEL_BY_KEY.gap_declared.sql} AND top_similarity >= ${STRONG_MATCH}`),
-    grouped(`(retrieval_status = 'empty' OR (retrieval_status = 'ok' AND top_similarity < ${WEAK_MATCH}))`),
+  const [gapStrong, weak, ungrounded, thumbsDown, rephrased, slow] = await Promise.all([
+    grouped(GAP_ON_STRONG_MATCH_SQL),
+    grouped(`(${EMPTY_RETRIEVAL_SQL} OR ${WEAK_MATCH_SQL})`),
     grouped(LABEL_BY_KEY.not_grounded.sql),
     grouped(LABEL_BY_KEY.thumbs_down.sql),
-    // Consecutive turns where the follow-up was sent within REPHRASE_SECONDS
-    // of the first answer finishing.
-    pool.query<{ a_id: string; a_q: string; b_id: string; b_q: string }>(
-      `SELECT a.id::TEXT AS a_id, a.query AS a_q, b.id::TEXT AS b_id, b.query AS b_q
-         FROM chat_events a
-         JOIN chat_events b
-           ON b.session_id = a.session_id
-          AND b.turn_index = a.turn_index + 1
-          AND b.created_at > a.created_at
-          -- created_at is written when the answer finishes, so a.created_at is
-          -- already the end of the first answer, and b was sent latency_ms
-          -- before its own created_at.
-          AND b.created_at - (COALESCE(b.latency_ms, 0) * INTERVAL '1 millisecond')
-                <= a.created_at + INTERVAL '${REPHRASE_SECONDS} seconds'
-         WHERE a.is_synthetic = FALSE AND b.is_synthetic = FALSE
-           AND a.created_at > NOW() - INTERVAL '${Math.floor(days)} days'
-           AND a.latency_ms IS NOT NULL
-         ORDER BY a.created_at DESC
-         LIMIT 500`,
-    ),
+    getRephrasedPairs(days),
     pool.query<{ hour: Date; count: string; ids: string[] }>(
       `SELECT date_trunc('hour', created_at) AS hour, COUNT(*)::TEXT AS count,
               ARRAY_AGG(id::TEXT ORDER BY created_at DESC) AS ids
@@ -850,7 +863,6 @@ export async function getFixList(days = 30): Promise<FixItem[]> {
       rowIds: r.ids,
     });
   }
-  const rephrased = pairs.rows.filter((p) => overlap(p.a_q, p.b_q) >= 0.4);
   if (rephrased.length) {
     const first = rephrased[0];
     items.push({
@@ -988,4 +1000,153 @@ export async function getExport(since: Date): Promise<{ sessionId: string; conve
     sessionId,
     conversations: splitConversations(list),
   }));
+}
+
+// ── Eval candidates ──────────────────────────────────────────────────────────
+// Real visitor turns that went wrong, grouped by question, for Jord to review
+// as candidate eval cases. Read by scripts/eval-candidates.mjs through
+// /api/admin/eval-candidates. Surfaces candidates only: nothing here writes to
+// the eval set, and nothing reaches it without Jord's review.
+
+export type EvalCandidateRule =
+  | 'gap_on_strong_match'
+  | 'weak_match'
+  | 'empty_retrieval'
+  | 'not_grounded'
+  | 'thumbs_down'
+  | 'rephrased';
+
+export type EvalCandidateTurn = {
+  id: string;
+  createdAt: string;
+  turnIndex: number | null;
+  query: string;
+  responseText: string | null;
+  retrievalStatus: string | null;
+  chunkIds: string[] | null;
+  topSimilarity: number | null;
+  promptVersion: string | null;
+  indexVersion: string | null;
+  labels: LabelKey[];
+  judgeReason: string | null;
+  feedbackNote: string | null;
+};
+
+export type EvalCandidate = {
+  key: string;
+  question: string;
+  rules: EvalCandidateRule[];
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  rowIds: string[];
+  isButton: boolean;
+  // The most recent turn that asked it.
+  latest: EvalCandidateTurn;
+  // Earlier turns of the same conversation, when the latest turn was a follow-up.
+  // The eval harness asks single questions, so these need rewording to stand alone.
+  priorTurns: { query: string; responseText: string | null }[];
+  // For the rephrased rule: what the visitor asked next.
+  rephrasedAs: string[];
+};
+
+// Abuse labels are about the visitor, not the knowledge base. Personal details
+// in particular must never be carried toward the eval set, which is public.
+const ABUSE_SQL = LABELS.filter((l) => l.kind === 'abuse').map((l) => l.sql).join(' OR ');
+
+const RULE_SQL: Record<Exclude<EvalCandidateRule, 'rephrased'>, string> = {
+  gap_on_strong_match: GAP_ON_STRONG_MATCH_SQL,
+  weak_match: WEAK_MATCH_SQL,
+  empty_retrieval: EMPTY_RETRIEVAL_SQL,
+  not_grounded: LABEL_BY_KEY.not_grounded.sql,
+  thumbs_down: LABEL_BY_KEY.thumbs_down.sql,
+};
+
+function toCandidateTurn(r: EventRow): EvalCandidateTurn {
+  const judge = r.flags.judge as { reason?: string } | undefined;
+  const feedback = r.flags.feedback as { note?: string } | undefined;
+  return {
+    id: r.id,
+    createdAt: r.createdAt,
+    turnIndex: r.turnIndex,
+    query: r.query,
+    responseText: r.responseText,
+    retrievalStatus: r.retrievalStatus,
+    chunkIds: r.chunkIds,
+    topSimilarity: r.topSimilarity,
+    promptVersion: r.promptVersion,
+    indexVersion: r.indexVersion,
+    labels: labelsOf(r.flags),
+    judgeReason: judge?.reason ?? null,
+    feedbackNote: feedback?.note ?? null,
+  };
+}
+
+export async function getEvalCandidates(days = 30): Promise<EvalCandidate[]> {
+  const pairs = await getRephrasedPairs(days);
+  const rephrasedIds = pairs.map((p) => p.a_id);
+  const ruleKeys = Object.keys(RULE_SQL) as (keyof typeof RULE_SQL)[];
+
+  // Retrieval errors are an outage, not a content or prompt problem.
+  const { rows } = await pool.query<EventDbRow & Record<string, boolean | null>>(
+    `SELECT ${EVENT_COLUMNS},
+            ${ruleKeys.map((k) => `(${RULE_SQL[k]}) AS r_${k}`).join(',\n            ')},
+            id = ANY($1::BIGINT[]) AS r_rephrased
+       FROM chat_events
+       WHERE ${ANSWERED} AND ${sinceDays(days)}
+         AND retrieval_status <> 'error'
+         AND NOT (${ABUSE_SQL})
+         AND (${ruleKeys.map((k) => `(${RULE_SQL[k]})`).join(' OR ')} OR id = ANY($1::BIGINT[]))
+       ORDER BY created_at DESC
+       LIMIT 2000`,
+    [rephrasedIds],
+  );
+
+  const nextQuestion = new Map<string, string[]>();
+  for (const p of pairs) nextQuestion.set(p.a_id, [...(nextQuestion.get(p.a_id) ?? []), p.b_q]);
+
+  // Rows arrive newest first, so the first row of each group is the latest.
+  const groups = new Map<string, EvalCandidate & { latestRow: EventRow }>();
+  for (const raw of rows) {
+    const row = toEventRow(raw);
+    const rules = [...ruleKeys, 'rephrased' as const].filter((k) => raw[`r_${k}`] === true);
+    const key = row.query.trim().toLowerCase();
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        key,
+        question: row.query.trim(),
+        rules: [],
+        count: 0,
+        firstSeen: row.createdAt,
+        lastSeen: row.createdAt,
+        rowIds: [],
+        isButton: false,
+        latest: toCandidateTurn(row),
+        latestRow: row,
+        priorTurns: [],
+        rephrasedAs: [],
+      };
+      groups.set(key, g);
+    }
+    for (const r of rules) if (!g.rules.includes(r)) g.rules.push(r);
+    g.count++;
+    g.firstSeen = row.createdAt;
+    g.rowIds.push(row.id);
+    g.isButton ||= row.isButton;
+    g.rephrasedAs.push(...(nextQuestion.get(row.id) ?? []));
+  }
+
+  const out: EvalCandidate[] = [];
+  for (const { latestRow, ...c } of groups.values()) {
+    if (latestRow.turnIndex != null && latestRow.turnIndex > 1) {
+      const convo = splitConversations(await getSessionEvents(latestRow.sessionId)).find((cv) =>
+        cv.turns.some((t) => t.id === latestRow.id),
+      );
+      const before = convo ? convo.turns.slice(0, convo.turns.findIndex((t) => t.id === latestRow.id)) : [];
+      c.priorTurns = before.map((t) => ({ query: t.query, responseText: t.responseText }));
+    }
+    out.push(c);
+  }
+  return out.sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
 }
