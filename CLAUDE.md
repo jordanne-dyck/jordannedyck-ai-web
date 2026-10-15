@@ -67,7 +67,7 @@ Returns a streaming SSE response.
 | Piece | Where | Detail |
 |---|---|---|
 | Chat event log | Postgres in `jordbot`, `k8s/postgres/` | One row per `/api/chat` request in `chat_events`. Schema: `db/schema.sql`. Setup: `k8s/postgres/README.md`, `docs/OBSERVABILITY_DEPLOY.md` |
-| Retention | `k8s/postgres/retention-cronjob.yaml` | 180 days. The notice under the chat box in `app/page.tsx` states the same figure; change both together |
+| Retention | `k8s/postgres/retention-cronjob.yaml` | 180 days. Nightly backups (`backup-cronjob.yaml`) keep 14 more days. The notice under the chat box in `app/page.tsx` states both figures; change all three together |
 | Public dashboard | `/dashboard` | Aggregates only |
 | Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` |
 | Health | `/api/health` | Public summary; `?deep=1` with `x-monitor-token` adds anomaly stats |

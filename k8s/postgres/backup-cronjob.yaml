@@ -3,6 +3,7 @@
 # lost postgres-data volume loses all history.
 #
 # Dumps go to the postgres-backups PVC below, keeping the last 14 nights.
+# The notice in app/page.tsx states this 14 days; change both together.
 # STORAGE IS PETER'S CALL: a PVC on the same NFS server as postgres-data does
 # not survive losing that server. Point the volume somewhere independent, or
 # copy the dumps off-cluster, before relying on it.

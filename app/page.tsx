@@ -251,9 +251,10 @@ export default function Home() {
                   </button>
                 </form>
 
-                {/* Retention matches k8s/postgres/retention-cronjob.yaml. Change both together. */}
+                {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days) and
+                    backup-cronjob.yaml (14 nightly dumps). Change them together. */}
                 <p className="text-center text-[10px] sm:text-[11px] text-[#999999] leading-tight">
-                  Questions and answers are stored to improve this assistant and deleted after 180 days.
+                  Questions and answers are stored to improve this assistant and deleted after 180 days. Backup copies are kept up to 14 days longer.
                 </p>
 
                 {visiblePrompts.length > 0 && (
