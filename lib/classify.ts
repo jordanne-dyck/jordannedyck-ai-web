@@ -24,6 +24,9 @@ const INJECTION_RES = [
   /\brepeat\s+(?:the\s+|everything\s+|all\s+)?(?:text\s+)?above\b/i,
   /\b(?:developer|dan|jailbreak)\s+mode\b/i,
   /\byour\s+(?:initial|original|hidden)\s+(?:instructions?|prompt)\b/i,
+  /\bpretend\s+(?:that\s+)?(?:you\s+are|you're|to\s+be)\b/i,
+  /\brole[-\s]?play\s+as\b/i,
+  /\bfrom\s+now\s+on,?\s+you\b/i,
 ];
 
 // Lines of the instruction sections of the system prompt, normalised. An

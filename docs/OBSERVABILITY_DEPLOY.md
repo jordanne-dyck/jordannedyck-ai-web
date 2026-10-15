@@ -45,45 +45,37 @@ oc create secret generic app-observability -n jordbot \
 ```
 
 `DATABASE_URL` already lives in `app-database-url` from the Postgres setup.
+`MONITOR_TOKEN` also goes in `app-observability`; see `k8s/postgres/README.md`.
 
 ---
 
-## 3. Build and push the image
+## 3. Build the image
 
-Build locally and push to Quay (using existing `quaynekohouse` pull secret):
+There is no local build and no BuildConfig. Images are built by Shipwright in
+`jordbot-dev` and pushed to `quay.nekohouse.ca:8443/peter/jordbot-web:dev`.
+Follow "Development workflow (jordbot-dev)" in `CLAUDE.md`: push to `master`,
+wait for CI, create a `jordbot-web` BuildRun, roll out and test in `jordbot-dev`.
 
-```bash
-# from repo root
-docker build -t quay.io/nekohouse/jordannedyck-ai-web:obs-1 .
-docker push quay.io/nekohouse/jordannedyck-ai-web:obs-1
-```
-
-If you'd rather use OpenShift's in-cluster build, trigger the existing
-BuildConfig instead:
-
-```bash
-oc start-build jordannedyck-ai-web -n jordbot --follow
-```
+Then promote the tested `:dev` image by retagging it `vX.Y`. Follow
+"Deployment workflow (jordbot / production)", steps 1–2, in `CLAUDE.md`.
 
 ---
 
 ## 4. Roll out the app
 
-Wire the new env vars to the deployment, point at the new image, and restart:
+The env vars are already wired in `k8s/prod/deployment-web.yaml`. Its
+`envFrom` mounts `openai-api-key`, `app-database-url` and `app-observability`,
+so do not use `oc set env`. Set the image tag in that file to the `vX.Y` from
+step 3. Replace `REGISTRY_PLACEHOLDER` and `PULL_SECRET_PLACEHOLDER` locally,
+without committing them, then apply:
 
 ```bash
-# Env: DATABASE_URL (from postgres setup) + IP_HASH_SALT + DASHBOARD_ADMIN_PASSWORD
-oc set env deployment/jordannedyck-ai-web -n jordbot \
-  --from secret/app-database-url
-oc set env deployment/jordannedyck-ai-web -n jordbot \
-  --from secret/app-observability
-
-# Update image (skip if using BuildConfig — it patches automatically)
-oc set image deployment/jordannedyck-ai-web -n jordbot \
-  jordannedyck-ai-web=quay.io/nekohouse/jordannedyck-ai-web:obs-1
-
+oc apply -f k8s/prod/deployment-web.yaml -n jordbot
 oc rollout status deployment/jordannedyck-ai-web -n jordbot
 ```
+
+Commit and push the tag change afterwards. This is step 6 of the deployment
+workflow in `CLAUDE.md`.
 
 ---
 
@@ -91,7 +83,7 @@ oc rollout status deployment/jordannedyck-ai-web -n jordbot
 
 1. **Chat endpoint logs to Postgres**
    ```bash
-   curl -sS https://jordanedyck.com/api/chat \
+   curl -sS https://www.jordannedyck.com/api/chat \
      -H 'content-type: application/json' \
      -d '{"messages":[{"role":"user","content":"hello"}]}' > /dev/null
 
@@ -100,10 +92,10 @@ oc rollout status deployment/jordannedyck-ai-web -n jordbot
      "SELECT created_at, query, cost_usd, latency_ms FROM chat_events ORDER BY created_at DESC LIMIT 1;"
    ```
 
-2. **Public dashboard renders** — visit `https://jordanedyck.com/dashboard`. Stat
+2. **Public dashboard renders** — visit `https://www.jordannedyck.com/dashboard`. Stat
    cards should show the request from step 1.
 
-3. **Admin gate works** — visit `https://jordanedyck.com/dashboard/admin`. Login
+3. **Admin gate works** — visit `https://www.jordannedyck.com/dashboard/admin`. Login
    form appears. Wrong password → "Incorrect password". Right password →
    event table.
 
@@ -137,6 +129,9 @@ touch event rows.
 - **Admin cookie binds to the password.** Rotating `DASHBOARD_ADMIN_PASSWORD`
   invalidates all existing admin sessions automatically (HMAC signature
   changes).
-- **No PII.** Queries are stored verbatim because the bot is public-facing and
-  this is documented in the dashboard footer. If you ever add authenticated
-  user input, revisit before logging raw query text.
+- **Personal details are redacted before storage.** Emails and phone numbers
+  in the question and the stored answer become `[email]` / `[phone]` and are
+  labelled `flags.pii` (`lib/classify.ts`). The original still goes to OpenAI.
+  The notice under the chat box in `app/page.tsx` states the 180-day retention
+  and the 14-day backup window. If you ever add authenticated user input,
+  revisit before logging query text.
