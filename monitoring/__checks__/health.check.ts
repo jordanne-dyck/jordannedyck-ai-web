@@ -17,12 +17,11 @@ new ApiCheck('health', {
       AssertionBuilder.statusCode().equals(200),
       AssertionBuilder.jsonBody('$.db').equals(true),
       AssertionBuilder.jsonBody('$.openai').equals('ok'),
-      // Add these once jordannedyck-ai ships GET /health. Until then the site
-      // reports backend.reason = 'no_health_endpoint' and `ok` stays false.
-      // AssertionBuilder.jsonBody('$.ok').equals(true),
-      // AssertionBuilder.jsonBody('$.backend.ok').equals(true),
-      // AssertionBuilder.jsonBody('$.backend.openai').equals('ok'),
-      // AssertionBuilder.jsonBody('$.backend.chunks').greaterThan(130),
+      // Backend GET /health, live in prod since jordbot v1.4 (131 chunks on 2026-10-15).
+      AssertionBuilder.jsonBody('$.ok').equals(true),
+      AssertionBuilder.jsonBody('$.backend.ok').equals(true),
+      AssertionBuilder.jsonBody('$.backend.openai').equals('ok'),
+      AssertionBuilder.jsonBody('$.backend.chunks').greaterThan(130),
     ],
   },
 })

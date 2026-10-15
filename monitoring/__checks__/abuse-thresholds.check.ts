@@ -33,11 +33,13 @@ new ApiCheck('abuse-thresholds', {
       AssertionBuilder.jsonBody('$.anomalies.errorsLastHour').lessThan(3),
       AssertionBuilder.jsonBody('$.anomalies.topIpHashLastHour').isNull(),
       AssertionBuilder.jsonBody('$.stats.retrievalFailureRateLastHour').lessThan(0.5),
-      AssertionBuilder.jsonBody('$.labels24h.injection').lessThan(1),
-      AssertionBuilder.jsonBody('$.labels24h.prompt_leak').lessThan(1),
-      AssertionBuilder.jsonBody('$.labels24h.moderation').lessThan(1),
-      AssertionBuilder.jsonBody('$.labels24h.off_topic').lessThan(6),
-      AssertionBuilder.jsonBody('$.quality24h.breachCount').lessThan(1),
+      // Add these once Dashboard v2 (f16878a) is live in prod. jordbot-web v1.7
+      // has no labels24h or quality24h in the deep health body, so they would fail.
+      // AssertionBuilder.jsonBody('$.labels24h.injection').lessThan(1),
+      // AssertionBuilder.jsonBody('$.labels24h.prompt_leak').lessThan(1),
+      // AssertionBuilder.jsonBody('$.labels24h.moderation').lessThan(1),
+      // AssertionBuilder.jsonBody('$.labels24h.off_topic').lessThan(6),
+      // AssertionBuilder.jsonBody('$.quality24h.breachCount').lessThan(1),
     ],
   },
 })
