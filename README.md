@@ -42,7 +42,7 @@ k8s/prod/       prod manifests (Argo CD); image tags in k8s/prod/release/
 k8s/dev/        dev manifests and Shipwright builds (Argo CD)
 k8s/postgres/   one-off jobs: schema migration, retention, backups
 monitoring/     Checkly checks
-docs/           deploy notes; docs/archive holds finished plans
+docs/archive/   finished plans and old runbooks
 ```
 
 Deployment steps are in `CLAUDE.md`.
