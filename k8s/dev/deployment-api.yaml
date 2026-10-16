@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: jordannedyck-ai
+  name: jordannedyck-ai
+  namespace: jordbot-dev
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: jordannedyck-ai
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-10-13T21:29:45-04:00"
+      creationTimestamp: null
+      labels:
+        app: jordannedyck-ai
+    spec:
+      containers:
+        - envFrom:
+            - secretRef:
+                name: openai-api-key
+          image: quay.nekohouse.ca:8443/peter/jordbot:dev
+          imagePullPolicy: Always
+          name: jordannedyck-ai
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /opt/app-root/src/faiss_db
+              name: faiss-db
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: quaynekohouse
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: faiss-db
+          persistentVolumeClaim:
+            claimName: faiss-db

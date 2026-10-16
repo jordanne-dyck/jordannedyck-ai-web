@@ -1,0 +1,41 @@
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: jordbot-ai
+  namespace: jordbot-dev
+spec:
+  output:
+    image: quay.nekohouse.ca:8443/peter/jordbot:dev
+    pushSecret: quaynekohouse
+  paramValues:
+    - name: dockerfile
+      value: Containerfile
+  source:
+    git:
+      revision: master
+      url: https://github.com/jordanne-dyck/jordannedyck-ai.git
+    type: Git
+  strategy:
+    kind: ClusterBuildStrategy
+    name: buildah-lvms
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: jordbot-web
+  namespace: jordbot-dev
+spec:
+  output:
+    image: quay.nekohouse.ca:8443/peter/jordbot-web:dev
+    pushSecret: quaynekohouse
+  paramValues:
+    - name: dockerfile
+      value: Containerfile
+  source:
+    git:
+      revision: master
+      url: https://github.com/jordanne-dyck/jordannedyck-ai-web.git
+    type: Git
+  strategy:
+    kind: ClusterBuildStrategy
+    name: buildah-lvms

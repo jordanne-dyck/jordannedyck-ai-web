@@ -1,0 +1,21 @@
+# Prod (namespace jordbot). Argo CD renders this folder with `kustomize build`
+# and keeps the cluster in sync with it.
+#
+# A release changes only release/kustomization.yaml. Every other file here
+# needs Peter's review (see .github/CODEOWNERS).
+#
+# Not in this repo, on purpose: the Namespace, ServiceAccounts and RBAC,
+# the ExternalSecrets and the quaynekohouse pull secret. Peter manages those.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: jordbot
+resources:
+  - deployment-api.yaml
+  - deployment-web.yaml
+  - services.yaml
+  - route.yaml
+  - pvc.yaml
+  - postgres.yaml
+  - postgres-schema.yaml
+components:
+  - release

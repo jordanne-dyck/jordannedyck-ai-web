@@ -1,0 +1,8 @@
+# Peter (cluster owner) reviews changes to what gets deployed and to CI.
+# Takes effect once branch protection requires code owner review on master.
+/k8s/      @bearzibubbs
+/.github/  @bearzibubbs
+
+# Prod releases merge without review. CI (k8s.yml) only lets this file set the
+# two image tags. The last matching pattern wins, so this line has no owner.
+/k8s/prod/release/kustomization.yaml

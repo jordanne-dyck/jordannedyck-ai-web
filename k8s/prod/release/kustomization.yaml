@@ -1,0 +1,14 @@
+# Prod image tags. This is the only file a release changes, and the only file
+# under k8s/ that merges without Peter's review.
+#
+# Tags are immutable: always a new vX.Y, never one that already exists in Quay.
+# Rollback: revert the commit that changed this file.
+#
+# CI rejects anything here except these two newTag values.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+images:
+  - name: quay.nekohouse.ca:8443/peter/jordbot
+    newTag: v1.4
+  - name: quay.nekohouse.ca:8443/peter/jordbot-web
+    newTag: v1.7

@@ -1,10 +1,35 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
   name: faiss-db
+  namespace: jordbot
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 500Mi
+  storageClassName: nfs-csi
+  volumeMode: Filesystem
+  volumeName: pvc-6488b6b0-d089-4273-9e99-df187e48d9b5
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+  labels:
+    app: postgres
+  name: postgres-data
+  namespace: jordbot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nfs-csi
+  volumeMode: Filesystem
+  volumeName: pvc-8dffb097-fa55-4b8a-9c3e-005bbf2286ce

@@ -1,3 +1,5 @@
+# Not part of the kustomization (generateName objects cannot be synced by Argo CD).
+# Start a dev build of both images: oc create -f k8s/dev/buildruns.yaml
 apiVersion: shipwright.io/v1beta1
 kind: BuildRun
 metadata:

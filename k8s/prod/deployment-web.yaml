@@ -1,55 +1,88 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jordannedyck-ai-web
   labels:
     app: jordannedyck-ai-web
+  name: jordannedyck-ai-web
+  namespace: jordbot
 spec:
+  progressDeadlineSeconds: 600
   replicas: 1
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: jordannedyck-ai-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-06-14T13:55:15-04:00"
+      creationTimestamp: null
       labels:
         app: jordannedyck-ai-web
     spec:
       containers:
-        - name: jordannedyck-ai-web
-          image: REGISTRY_PLACEHOLDER/jordbot-web:v1.7
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 3000
+        - env:
+            - name: FLASK_API_URL
+              value: http://jordannedyck-ai:5000
+            - name: NODE_ENV
+              value: production
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: DATABASE_URL
+                  name: app-database-url
+            - name: DASHBOARD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DASHBOARD_ADMIN_PASSWORD
+                  name: app-observability
+            - name: IP_HASH_SALT
+              valueFrom:
+                secretKeyRef:
+                  key: IP_HASH_SALT
+                  name: app-observability
           envFrom:
             - secretRef:
                 name: openai-api-key
-            # Observability: DATABASE_URL (Postgres) + IP_HASH_SALT + DASHBOARD_ADMIN_PASSWORD
-            - secretRef:
-                name: app-database-url
-            - secretRef:
-                name: app-observability
-          env:
-            - name: FLASK_API_URL
-              value: "http://jordannedyck-ai:5000"
-            - name: NODE_ENV
-              value: "production"
-            # PostHog (site-monitoring plan, Phase 2). The project token is public by
-            # design: it can send events, not read them. The project is in the EU region.
-            - name: POSTHOG_PROJECT_TOKEN
-              value: "phc_qco9d4iBCQxQptgYCHXbvBfp2sYvNAToijuoSy2kN9QX"
-            - name: POSTHOG_HOST
-              value: "https://eu.i.posthog.com"
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 10
+          image: quay.nekohouse.ca:8443/peter/jordbot-web  # tag: release/kustomization.yaml
+          imagePullPolicy: Always
           livenessProbe:
+            failureThreshold: 3
             httpGet:
               path: /
               port: 3000
+              scheme: HTTP
             initialDelaySeconds: 30
             periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: jordannedyck-ai-web
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
       imagePullSecrets:
-        - name: PULL_SECRET_PLACEHOLDER
+        - name: quaynekohouse
+        - name: registry-pull-secret
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
