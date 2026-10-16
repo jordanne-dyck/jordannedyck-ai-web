@@ -38,11 +38,11 @@ Open [http://localhost:3000](http://localhost:3000).
 app/            pages and API routes (api/chat, api/health, dashboard)
 lib/            server code: input checks, rate limit, logging, queries, system prompt
 db/schema.sql   chat_events table
-k8s/prod/       production manifests
-k8s/dev/        dev namespace and Shipwright builds
-k8s/postgres/   Postgres, migration job, retention cronjob
+k8s/prod/       prod manifests (Argo CD); image tags in k8s/prod/release/
+k8s/dev/        dev manifests and Shipwright builds (Argo CD)
+k8s/postgres/   one-off jobs: schema migration, retention, backups
 monitoring/     Checkly checks
-docs/           deploy notes; docs/archive holds finished plans
+docs/archive/   finished plans and old runbooks
 ```
 
 Deployment steps are in `CLAUDE.md`.

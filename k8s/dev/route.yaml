@@ -4,11 +4,14 @@ metadata:
   name: jordbot-dev
   namespace: jordbot-dev
 spec:
-  to:
-    kind: Service
-    name: jordannedyck-ai-web
+  host: jordbot-dev-jordbot-dev.apps.ocp-centralis.nekohouse.ca
   port:
     targetPort: 3000
   tls:
-    termination: edge
     insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: jordannedyck-ai-web
+    weight: 100
+  wildcardPolicy: None

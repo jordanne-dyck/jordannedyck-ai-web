@@ -1,5 +1,7 @@
 # Observability rollout — deployment notes
 
+> **Archived.** These are the notes from the original observability rollout, when deploys were `oc apply` by hand. Deploys now go through Argo CD and the release PR flow in `CLAUDE.md`; don't follow the deploy steps below.
+
 End-to-end steps to ship the chat-event logging stack to the OpenShift cluster
 (`ocp-centralis`, namespace `jordbot`).
 
