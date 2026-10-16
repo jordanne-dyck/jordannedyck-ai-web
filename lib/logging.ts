@@ -30,6 +30,8 @@ export type ChatEvent = {
   promptVersion?: string | null;
   indexVersion?: string | null;
   topicTags?: string[] | null;
+  // Citations (2026-10-15).
+  citedChunkIds?: string[] | null;
 };
 
 // Fire-and-forget: errors are logged but do not propagate to the chat response.
@@ -59,7 +61,8 @@ export async function logChatEvent(event: ChatEvent): Promise<string | null> {
          error, rate_limited,
          response_text, turn_index, retrieval_status, chunk_ids, top_similarity,
          is_synthetic, client_id, flags,
-         retrieval_ms, source, prompt_version, index_version, topic_tags
+         retrieval_ms, source, prompt_version, index_version, topic_tags,
+         cited_chunk_ids
        ) VALUES (
          $1, $2, $3,
          $4, $5,
@@ -68,7 +71,8 @@ export async function logChatEvent(event: ChatEvent): Promise<string | null> {
          $13, $14,
          $15, $16, $17, $18, $19,
          $20, $21, $22,
-         $23, $24, $25, $26, $27
+         $23, $24, $25, $26, $27,
+         $28
        )
        RETURNING id::TEXT AS id`,
       [
@@ -99,6 +103,7 @@ export async function logChatEvent(event: ChatEvent): Promise<string | null> {
         event.promptVersion ?? null,
         event.indexVersion ?? null,
         event.topicTags ?? null,
+        event.citedChunkIds ?? null,
       ],
     );
     return rows[0]?.id ?? null;

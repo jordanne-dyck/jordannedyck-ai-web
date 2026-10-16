@@ -5,6 +5,7 @@ import { pool } from './db';
 import { estimateCostUsd } from './cost';
 import { buildSystemPrompt } from './system-prompt';
 import { FIRST_PERSON_RE, PHONE_RE, gapAdmitted } from './eval-checks';
+import type { CitationChunk, Segment } from './citations';
 
 // Labels for one chat turn, written to chat_events.flags.
 //
@@ -47,6 +48,18 @@ const LEAK_LINES: string[] = (() => {
     .filter((l) => !l.includes('✅') && !l.includes('❌'))
     .map(normalise)
     .filter((l) => l.length >= 40);
+})();
+
+// The CORE POSITIONING section of the system prompt. Answers may state these
+// facts without a chunk behind them, so the judge counts them as a source.
+// Added 2026-10-15 after the judge flagged "managed the entire .com ecosystem"
+// (D02), which the positioning states. Read from lib/system-prompt.ts, like
+// LEAK_LINES, so there is no second copy.
+const POSITIONING: string = (() => {
+  const template = buildSystemPrompt('');
+  const start = template.indexOf('# CORE POSITIONING');
+  const end = template.indexOf('# HOW TO RESPOND');
+  return template.slice(start, end).replace(/\n-{3,}\s*$/, '').trim();
 })();
 
 function normalise(s: string): string {
@@ -100,7 +113,8 @@ export type PaidLabelInput = {
   query: string;
   previousQuery: string | null;
   answer: string;
-  chunks: string[];
+  segments: Segment[];
+  chunks: CitationChunk[];
 };
 
 type Usage = { promptTokens: number; completionTokens: number };
@@ -152,32 +166,87 @@ async function classifyTopic(
   return { offTopic: object.label === 'off', cost: costOf(usage) };
 }
 
-async function judgeGrounding(
+// Answers longer than this many segments are judged on their first ones only.
+const MAX_JUDGED_SEGMENTS = 40;
+
+type ClaimVerdict = { n: number; ids: string[]; text: string; supported: 'other' | 'no'; reason: string };
+
+// Judges each cited segment against the chunks it cites (claim by claim since
+// 2026-10-15; before, one verdict for the whole answer). Catches a reading the
+// source does not state, the ops-011 kind of defect, as well as invented facts.
+// The overall verdict keeps its three values so the dashboard reads it as before.
+// Exported for the citation side-by-side check; production calls it through paidLabels.
+export async function judgeGrounding(
   query: string,
   answer: string,
-  chunks: string[],
-): Promise<{ verdict: 'grounded' | 'partial' | 'not_grounded'; reason: string; cost: number }> {
+  segments: Segment[],
+  chunks: CitationChunk[],
+): Promise<{
+  verdict: 'grounded' | 'partial' | 'not_grounded';
+  reason: string;
+  checked: number;
+  claims: ClaimVerdict[];
+  cost: number;
+}> {
+  // An answer with no citation markers is judged as one uncited segment.
+  const judged = (segments.length ? segments : [{ text: answer, ids: [] }]).slice(0, MAX_JUDGED_SEGMENTS);
   const { object, usage } = await generateObject({
     model: openai(LABEL_MODEL),
     temperature: 0,
     schema: z.object({
-      verdict: z.enum(['grounded', 'partial', 'not_grounded']),
-      reason: z.string().describe('One sentence naming the unsupported claim, or why it is grounded.'),
+      claims: z.array(
+        z.object({
+          n: z.number().int(),
+          supported: z.enum(['yes', 'other', 'no']),
+          reason: z.string().describe('Empty for "yes". Otherwise one sentence naming what the source does not say.'),
+        }),
+      ),
     }),
     system:
-      'You check whether an answer is supported by the retrieved context it was written from. ' +
-      'Check every specific claim: numbers, dates, employers, product and project names, job titles, outcomes. ' +
-      '"grounded": every specific claim appears in the context, or the answer only says the context does not cover the question. ' +
-      '"partial": most claims are supported but at least one is not. ' +
-      '"not_grounded": the main claims are not in the context. ' +
-      'Judge only against the context. Do not use outside knowledge.',
+      'You check whether each numbered claim in an answer is supported by the source chunks it cites. ' +
+      'Each claim lists the chunk ids it cites; the context gives each chunk under its id. ' +
+      'The context also has a [positioning] block of facts about her that the site states on her behalf. ' +
+      'A claim the positioning supports is "yes", whatever it cites. ' +
+      'Check every specific: numbers, dates, employers, product and project names, job titles, outcomes, ' +
+      'and any statement about how she works or what she prefers. ' +
+      '"yes": the cited chunks say it. ' +
+      '"other": the cited chunks do not say it, but another chunk in the context does. ' +
+      '"no": no chunk in the context says it. ' +
+      'A claim that goes further than its source — a stronger word, a bigger number, or a reading the source does not state — is not supported. ' +
+      'A claim citing "none" is "yes" if it only says the context does not cover something, or makes no factual claim; ' +
+      'otherwise judge it against the whole context. ' +
+      'Return one entry per claim. Judge only against the context. Do not use outside knowledge.',
     prompt:
-      `QUESTION:\n${query}\n\nCONTEXT:\n${chunks.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')}` +
-      `\n\nANSWER:\n${answer}`,
+      `QUESTION:\n${query}\n\nCONTEXT:\n[positioning]\n${POSITIONING}\n\n` +
+      chunks.map((c, i) => `[${c.chunk_id ?? `result ${i + 1}`}]\n${c.content}`).join('\n\n') +
+      `\n\nCLAIMS:\n` +
+      judged.map((s, i) => `${i + 1}. (cites: ${s.ids.join(', ') || 'none'}) ${s.text}`).join('\n'),
     abortSignal: AbortSignal.timeout(30_000),
   });
-  // The reason can quote the question or answer, so it is redacted like them.
-  return { ...object, reason: redactPii(object.reason).text.slice(0, 300), cost: costOf(usage) };
+
+  // The model's numbering is checked against the segments; anything it made up is dropped.
+  const failed: ClaimVerdict[] = object.claims
+    .filter((c) => c.supported !== 'yes' && judged[c.n - 1])
+    .map((c) => {
+      const s = judged[c.n - 1];
+      return {
+        n: c.n,
+        ids: s.ids,
+        // The claim text and reason can quote the question or answer, so they
+        // are redacted like them.
+        text: redactPii(s.text).text.slice(0, 200),
+        supported: c.supported as 'other' | 'no',
+        reason: redactPii(c.reason).text.slice(0, 200),
+      };
+    });
+  const unsupported = failed.filter((c) => c.supported === 'no').length;
+  const verdict =
+    unsupported === 0 ? 'grounded' : unsupported * 2 > judged.length ? 'not_grounded' : 'partial';
+  const first = failed.find((c) => c.supported === 'no') ?? failed[0];
+  const reason = first
+    ? `Claim ${first.n} (${first.ids.join(', ') || 'uncited'}): ${first.reason}`.slice(0, 300)
+    : `All ${judged.length} claims supported${failed.length ? ', some by a chunk they do not cite' : ''}.`;
+  return { verdict, reason, checked: judged.length, claims: failed, cost: costOf(usage) };
 }
 
 // Fire-and-forget after the row is inserted. Each call is independent: one
@@ -189,7 +258,7 @@ export async function paidLabels(input: PaidLabelInput): Promise<void> {
     moderate(input.query),
     classifyTopic(input.query, input.previousQuery),
     input.chunks.length
-      ? judgeGrounding(input.query, input.answer, input.chunks)
+      ? judgeGrounding(input.query, input.answer, input.segments, input.chunks)
       : Promise.resolve(null),
   ]);
 
@@ -207,7 +276,12 @@ export async function paidLabels(input: PaidLabelInput): Promise<void> {
 
   if (judge.status === 'fulfilled') {
     if (judge.value) {
-      flags.judge = { verdict: judge.value.verdict, reason: judge.value.reason };
+      flags.judge = {
+        verdict: judge.value.verdict,
+        reason: judge.value.reason,
+        checked: judge.value.checked,
+        claims: judge.value.claims,
+      };
       cost += judge.value.cost;
     } else {
       flags.judge = { verdict: 'skipped', reason: 'no chunks retrieved' };
