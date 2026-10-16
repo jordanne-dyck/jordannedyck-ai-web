@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: jordannedyck-ai-web
+  name: jordannedyck-ai-web
+  namespace: jordbot-dev
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: jordannedyck-ai-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-10-13T21:29:45-04:00"
+      creationTimestamp: null
+      labels:
+        app: jordannedyck-ai-web
+    spec:
+      containers:
+        - env:
+            - name: FLASK_API_URL
+              value: http://jordannedyck-ai:5000
+            - name: NODE_ENV
+              value: production
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: DATABASE_URL
+                  name: app-database-url
+            - name: DASHBOARD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DASHBOARD_ADMIN_PASSWORD
+                  name: app-observability
+            - name: IP_HASH_SALT
+              valueFrom:
+                secretKeyRef:
+                  key: IP_HASH_SALT
+                  name: app-observability
+          envFrom:
+            - secretRef:
+                name: openai-api-key
+          image: quay.nekohouse.ca:8443/peter/jordbot-web:dev
+          imagePullPolicy: Always
+          name: jordannedyck-ai-web
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: quaynekohouse
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

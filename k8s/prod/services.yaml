@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jordannedyck-ai
+  namespace: jordbot
+spec:
+  clusterIP: 172.30.204.131
+  clusterIPs:
+    - 172.30.204.131
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - port: 5000
+      protocol: TCP
+      targetPort: 5000
+  selector:
+    app: jordannedyck-ai
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jordannedyck-ai-web
+  namespace: jordbot
+spec:
+  clusterIP: 172.30.32.86
+  clusterIPs:
+    - 172.30.32.86
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: jordannedyck-ai-web
+  sessionAffinity: None
+  type: ClusterIP

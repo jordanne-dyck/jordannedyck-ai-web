@@ -1,0 +1,2141 @@
+{
+  "description": "Build is the Schema representing a Build definitio",
+  "properties": {
+    "apiVersion": {
+      "description": "APIVersion defines the versioned schema of this re",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Kind is a string value representing the REST resou",
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "spec": {
+      "description": "BuildSpec defines the desired state of Build",
+      "properties": {
+        "env": {
+          "description": "Env contains additional environment variables that",
+          "items": {
+            "description": "EnvVar represents an environment variable present ",
+            "properties": {
+              "name": {
+                "description": "Name of the environment variable. Must be a C_IDEN",
+                "type": "string"
+              },
+              "value": {
+                "description": "Variable references $(VAR_NAME) are expanded\nusing",
+                "type": "string"
+              },
+              "valueFrom": {
+                "description": "Source for the environment variable's value. Canno",
+                "properties": {
+                  "configMapKeyRef": {
+                    "description": "Selects a key of a ConfigMap.",
+                    "properties": {
+                      "key": {
+                        "description": "The key to select.",
+                        "type": "string"
+                      },
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      },
+                      "optional": {
+                        "description": "Specify whether the ConfigMap or its key must be d",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "fieldRef": {
+                    "description": "Selects a field of the pod: supports metadata.name",
+                    "properties": {
+                      "apiVersion": {
+                        "description": "Version of the schema the FieldPath is written in ",
+                        "type": "string"
+                      },
+                      "fieldPath": {
+                        "description": "Path of the field to select in the specified API v",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "fieldPath"
+                    ],
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "resourceFieldRef": {
+                    "description": "Selects a resource of the container: only resource",
+                    "properties": {
+                      "containerName": {
+                        "description": "Container name: required for volumes, optional for",
+                        "type": "string"
+                      },
+                      "divisor": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "integer"
+                          }
+                        ]
+                      },
+                      "resource": {
+                        "description": "Required: resource to select",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "resource"
+                    ],
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "secretKeyRef": {
+                    "description": "Selects a key of a secret in the pod's namespace",
+                    "properties": {
+                      "key": {
+                        "description": "The key of the secret to select from.  Must be a v",
+                        "type": "string"
+                      },
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      },
+                      "optional": {
+                        "description": "Specify whether the Secret or its key must be defi",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "nodeSelector": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "NodeSelector is a selector which must be true for ",
+          "type": "object"
+        },
+        "output": {
+          "description": "Output refers to the location where the built imag",
+          "properties": {
+            "annotations": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Annotations references the additional annotations ",
+              "type": "object"
+            },
+            "image": {
+              "description": "Image is the reference of the image.",
+              "type": "string"
+            },
+            "insecure": {
+              "description": "Insecure defines whether the registry is not secur",
+              "type": "boolean"
+            },
+            "labels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Labels references the additional labels to be appl",
+              "type": "object"
+            },
+            "pushSecret": {
+              "description": "Describes the secret name for pushing a container ",
+              "type": "string"
+            },
+            "timestamp": {
+              "description": "Timestamp references the optional image timestamp ",
+              "type": "string"
+            },
+            "vulnerabilityScan": {
+              "description": "VulnerabilityScan provides configurations about ru",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled indicates whether to run vulnerability sca",
+                  "type": "boolean"
+                },
+                "failOnFinding": {
+                  "description": "FailOnFinding indicates whether to fail the build ",
+                  "type": "boolean"
+                },
+                "ignore": {
+                  "description": "Ignore refers to ignore options for vulnerability ",
+                  "properties": {
+                    "id": {
+                      "description": "ID references the security issues to be ignored in",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "severity": {
+                      "description": "Severity denotes the severity levels of security i",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "type": "string"
+                    },
+                    "unfixed": {
+                      "description": "Unfixed indicates to ignore vulnerabilities for wh",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "image"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "paramValues": {
+          "description": "Params is a list of key/value that could be used\nt",
+          "items": {
+            "description": "ParamValue is a key/value that populates a strateg",
+            "properties": {
+              "configMapValue": {
+                "description": "The ConfigMap value of the parameter",
+                "properties": {
+                  "format": {
+                    "description": "An optional format to add pre- or suffix to the ob",
+                    "type": "string"
+                  },
+                  "key": {
+                    "description": "Key inside the object",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Name of the object",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "name": {
+                "description": "Name of the parameter",
+                "type": "string"
+              },
+              "secretValue": {
+                "description": "The secret value of the parameter",
+                "properties": {
+                  "format": {
+                    "description": "An optional format to add pre- or suffix to the ob",
+                    "type": "string"
+                  },
+                  "key": {
+                    "description": "Key inside the object",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Name of the object",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "value": {
+                "description": "The value of the parameter",
+                "type": "string"
+              },
+              "values": {
+                "description": "Values of an array parameter",
+                "items": {
+                  "description": "The value type contains the properties for a value",
+                  "properties": {
+                    "configMapValue": {
+                      "description": "The ConfigMap value of the parameter",
+                      "properties": {
+                        "format": {
+                          "description": "An optional format to add pre- or suffix to the ob",
+                          "type": "string"
+                        },
+                        "key": {
+                          "description": "Key inside the object",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Name of the object",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "secretValue": {
+                      "description": "The secret value of the parameter",
+                      "properties": {
+                        "format": {
+                          "description": "An optional format to add pre- or suffix to the ob",
+                          "type": "string"
+                        },
+                        "key": {
+                          "description": "Key inside the object",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Name of the object",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "value": {
+                      "description": "The value of the parameter",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "retention": {
+          "description": "Contains information about retention params",
+          "properties": {
+            "atBuildDeletion": {
+              "description": "AtBuildDeletion defines if related BuildRuns shoul",
+              "type": "boolean"
+            },
+            "failedLimit": {
+              "description": "FailedLimit defines the maximum number of failed b",
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "succeededLimit": {
+              "description": "SucceededLimit defines the maximum number of succe",
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "ttlAfterFailed": {
+              "description": "TTLAfterFailed defines the maximum duration of tim",
+              "format": "duration",
+              "type": "string"
+            },
+            "ttlAfterSucceeded": {
+              "description": "TTLAfterSucceeded defines the maximum duration of ",
+              "format": "duration",
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "schedulerName": {
+          "description": "SchedulerName specifies the scheduler to be used t",
+          "type": "string"
+        },
+        "source": {
+          "description": "Source refers to the location where the source cod",
+          "properties": {
+            "contextDir": {
+              "description": "ContextDir is a path to a subdirectory within the ",
+              "type": "string"
+            },
+            "git": {
+              "description": "Git contains the details for obtaining source code",
+              "properties": {
+                "cloneSecret": {
+                  "description": "CloneSecret references a Secret that contains cred",
+                  "type": "string"
+                },
+                "depth": {
+                  "description": "Depth specifies the depth of the shallow clone.\nIf",
+                  "type": "integer"
+                },
+                "revision": {
+                  "description": "Revision describes the Git revision (e.g., branch,",
+                  "type": "string"
+                },
+                "url": {
+                  "description": "URL describes the URL of the Git repository.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "local": {
+              "description": "Local contains the details for obtaining source co",
+              "properties": {
+                "name": {
+                  "description": "Name of the local step",
+                  "type": "string"
+                },
+                "timeout": {
+                  "description": "Timeout is the maximum duration the build should w",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "ociArtifact": {
+              "description": "OCIArtifact contains the details for obtaining sou",
+              "properties": {
+                "image": {
+                  "description": "Image is a reference to a container image to be pu",
+                  "type": "string"
+                },
+                "prune": {
+                  "description": "Prune specifies whether the image containing the s",
+                  "type": "string"
+                },
+                "pullSecret": {
+                  "description": "PullSecret references a Secret that contains crede",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "image"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "type": {
+              "description": "Type is the type of source code used as input for ",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "strategy": {
+          "description": "Strategy references the BuildStrategy to use to bu",
+          "properties": {
+            "kind": {
+              "description": "BuildStrategyKind indicates the kind of the builds",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name of the referent; More info: http://kubernetes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "timeout": {
+          "description": "Timeout defines the maximum amount of time the Bui",
+          "format": "duration",
+          "type": "string"
+        },
+        "tolerations": {
+          "description": "If specified, the pod's tolerations.",
+          "items": {
+            "description": "The pod this Toleration is attached to tolerates a",
+            "properties": {
+              "effect": {
+                "description": "Effect indicates the taint effect to match. Empty ",
+                "type": "string"
+              },
+              "key": {
+                "description": "Key is the taint key that the toleration applies t",
+                "type": "string"
+              },
+              "operator": {
+                "description": "Operator represents a key's relationship to the va",
+                "type": "string"
+              },
+              "tolerationSeconds": {
+                "description": "TolerationSeconds represents the period of time th",
+                "format": "int64",
+                "type": "integer"
+              },
+              "value": {
+                "description": "Value is the taint value the toleration matches to",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "trigger": {
+          "description": "Trigger defines the scenarios where a new build sh",
+          "properties": {
+            "triggerSecret": {
+              "description": "TriggerSecret points to a local object carrying th",
+              "type": "string"
+            },
+            "when": {
+              "description": "When the list of scenarios when a new build should",
+              "items": {
+                "description": "TriggerWhen a given scenario where the webhook tri",
+                "properties": {
+                  "github": {
+                    "description": "GitHub describes how to trigger builds based on Gi",
+                    "properties": {
+                      "branches": {
+                        "description": "Branches slice of branch names where the event app",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "events": {
+                        "description": "Events GitHub event names.",
+                        "items": {
+                          "description": "GitHubEventName set of WhenGitHub valid event name",
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "type": "array"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "image": {
+                    "description": "Image slice of image names where the event applies",
+                    "properties": {
+                      "names": {
+                        "description": "Names fully qualified image names.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "name": {
+                    "description": "Name name or the short description of the trigger ",
+                    "type": "string"
+                  },
+                  "objectRef": {
+                    "description": "ObjectRef describes how to match a foreign resourc",
+                    "properties": {
+                      "name": {
+                        "description": "Name target object name.",
+                        "type": "string"
+                      },
+                      "selector": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "Selector label selector.",
+                        "type": "object"
+                      },
+                      "status": {
+                        "description": "Status object status.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": {
+                    "description": "Type the event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "type": "array"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "volumes": {
+          "description": "Volumes contains volume Overrides of the BuildStra",
+          "items": {
+            "description": "BuildVolume is a volume that will be mounted in bu",
+            "properties": {
+              "awsElasticBlockStore": {
+                "description": "awsElasticBlockStore represents an AWS Disk resour",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type of the volume that y",
+                    "type": "string"
+                  },
+                  "partition": {
+                    "description": "partition is the partition in the volume that you ",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "readOnly": {
+                    "description": "readOnly value true will force the readOnly settin",
+                    "type": "boolean"
+                  },
+                  "volumeID": {
+                    "description": "volumeID is unique ID of the persistent disk resou",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "volumeID"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "azureDisk": {
+                "description": "azureDisk represents an Azure Data Disk mount on t",
+                "properties": {
+                  "cachingMode": {
+                    "description": "cachingMode is the Host Caching mode: None, Read O",
+                    "type": "string"
+                  },
+                  "diskName": {
+                    "description": "diskName is the Name of the data disk in the blob ",
+                    "type": "string"
+                  },
+                  "diskURI": {
+                    "description": "diskURI is the URI of data disk in the blob storag",
+                    "type": "string"
+                  },
+                  "fsType": {
+                    "default": "ext4",
+                    "description": "fsType is Filesystem type to mount.\nMust be a file",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "description": "kind expected values are Shared: multiple blob dis",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "default": false,
+                    "description": "readOnly Defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "diskName",
+                  "diskURI"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "azureFile": {
+                "description": "azureFile represents an Azure File Service mount o",
+                "properties": {
+                  "readOnly": {
+                    "description": "readOnly defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  },
+                  "secretName": {
+                    "description": "secretName is the  name of secret that contains Az",
+                    "type": "string"
+                  },
+                  "shareName": {
+                    "description": "shareName is the azure share Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "secretName",
+                  "shareName"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "cephfs": {
+                "description": "cephFS represents a Ceph FS mount on the host that",
+                "properties": {
+                  "monitors": {
+                    "description": "monitors is Required: Monitors is a collection of ",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "path": {
+                    "description": "path is Optional: Used as the mounted root, rather",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly is Optional: Defaults to false (read/writ",
+                    "type": "boolean"
+                  },
+                  "secretFile": {
+                    "description": "secretFile is Optional: SecretFile is the path to ",
+                    "type": "string"
+                  },
+                  "secretRef": {
+                    "description": "secretRef is Optional: SecretRef is reference to t",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "user": {
+                    "description": "user is optional: User is the rados user name, def",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "monitors"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "cinder": {
+                "description": "cinder represents a cinder volume attached and mou",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef is optional: points to a secret object c",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "volumeID": {
+                    "description": "volumeID used to identify the volume in cinder.\nMo",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "volumeID"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "configMap": {
+                "description": "configMap represents a configMap that should popul",
+                "properties": {
+                  "defaultMode": {
+                    "description": "defaultMode is optional: mode bits used to set per",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "items": {
+                    "description": "items if unspecified, each key-value pair in the D",
+                    "items": {
+                      "description": "Maps a string key to a path within a volume.",
+                      "properties": {
+                        "key": {
+                          "description": "key is the key to project.",
+                          "type": "string"
+                        },
+                        "mode": {
+                          "description": "mode is Optional: mode bits used to set permission",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "path": {
+                          "description": "path is the relative path of the file to map the k",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "path"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "name": {
+                    "default": "",
+                    "description": "Name of the referent.\nThis field is effectively re",
+                    "type": "string"
+                  },
+                  "optional": {
+                    "description": "optional specify whether the ConfigMap or its keys",
+                    "type": "boolean"
+                  }
+                },
+                "type": "object",
+                "x-kubernetes-map-type": "atomic",
+                "additionalProperties": false
+              },
+              "csi": {
+                "description": "csi (Container Storage Interface) represents ephem",
+                "properties": {
+                  "driver": {
+                    "description": "driver is the name of the CSI driver that handles ",
+                    "type": "string"
+                  },
+                  "fsType": {
+                    "description": "fsType to mount. Ex. \"ext4\", \"xfs\", \"ntfs\".\nIf not",
+                    "type": "string"
+                  },
+                  "nodePublishSecretRef": {
+                    "description": "nodePublishSecretRef is a reference to the secret ",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "readOnly": {
+                    "description": "readOnly specifies a read-only configuration for t",
+                    "type": "boolean"
+                  },
+                  "volumeAttributes": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "volumeAttributes stores driver-specific properties",
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "driver"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "downwardAPI": {
+                "description": "downwardAPI represents downward API about the pod ",
+                "properties": {
+                  "defaultMode": {
+                    "description": "Optional: mode bits to use on created files by def",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "items": {
+                    "description": "Items is a list of downward API volume file",
+                    "items": {
+                      "description": "DownwardAPIVolumeFile represents information to cr",
+                      "properties": {
+                        "fieldRef": {
+                          "description": "Required: Selects a field of the pod: only annotat",
+                          "properties": {
+                            "apiVersion": {
+                              "description": "Version of the schema the FieldPath is written in ",
+                              "type": "string"
+                            },
+                            "fieldPath": {
+                              "description": "Path of the field to select in the specified API v",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "fieldPath"
+                          ],
+                          "type": "object",
+                          "x-kubernetes-map-type": "atomic",
+                          "additionalProperties": false
+                        },
+                        "mode": {
+                          "description": "Optional: mode bits used to set permissions on thi",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "path": {
+                          "description": "Required: Path is  the relative path name of the f",
+                          "type": "string"
+                        },
+                        "resourceFieldRef": {
+                          "description": "Selects a resource of the container: only resource",
+                          "properties": {
+                            "containerName": {
+                              "description": "Container name: required for volumes, optional for",
+                              "type": "string"
+                            },
+                            "divisor": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "integer"
+                                }
+                              ]
+                            },
+                            "resource": {
+                              "description": "Required: resource to select",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "resource"
+                          ],
+                          "type": "object",
+                          "x-kubernetes-map-type": "atomic",
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "path"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "emptyDir": {
+                "description": "emptyDir represents a temporary directory that sha",
+                "properties": {
+                  "medium": {
+                    "description": "medium represents what type of storage medium shou",
+                    "type": "string"
+                  },
+                  "sizeLimit": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "ephemeral": {
+                "description": "ephemeral represents a volume that is handled by a",
+                "properties": {
+                  "volumeClaimTemplate": {
+                    "description": "Will be used to create a stand-alone PVC to provis",
+                    "properties": {
+                      "metadata": {
+                        "description": "May contain labels and annotations that will be co",
+                        "type": "object"
+                      },
+                      "spec": {
+                        "description": "The specification for the PersistentVolumeClaim. T",
+                        "properties": {
+                          "accessModes": {
+                            "description": "accessModes contains the desired access modes the ",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          },
+                          "dataSource": {
+                            "description": "dataSource field can be used to specify either:\n* ",
+                            "properties": {
+                              "apiGroup": {
+                                "description": "APIGroup is the group for the resource being refer",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "description": "Kind is the type of resource being referenced",
+                                "type": "string"
+                              },
+                              "name": {
+                                "description": "Name is the name of resource being referenced",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "name"
+                            ],
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic",
+                            "additionalProperties": false
+                          },
+                          "dataSourceRef": {
+                            "description": "dataSourceRef specifies the object from which to p",
+                            "properties": {
+                              "apiGroup": {
+                                "description": "APIGroup is the group for the resource being refer",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "description": "Kind is the type of resource being referenced",
+                                "type": "string"
+                              },
+                              "name": {
+                                "description": "Name is the name of resource being referenced",
+                                "type": "string"
+                              },
+                              "namespace": {
+                                "description": "Namespace is the namespace of resource being refer",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "name"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "resources": {
+                            "description": "resources represents the minimum resources the vol",
+                            "properties": {
+                              "limits": {
+                                "additionalProperties": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "integer"
+                                    }
+                                  ]
+                                },
+                                "description": "Limits describes the maximum amount of compute res",
+                                "type": "object"
+                              },
+                              "requests": {
+                                "additionalProperties": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "integer"
+                                    }
+                                  ]
+                                },
+                                "description": "Requests describes the minimum amount of compute r",
+                                "type": "object"
+                              }
+                            },
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "selector": {
+                            "description": "selector is a label query over volumes to consider",
+                            "properties": {
+                              "matchExpressions": {
+                                "description": "matchExpressions is a list of label selector requi",
+                                "items": {
+                                  "description": "A label selector requirement is a selector that co",
+                                  "properties": {
+                                    "key": {
+                                      "description": "key is the label key that the selector applies to.",
+                                      "type": "string"
+                                    },
+                                    "operator": {
+                                      "description": "operator represents a key's relationship to a set ",
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "description": "values is an array of string values. If the operat",
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "type": "array",
+                                      "x-kubernetes-list-type": "atomic"
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "operator"
+                                  ],
+                                  "type": "object",
+                                  "additionalProperties": false
+                                },
+                                "type": "array",
+                                "x-kubernetes-list-type": "atomic"
+                              },
+                              "matchLabels": {
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "matchLabels is a map of {key,value} pairs. A singl",
+                                "type": "object"
+                              }
+                            },
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic",
+                            "additionalProperties": false
+                          },
+                          "storageClassName": {
+                            "description": "storageClassName is the name of the StorageClass r",
+                            "type": "string"
+                          },
+                          "volumeAttributesClassName": {
+                            "description": "volumeAttributesClassName may be used to set the V",
+                            "type": "string"
+                          },
+                          "volumeMode": {
+                            "description": "volumeMode defines what type of volume is required",
+                            "type": "string"
+                          },
+                          "volumeName": {
+                            "description": "volumeName is the binding reference to the Persist",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "spec"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "fc": {
+                "description": "fc represents a Fibre Channel resource that is att",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "lun": {
+                    "description": "lun is Optional: FC target lun number",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "readOnly": {
+                    "description": "readOnly is Optional: Defaults to false (read/writ",
+                    "type": "boolean"
+                  },
+                  "targetWWNs": {
+                    "description": "targetWWNs is Optional: FC target worldwide names ",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "wwids": {
+                    "description": "wwids Optional: FC volume world wide identifiers (",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "flexVolume": {
+                "description": "flexVolume represents a generic volume resource th",
+                "properties": {
+                  "driver": {
+                    "description": "driver is the name of the driver to use for this v",
+                    "type": "string"
+                  },
+                  "fsType": {
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "options": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "options is Optional: this field holds extra comman",
+                    "type": "object"
+                  },
+                  "readOnly": {
+                    "description": "readOnly is Optional: defaults to false (read/writ",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef is Optional: secretRef is reference to t",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "driver"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "flocker": {
+                "description": "flocker represents a Flocker volume attached to a ",
+                "properties": {
+                  "datasetName": {
+                    "description": "datasetName is Name of the dataset stored as metad",
+                    "type": "string"
+                  },
+                  "datasetUUID": {
+                    "description": "datasetUUID is the UUID of the dataset. This is un",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "gcePersistentDisk": {
+                "description": "gcePersistentDisk represents a GCE Disk resource t",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is filesystem type of the volume that you w",
+                    "type": "string"
+                  },
+                  "partition": {
+                    "description": "partition is the partition in the volume that you ",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "pdName": {
+                    "description": "pdName is unique name of the PD resource in GCE. U",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the ReadOnly setting in V",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pdName"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "gitRepo": {
+                "description": "gitRepo represents a git repository at a particula",
+                "properties": {
+                  "directory": {
+                    "description": "directory is the target directory name.\nMust not c",
+                    "type": "string"
+                  },
+                  "repository": {
+                    "description": "repository is the URL",
+                    "type": "string"
+                  },
+                  "revision": {
+                    "description": "revision is the commit hash for the specified revi",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "repository"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "glusterfs": {
+                "description": "glusterfs represents a Glusterfs mount on the host",
+                "properties": {
+                  "endpoints": {
+                    "description": "endpoints is the endpoint name that details Gluste",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "path is the Glusterfs volume path.\nMore info: http",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the Glusterfs volume to b",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "endpoints",
+                  "path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "hostPath": {
+                "description": "hostPath represents a pre-existing file or directo",
+                "properties": {
+                  "path": {
+                    "description": "path of the directory on the host.\nIf the path is ",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "type for HostPath Volume\nDefaults to \"\"\nMore info:",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "image": {
+                "description": "image represents an OCI object (a container image ",
+                "properties": {
+                  "pullPolicy": {
+                    "description": "Policy for pulling OCI objects. Possible values ar",
+                    "type": "string"
+                  },
+                  "reference": {
+                    "description": "Required: Image or artifact reference to be used.\n",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "iscsi": {
+                "description": "iscsi represents an ISCSI Disk resource that is at",
+                "properties": {
+                  "chapAuthDiscovery": {
+                    "description": "chapAuthDiscovery defines whether support iSCSI Di",
+                    "type": "boolean"
+                  },
+                  "chapAuthSession": {
+                    "description": "chapAuthSession defines whether support iSCSI Sess",
+                    "type": "boolean"
+                  },
+                  "fsType": {
+                    "description": "fsType is the filesystem type of the volume that y",
+                    "type": "string"
+                  },
+                  "initiatorName": {
+                    "description": "initiatorName is the custom iSCSI Initiator Name.\n",
+                    "type": "string"
+                  },
+                  "iqn": {
+                    "description": "iqn is the target iSCSI Qualified Name.",
+                    "type": "string"
+                  },
+                  "iscsiInterface": {
+                    "default": "default",
+                    "description": "iscsiInterface is the interface Name that uses an ",
+                    "type": "string"
+                  },
+                  "lun": {
+                    "description": "lun represents iSCSI Target Lun number.",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "portals": {
+                    "description": "portals is the iSCSI Target Portal List. The porta",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the ReadOnly setting in V",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef is the CHAP Secret for iSCSI target and ",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "targetPortal": {
+                    "description": "targetPortal is iSCSI Target Portal. The Portal is",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "iqn",
+                  "lun",
+                  "targetPortal"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "name": {
+                "description": "Name of the Build Volume",
+                "type": "string"
+              },
+              "nfs": {
+                "description": "nfs represents an NFS mount on the host that share",
+                "properties": {
+                  "path": {
+                    "description": "path that is exported by the NFS server.\nMore info",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the NFS export to be moun",
+                    "type": "boolean"
+                  },
+                  "server": {
+                    "description": "server is the hostname or IP address of the NFS se",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path",
+                  "server"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "persistentVolumeClaim": {
+                "description": "persistentVolumeClaimVolumeSource represents a ref",
+                "properties": {
+                  "claimName": {
+                    "description": "claimName is the name of a PersistentVolumeClaim i",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly Will force the ReadOnly setting in Volume",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "claimName"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "photonPersistentDisk": {
+                "description": "photonPersistentDisk represents a PhotonController",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "pdID": {
+                    "description": "pdID is the ID that identifies Photon Controller p",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pdID"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "portworxVolume": {
+                "description": "portworxVolume represents a portworx volume attach",
+                "properties": {
+                  "fsType": {
+                    "description": "fSType represents the filesystem type to mount\nMus",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  },
+                  "volumeID": {
+                    "description": "volumeID uniquely identifies a Portworx volume",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "volumeID"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "projected": {
+                "description": "projected items for all in one resources secrets, ",
+                "properties": {
+                  "defaultMode": {
+                    "description": "defaultMode are the mode bits used to set permissi",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "sources": {
+                    "description": "sources is the list of volume projections. Each en",
+                    "items": {
+                      "description": "Projection that may be projected along with other ",
+                      "properties": {
+                        "clusterTrustBundle": {
+                          "description": "ClusterTrustBundle allows a pod to access the `.sp",
+                          "properties": {
+                            "labelSelector": {
+                              "description": "Select all ClusterTrustBundles that match this lab",
+                              "properties": {
+                                "matchExpressions": {
+                                  "description": "matchExpressions is a list of label selector requi",
+                                  "items": {
+                                    "description": "A label selector requirement is a selector that co",
+                                    "properties": {
+                                      "key": {
+                                        "description": "key is the label key that the selector applies to.",
+                                        "type": "string"
+                                      },
+                                      "operator": {
+                                        "description": "operator represents a key's relationship to a set ",
+                                        "type": "string"
+                                      },
+                                      "values": {
+                                        "description": "values is an array of string values. If the operat",
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array",
+                                        "x-kubernetes-list-type": "atomic"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "operator"
+                                    ],
+                                    "type": "object",
+                                    "additionalProperties": false
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                },
+                                "matchLabels": {
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  },
+                                  "description": "matchLabels is a map of {key,value} pairs. A singl",
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object",
+                              "x-kubernetes-map-type": "atomic",
+                              "additionalProperties": false
+                            },
+                            "name": {
+                              "description": "Select a single ClusterTrustBundle by object name.",
+                              "type": "string"
+                            },
+                            "optional": {
+                              "description": "If true, don't block pod startup if the referenced",
+                              "type": "boolean"
+                            },
+                            "path": {
+                              "description": "Relative path from the volume root to write the bu",
+                              "type": "string"
+                            },
+                            "signerName": {
+                              "description": "Select all ClusterTrustBundles that match this sig",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "path"
+                          ],
+                          "type": "object",
+                          "additionalProperties": false
+                        },
+                        "configMap": {
+                          "description": "configMap information about the configMap data to ",
+                          "properties": {
+                            "items": {
+                              "description": "items if unspecified, each key-value pair in the D",
+                              "items": {
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permission",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the k",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object",
+                                "additionalProperties": false
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-type": "atomic"
+                            },
+                            "name": {
+                              "default": "",
+                              "description": "Name of the referent.\nThis field is effectively re",
+                              "type": "string"
+                            },
+                            "optional": {
+                              "description": "optional specify whether the ConfigMap or its keys",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object",
+                          "x-kubernetes-map-type": "atomic",
+                          "additionalProperties": false
+                        },
+                        "downwardAPI": {
+                          "description": "downwardAPI information about the downwardAPI data",
+                          "properties": {
+                            "items": {
+                              "description": "Items is a list of DownwardAPIVolume file",
+                              "items": {
+                                "description": "DownwardAPIVolumeFile represents information to cr",
+                                "properties": {
+                                  "fieldRef": {
+                                    "description": "Required: Selects a field of the pod: only annotat",
+                                    "properties": {
+                                      "apiVersion": {
+                                        "description": "Version of the schema the FieldPath is written in ",
+                                        "type": "string"
+                                      },
+                                      "fieldPath": {
+                                        "description": "Path of the field to select in the specified API v",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "fieldPath"
+                                    ],
+                                    "type": "object",
+                                    "x-kubernetes-map-type": "atomic",
+                                    "additionalProperties": false
+                                  },
+                                  "mode": {
+                                    "description": "Optional: mode bits used to set permissions on thi",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "Required: Path is  the relative path name of the f",
+                                    "type": "string"
+                                  },
+                                  "resourceFieldRef": {
+                                    "description": "Selects a resource of the container: only resource",
+                                    "properties": {
+                                      "containerName": {
+                                        "description": "Container name: required for volumes, optional for",
+                                        "type": "string"
+                                      },
+                                      "divisor": {
+                                        "oneOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "integer"
+                                          }
+                                        ]
+                                      },
+                                      "resource": {
+                                        "description": "Required: resource to select",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "resource"
+                                    ],
+                                    "type": "object",
+                                    "x-kubernetes-map-type": "atomic",
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "path"
+                                ],
+                                "type": "object",
+                                "additionalProperties": false
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-type": "atomic"
+                            }
+                          },
+                          "type": "object",
+                          "additionalProperties": false
+                        },
+                        "secret": {
+                          "description": "secret information about the secret data to projec",
+                          "properties": {
+                            "items": {
+                              "description": "items if unspecified, each key-value pair in the D",
+                              "items": {
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permission",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the k",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object",
+                                "additionalProperties": false
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-type": "atomic"
+                            },
+                            "name": {
+                              "default": "",
+                              "description": "Name of the referent.\nThis field is effectively re",
+                              "type": "string"
+                            },
+                            "optional": {
+                              "description": "optional field specify whether the Secret or its k",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object",
+                          "x-kubernetes-map-type": "atomic",
+                          "additionalProperties": false
+                        },
+                        "serviceAccountToken": {
+                          "description": "serviceAccountToken is information about the servi",
+                          "properties": {
+                            "audience": {
+                              "description": "audience is the intended audience of the token. A ",
+                              "type": "string"
+                            },
+                            "expirationSeconds": {
+                              "description": "expirationSeconds is the requested duration of val",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            "path": {
+                              "description": "path is the path relative to the mount point of th",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "path"
+                          ],
+                          "type": "object",
+                          "additionalProperties": false
+                        }
+                      },
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "quobyte": {
+                "description": "quobyte represents a Quobyte mount on the host tha",
+                "properties": {
+                  "group": {
+                    "description": "group to map volume access to\nDefault is no group",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the Quobyte volume to be ",
+                    "type": "boolean"
+                  },
+                  "registry": {
+                    "description": "registry represents a single or multiple Quobyte R",
+                    "type": "string"
+                  },
+                  "tenant": {
+                    "description": "tenant owning the given Quobyte volume in the Back",
+                    "type": "string"
+                  },
+                  "user": {
+                    "description": "user to map volume access to\nDefaults to serivceac",
+                    "type": "string"
+                  },
+                  "volume": {
+                    "description": "volume is a string that references an already crea",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "registry",
+                  "volume"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "rbd": {
+                "description": "rbd represents a Rados Block Device mount on the h",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type of the volume that y",
+                    "type": "string"
+                  },
+                  "image": {
+                    "description": "image is the rados image name.\nMore info: https://",
+                    "type": "string"
+                  },
+                  "keyring": {
+                    "default": "/etc/ceph/keyring",
+                    "description": "keyring is the path to key ring for RBDUser.\nDefau",
+                    "type": "string"
+                  },
+                  "monitors": {
+                    "description": "monitors is a collection of Ceph monitors.\nMore in",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "pool": {
+                    "default": "rbd",
+                    "description": "pool is the rados pool name.\nDefault is rbd.\nMore ",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly here will force the ReadOnly setting in V",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef is name of the authentication secret for",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "user": {
+                    "default": "admin",
+                    "description": "user is the rados user name.\nDefault is admin.\nMor",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "image",
+                  "monitors"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "scaleIO": {
+                "description": "scaleIO represents a ScaleIO persistent volume att",
+                "properties": {
+                  "fsType": {
+                    "default": "xfs",
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "gateway": {
+                    "description": "gateway is the host address of the ScaleIO API Gat",
+                    "type": "string"
+                  },
+                  "protectionDomain": {
+                    "description": "protectionDomain is the name of the ScaleIO Protec",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly Defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef references to the secret for ScaleIO use",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "sslEnabled": {
+                    "description": "sslEnabled Flag enable/disable SSL communication w",
+                    "type": "boolean"
+                  },
+                  "storageMode": {
+                    "default": "ThinProvisioned",
+                    "description": "storageMode indicates whether the storage for a vo",
+                    "type": "string"
+                  },
+                  "storagePool": {
+                    "description": "storagePool is the ScaleIO Storage Pool associated",
+                    "type": "string"
+                  },
+                  "system": {
+                    "description": "system is the name of the storage system as config",
+                    "type": "string"
+                  },
+                  "volumeName": {
+                    "description": "volumeName is the name of a volume already created",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "gateway",
+                  "secretRef",
+                  "system"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "secret": {
+                "description": "secret represents a secret that should populate th",
+                "properties": {
+                  "defaultMode": {
+                    "description": "defaultMode is Optional: mode bits used to set per",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "items": {
+                    "description": "items If unspecified, each key-value pair in the D",
+                    "items": {
+                      "description": "Maps a string key to a path within a volume.",
+                      "properties": {
+                        "key": {
+                          "description": "key is the key to project.",
+                          "type": "string"
+                        },
+                        "mode": {
+                          "description": "mode is Optional: mode bits used to set permission",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "path": {
+                          "description": "path is the relative path of the file to map the k",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "path"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "optional": {
+                    "description": "optional field specify whether the Secret or its k",
+                    "type": "boolean"
+                  },
+                  "secretName": {
+                    "description": "secretName is the name of the secret in the pod's ",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "storageos": {
+                "description": "storageOS represents a StorageOS volume attached a",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is the filesystem type to mount.\nMust be a ",
+                    "type": "string"
+                  },
+                  "readOnly": {
+                    "description": "readOnly defaults to false (read/write). ReadOnly ",
+                    "type": "boolean"
+                  },
+                  "secretRef": {
+                    "description": "secretRef specifies the secret to use for obtainin",
+                    "properties": {
+                      "name": {
+                        "default": "",
+                        "description": "Name of the referent.\nThis field is effectively re",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-kubernetes-map-type": "atomic",
+                    "additionalProperties": false
+                  },
+                  "volumeName": {
+                    "description": "volumeName is the human-readable name of the Stora",
+                    "type": "string"
+                  },
+                  "volumeNamespace": {
+                    "description": "volumeNamespace specifies the scope of the volume ",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "vsphereVolume": {
+                "description": "vsphereVolume represents a vSphere volume attached",
+                "properties": {
+                  "fsType": {
+                    "description": "fsType is filesystem type to mount.\nMust be a file",
+                    "type": "string"
+                  },
+                  "storagePolicyID": {
+                    "description": "storagePolicyID is the storage Policy Based Manage",
+                    "type": "string"
+                  },
+                  "storagePolicyName": {
+                    "description": "storagePolicyName is the storage Policy Based Mana",
+                    "type": "string"
+                  },
+                  "volumePath": {
+                    "description": "volumePath is the path that identifies vSphere vol",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "volumePath"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "output",
+        "strategy"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    },
+    "status": {
+      "description": "BuildStatus defines the observed state of Build\n\nN",
+      "properties": {
+        "message": {
+          "description": "The message of the registered Build, either an err",
+          "type": "string"
+        },
+        "reason": {
+          "description": "The reason of the registered Build, it's an one-wo",
+          "type": "string"
+        },
+        "registered": {
+          "description": "The Register status of the Build",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "spec"
+  ],
+  "type": "object"
+}
