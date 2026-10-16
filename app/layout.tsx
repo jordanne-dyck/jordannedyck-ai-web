@@ -98,14 +98,15 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'Person',
+              '@id': 'https://jordannedyck.com/#person',
               name: 'Jordanne Dyck',
               jobTitle: 'AI Builder & Product Strategy Leader',
               description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
               url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
-              telephone: '+1-647-454-2244',
               sameAs: [
                 'https://www.linkedin.com/in/jordannedyck/',
+                'https://github.com/jordanne-dyck',
               ],
               knowsAbout: [
                 'Artificial Intelligence',

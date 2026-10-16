@@ -4,6 +4,7 @@ import { useChat } from 'ai/react';
 import { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
@@ -98,6 +99,15 @@ export default function Home() {
         <div className="absolute bottom-1/4 -right-20 w-64 sm:w-96 h-64 sm:h-96 bg-[#CCCCCC] rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 sm:w-96 h-64 sm:h-96 bg-[#999999] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '4s' }}></div>
       </div>
+
+      <nav className="absolute top-3 right-3 sm:top-5 sm:right-6 z-20" aria-label="Site">
+        <Link
+          href="/about"
+          className="text-xs sm:text-[13px] font-medium text-[#666666] px-3 py-1.5 rounded-full border border-transparent hover:text-[#0055D4] hover:border-[#E0E0DB] hover:bg-white/70 transition-colors"
+        >
+          About
+        </Link>
+      </nav>
 
       <div className="w-full max-w-3xl mx-auto flex flex-col gap-4 relative z-10 py-4 sm:py-6 h-full min-h-0">
         {/* Header */}
