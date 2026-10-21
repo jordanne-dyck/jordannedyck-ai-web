@@ -31,14 +31,15 @@ export function Feedback({ rowId }: { rowId: string }) {
     }
   };
 
+  // At least 24px everywhere, 44px on touch screens.
   const button =
-    'p-1 rounded-md text-[#999999] hover:text-[#0055D4] hover:bg-white/60 transition-colors';
+    'inline-flex items-center justify-center min-w-7 min-h-7 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:min-h-11 rounded-md text-[var(--soft)] hover:text-[var(--text)] hover:bg-[var(--fill)] transition-colors';
 
   if (state === 'up' || state === 'down') {
-    return <p className="mt-1 text-[10px] sm:text-[11px] text-[#999999]">Thanks for the feedback.</p>;
+    return <p className="mt-1 text-[10px] sm:text-[11px] text-[var(--soft)]">Thanks for the feedback.</p>;
   }
   if (state === 'error') {
-    return <p className="mt-1 text-[10px] sm:text-[11px] text-[#999999]">Feedback could not be saved.</p>;
+    return <p className="mt-1 text-[10px] sm:text-[11px] text-[var(--soft)]">Feedback could not be saved.</p>;
   }
   if (state === 'asking') {
     return (
@@ -57,11 +58,11 @@ export function Feedback({ rowId }: { rowId: string }) {
           autoFocus
           placeholder="What was wrong? (optional)"
           aria-label="What was wrong with this answer"
-          className="flex-1 min-w-0 rounded-lg px-2 py-1 text-[11px] sm:text-xs bg-white/80 border border-[#E0E0DB] focus:outline-none focus:ring-2 focus:ring-[#0055D4]/30 text-[#1A1A1A] placeholder-[#999999]"
+          className="flex-1 min-w-0 rounded-lg px-2 py-1 text-[11px] sm:text-xs bg-[var(--input)] border border-[var(--rule)] focus:outline-none focus:ring-2 focus:ring-[var(--d1)] text-[var(--text)] placeholder-[var(--soft)]"
         />
         <button
           type="submit"
-          className="rounded-lg px-2 py-1 text-[11px] sm:text-xs bg-[#0055D4] hover:bg-[#004ABB] text-white"
+          className="rounded-lg px-2 py-1 text-[11px] sm:text-xs bg-[var(--send)] hover:opacity-90 text-[var(--send-ink)]"
         >
           Send
         </button>

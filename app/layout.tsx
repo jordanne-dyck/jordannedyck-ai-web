@@ -1,11 +1,28 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Fraunces } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
+});
+
+// Home page: Fraunces for the name and big type, Neue Regrade for reading text.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  display: 'swap',
+  style: ['normal', 'italic'],
+  axes: ['SOFT', 'WONK', 'opsz'],
+  variable: '--font-fraunces',
+});
+
+const regrade = localFont({
+  src: './fonts/NeueRegrade-Variable.ttf',
+  weight: '300 800',
+  display: 'swap',
+  variable: '--font-regrade',
 });
 
 export const viewport: Viewport = {
@@ -89,7 +106,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${regrade.variable}`}>
       <head>
         {/* Structured Data */}
         <script

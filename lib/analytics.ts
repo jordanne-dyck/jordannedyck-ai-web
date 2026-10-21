@@ -39,7 +39,11 @@ export type AnalyticsEvent =
   | { name: 'stream_completed'; props: { ms_elapsed: number } }
   | { name: 'stream_abandoned'; props: { ms_elapsed: number } }
   | { name: 'answer_copied'; props: Record<string, never> }
-  | { name: 'feedback'; props: { vote: 'up' | 'down'; has_note: boolean } };
+  | { name: 'feedback'; props: { vote: 'up' | 'down'; has_note: boolean } }
+  // Home page acquisition: the first-screen button, and every route to contact her.
+  | { name: 'hero_ask_clicked'; props: Record<string, never> }
+  | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer'; channel: 'email' | 'linkedin' | 'github' | 'phone' } }
+  | { name: 'answer_retried'; props: Record<string, never> };
 
 // `beacon` for events sent while the page is closing, when a normal request
 // would be cancelled.
