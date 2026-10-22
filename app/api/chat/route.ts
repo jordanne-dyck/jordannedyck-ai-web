@@ -44,7 +44,7 @@ type RetrievalAnnotation = {
 type SearchResult = {
   content: string;
   similarity: number;
-  metadata: { filename?: string; category?: string; chunk_id?: string };
+  metadata: { filename?: string; category?: string; chunk_id?: string; title?: string };
 };
 
 // Stored with the event, never sent to the client.
@@ -71,15 +71,18 @@ async function searchExperience(
     const indexVersion = typeof data.index_version === 'string' ? data.index_version : null;
 
     if (data.results && data.results.length > 0) {
+      // Only id and title: no relevance score, category or file path, which do
+      // not help the model and can leak into answers. On the same prompt this
+      // layout cited better than the old one (eval 2026-10-21/22). MUST MATCH
+      // search_experience() in jordannedyck-ai/run_eval.py, source format "labelled".
       const context = data.results
         .map((r, i) =>
-          `### Result ${i + 1} (Relevance: ${r.similarity.toFixed(2)})\n` +
-          `**Chunk**: ${r.metadata.chunk_id}\n` +
-          `**Source**: ${r.metadata.filename}\n` +
-          `**Category**: ${r.metadata.category}\n\n` +
-          `${r.content}\n\n---\n`
+          `### Result ${i + 1}\n` +
+          `**Id**: ${r.metadata.chunk_id}\n` +
+          `**Title**: ${r.metadata.title}\n\n` +
+          `${r.content}\n\n---`
         )
-        .join('\n');
+        .join('\n\n');
       const chunks = data.results.map((r) => ({
         chunk_id: r.metadata.chunk_id ?? null,
         filename: r.metadata.filename ?? null,
@@ -244,6 +247,7 @@ export async function POST(req: NextRequest) {
           system: systemPrompt,
           messages,
           temperature: 0.7,
+          maxTokens: 1000,
           experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
