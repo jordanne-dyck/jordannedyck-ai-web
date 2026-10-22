@@ -1,6 +1,7 @@
 # Peter (cluster owner) reviews changes to what gets deployed and to CI.
 # Takes effect once branch protection requires code owner review on master.
-/k8s/      @bearzibubbs
+/k8s/prod      @bearzibubbs
+/k8s/postgres  @bearzibubbs
 /.github/  @bearzibubbs
 
 # Prod releases merge without review. CI (k8s.yml) only lets this file set the
