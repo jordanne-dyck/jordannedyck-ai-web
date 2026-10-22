@@ -8,6 +8,7 @@ import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
 import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import { keepSignedTurns, signTurn } from '@/lib/turn-signature';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
@@ -186,7 +187,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { messages, turnIndex } = input;
+  // Earlier answers reach the model only if this server signed them for this
+  // session; forged or edited ones are dropped (lib/turn-signature.ts).
+  const { turnIndex } = input;
+  const { messages, unsigned } = keepSignedTurns(input.messages, sessionId);
   const searchStart = Date.now();
   const { context, retrieval, meta } = await searchExperience(query);
   const retrievalMs = Date.now() - searchStart;
@@ -217,7 +221,10 @@ export async function POST(req: NextRequest) {
       ? Math.max(...retrieval.chunks.map((c) => c.similarity))
       : null,
     isSynthetic,
-    flags: input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {},
+    flags: {
+      ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
+      ...(unsigned ? { unsigned_assistant_turns: unsigned } : {}),
+    },
   };
 
   const logFailure = (err: unknown) =>
@@ -251,6 +258,11 @@ export async function POST(req: NextRequest) {
             }
           },
           onFinish: async ({ text, usage }) => {
+            // Signs the text the visitor received, so this answer can go back
+            // to the model next turn. Written before the database insert, so a
+            // slow insert can't hold it back.
+            const signature = signTurn(sessionId, text);
+            if (signature) dataStream.writeMessageAnnotation(signature);
             const promptTokens = usage.promptTokens ?? null;
             const completionTokens = usage.completionTokens ?? null;
             const { segments, citedIds } = parseCitations(cited.raw);

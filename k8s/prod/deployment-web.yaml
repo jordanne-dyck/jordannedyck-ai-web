@@ -46,6 +46,12 @@ spec:
                 secretKeyRef:
                   key: IP_HASH_SALT
                   name: app-observability
+            - name: TURN_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: TURN_SIGNING_KEY
+                  name: app-observability
+                  optional: true
           envFrom:
             - secretRef:
                 name: openai-api-key
