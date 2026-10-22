@@ -182,7 +182,13 @@ export default function Home() {
                         onCopy={() => track({ name: 'answer_copied', props: {} })}
                       >
                         <ReactMarkdown
+                          // Model output never loads images: an image URL is
+                          // the markdown exfiltration path.
+                          disallowedElements={['img']}
                           components={{
+                            a: ({ node: _node, ...props }) => (
+                              <a className="underline" {...props} target="_blank" rel="noopener noreferrer" />
+                            ),
                             p: ({ node: _node, ...props }) => (
                               <p className="my-3 leading-relaxed first:mt-0 last:mb-0" {...props} />
                             ),

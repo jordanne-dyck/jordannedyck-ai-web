@@ -244,6 +244,7 @@ export async function POST(req: NextRequest) {
           system: systemPrompt,
           messages,
           temperature: 0.7,
+          maxTokens: 1000,
           experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
