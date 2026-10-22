@@ -46,8 +46,8 @@ function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => voi
     </>
   );
 }
-const NAME_LINES = ['Jordanne', 'Dyck'];
-const HIGHLIGHTS = ['AI builder', 'Product & strategy leader', '15+ years shipping', 'DECIEM', 'Loblaw Digital'];
+const NAME_LINES = ['Jordanne Dyck'];
+const HIGHLIGHTS = ['Product & AI builder', '15+ years shipping', 'DECIEM', 'Loblaw Digital'];
 
 // Sizes the name so its widest line fills the block. Measured on a still copy,
 // because the letters are mid-animation when this runs.
@@ -208,7 +208,7 @@ export default function Home() {
 
       <header className="name-block" ref={blockRef}>
         <div className="hero-top">
-          <p>AI builder and product &amp; strategy leader. 15+ years shipping. Ask my AI anything about my work.</p>
+          <p>Product &amp; AI builder. 15+ years shipping. Ask my AI anything about my work.</p>
           <button type="button" className="ask" onClick={askJordbot}>Ask jordbot <span aria-hidden="true">↓</span></button>
         </div>
         <div className="name-photo" aria-hidden="true">
@@ -219,7 +219,7 @@ export default function Home() {
           {NAME_LINES.map((line, li) => (
             <span className="line" key={line} aria-hidden="true">
               {line.split('').map((c, ci) => (
-                <span className="ch" key={ci} style={{ '--i': NAME_LINES.slice(0, li).join('').length + ci } as CSSProperties}>{c}</span>
+                <span className="ch" key={ci} style={{ '--i': NAME_LINES.slice(0, li).join('').length + ci } as CSSProperties}>{c === ' ' ? ' ' : c}</span>
               ))}
             </span>
           ))}
@@ -232,12 +232,12 @@ export default function Home() {
             <span key={`${copy}-${t}`} className="contents"><span className="t">{t}</span><i className="sep" /></span>
           )))}
         </div>
-        <p className="sr-only">AI builder. Product and strategy leader. 15+ years shipping. DECIEM, Loblaw Digital.</p>
+        <p className="sr-only">Product and AI builder. 15+ years shipping. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
           <a href={`mailto:${EMAIL}`} onClick={() => contact('hero', 'email')}>Email</a>
           <Socials onClick={ch => contact('hero', ch)} />
-          <span className="label">AI builder · Product &amp; strategy</span>
+          <span className="label">Product &amp; AI builder</span>
           <button type="button" className="label pause" aria-pressed={paused} onClick={() => setPaused(p => !p)}>
             {paused ? 'Play motion' : 'Pause motion'}
           </button>

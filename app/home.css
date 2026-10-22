@@ -1,6 +1,6 @@
 /* Home page: slate dusk palette, Fraunces + Neue Regrade, film effects.
    Design source: nimbalyst-local/mockups/home-redesign-v11.mockup.html.
-   Everything is scoped under .home so /about and /dashboard keep their own look. */
+   Everything is scoped under .home; /about reuses it (root "home about") and /dashboard keeps its own look. */
 
 body:has(.home) { background: #181614; }
 html:has(.home) { scroll-behavior: smooth; }
@@ -33,14 +33,15 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .bar .who { font-family: var(--serif); font-variation-settings: var(--name-vs); font-size: 17px; letter-spacing: -0.02em; }
 
 /* ---------- Name block ---------- */
-.home .name-block { position: relative; overflow: hidden; background: var(--block); color: var(--name-ink); min-height: 94vh; display: flex; flex-direction: column; padding-top: 4vh; }
+.home .name-block { position: relative; overflow: hidden; background: var(--block); color: var(--name-ink); min-height: 64vh; display: flex; flex-direction: column; padding-top: 4vh; }
 .home .hero-top { position: relative; z-index: 3; padding: 0 2vw; max-width: min(52vw, 560px); }
 .home .hero-top p { font-size: 19px; line-height: 1.45; }
 .home .hero-top .ask { margin-top: 18px; min-height: 48px; padding: 0 22px; border-radius: 999px; background: var(--name-ink); color: var(--block);
   font-size: 16px; font-variation-settings: "wght" 550, "ital" 0; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .home .hero-top .ask:hover { background: #fff3df; }
-.home .name-photo { position: absolute; z-index: 0; right: 7vw; top: 6vh; width: min(34vw, 480px); height: 62vh; }
-.home .name-photo img { object-fit: contain; object-position: right top; will-change: transform; }
+/* The photo sits behind the name, so the block only needs the name's height */
+.home .name-photo { position: absolute; z-index: 0; right: 7vw; top: 5vh; bottom: 4vh; width: min(30vw, 420px); }
+.home .name-photo img { object-fit: contain; object-position: right center; will-change: transform; }
 .home .name { position: relative; z-index: 1; margin-top: auto; padding: 0 2vw calc(3.5vh + .2em); font-family: var(--serif); font-weight: 400;
   font-variation-settings: var(--name-vs); line-height: .9; letter-spacing: -0.035em; white-space: nowrap; font-size: 22vw; }
 .home .name .line { display: block; width: max-content; }
@@ -154,11 +155,11 @@ html:has(.home) { scroll-behavior: smooth; }
 @media (max-width: 760px) {
   .home .bar { padding: 10px 16px; } .home .bar .who { font-size: 14px; }
   .home .name-block { padding-top: 3vh; }
-  .home .name-block { min-height: 72vh; }
+  .home .name-block { min-height: 52vh; }
+  .home .name-photo { right: 4vw; top: 20vh; bottom: 2vh; width: 46vw; }
   .home .hero-top { max-width: none; padding: 0 4vw; }
   .home .hero-top p { font-size: 16px; max-width: 30ch; }
   .home .hero-top .ask { margin-top: 12px; }
-  .home .name-photo { right: 4vw; top: 22vh; width: 52vw; height: 30vh; }
   .home .lens { display: none; }
   .home .name-links { gap: 18px; font-size: 15px; margin: 2vh 4vw; } .home .name-links span.label { display: none; } .home .name-links .pause { margin-left: auto; }
   .home .chat { width: calc(100% - 32px); padding-top: 6vh; }

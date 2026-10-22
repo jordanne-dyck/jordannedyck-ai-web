@@ -33,8 +33,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://jordannedyck.com'),
-  title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-  description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
+  title: 'Jordanne Dyck | Product & AI Builder',
+  description: 'Product & AI Builder with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
   keywords: [
     'Jordanne Dyck',
     'AI Builder',
@@ -56,8 +56,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://jordannedyck.com',
-    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Product & AI Builder',
+    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
     siteName: 'Jordanne Dyck Portfolio',
     images: [
       {
@@ -70,8 +70,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Product & AI Builder',
+    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
     images: ['/og-image.jpg'],
   },
   robots: {
@@ -117,8 +117,8 @@ export default function RootLayout({
               '@type': 'Person',
               '@id': 'https://jordannedyck.com/#person',
               name: 'Jordanne Dyck',
-              jobTitle: 'AI Builder & Product Strategy Leader',
-              description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
+              jobTitle: 'Product & AI Builder',
+              description: 'Product & AI Builder with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
               url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
               sameAs: [
