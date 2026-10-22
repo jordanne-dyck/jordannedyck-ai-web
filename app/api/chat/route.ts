@@ -73,12 +73,15 @@ async function searchExperience(
     if (data.results && data.results.length > 0) {
       // Only id and title: no score, category or file path, which do not help
       // the model and can leak into answers. The prompt supplies the <sources>
-      // wrapper. MUST MATCH search_experience() in jordannedyck-ai/run_eval.py.
+      // wrapper. Labelled lines, not <document> tags: same prompt, more
+      // citations (eval 2026-10-22, 48 -> 63 markers). MUST MATCH
+      // search_experience() in jordannedyck-ai/run_eval.py, source_format "labelled".
       const context = data.results
-        .map((r) =>
-          `<document id="${r.metadata.chunk_id}" title="${r.metadata.title}">\n` +
-          `${r.content}\n` +
-          `</document>`
+        .map((r, i) =>
+          `### Result ${i + 1}\n` +
+          `**Id**: ${r.metadata.chunk_id}\n` +
+          `**Title**: ${r.metadata.title}\n\n` +
+          `${r.content}\n\n---`
         )
         .join('\n\n');
       const chunks = data.results.map((r) => ({
