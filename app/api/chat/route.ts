@@ -13,6 +13,7 @@ import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
+import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
 
 const MODEL = 'gpt-4o';
 
@@ -32,6 +33,8 @@ const NO_RESPONSE = {
 // filenames, chunk ids or text.
 type RetrievalAnnotation = {
   type: 'retrieval';
+  // The text retrieval ran on: the follow-up rewrite, or the latest message.
+  query: string;
   status: 'ok' | 'empty' | 'error';
   chunks: {
     chunk_id: string | null;
@@ -89,21 +92,21 @@ async function searchExperience(
       const best = data.results.reduce((a, b) => (b.similarity > a.similarity ? b : a));
       return {
         context,
-        retrieval: { type: 'retrieval', status: 'ok', chunks },
+        retrieval: { type: 'retrieval', query, status: 'ok', chunks },
         meta: { topCategory: best.metadata.category ?? null, indexVersion },
       };
     }
 
     return {
       context: 'No relevant information found.',
-      retrieval: { type: 'retrieval', status: 'empty', chunks: [] },
+      retrieval: { type: 'retrieval', query, status: 'empty', chunks: [] },
       meta: { ...noMeta, indexVersion },
     };
   } catch (error) {
     console.error('Search error:', error);
     return {
       context: 'Unable to search knowledge base.',
-      retrieval: { type: 'retrieval', status: 'error', chunks: [] },
+      retrieval: { type: 'retrieval', query, status: 'error', chunks: [] },
       meta: noMeta,
     };
   }
@@ -187,8 +190,11 @@ export async function POST(req: NextRequest) {
   }
 
   const { messages, turnIndex } = input;
+  // Follow-ups are searched on a standalone rewrite; `query` stays the
+  // visitor's own words for logging and labels.
+  const rewrite = await rewriteQuery(messages);
   const searchStart = Date.now();
-  const { context, retrieval, meta } = await searchExperience(query);
+  const { context, retrieval, meta } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
 
   const systemPrompt = buildSystemPrompt(context);
@@ -217,7 +223,23 @@ export async function POST(req: NextRequest) {
       ? Math.max(...retrieval.chunks.map((c) => c.similarity))
       : null,
     isSynthetic,
-    flags: input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {},
+    flags: {
+      ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
+      // Logged so retrieval can be audited. time_to_first_token_ms already
+      // includes `ms`; turn_index > 1 picks out the follow-ups.
+      query_rewrite: {
+        status: rewrite.status,
+        ...(rewrite.status === 'skipped'
+          ? {}
+          : {
+              // Redacted like query, which holds the same visitor text.
+              query: redactPii(rewrite.query).text,
+              ms: rewrite.ms,
+              model: REWRITE_MODEL,
+              cost_usd: rewrite.costUsd,
+            }),
+      },
+    },
   };
 
   const logFailure = (err: unknown) =>
