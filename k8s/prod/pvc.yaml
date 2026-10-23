@@ -33,3 +33,22 @@ spec:
   storageClassName: nfs-csi
   volumeMode: Filesystem
   volumeName: pvc-8dffb097-fa55-4b8a-9c3e-005bbf2286ce
+---
+# Static NFS share holding one folder per index version (kb-<knowledge-base
+# commit>). Peter creates the PV; folders are written once and never edited.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+  name: faiss-share
+  namespace: jordbot
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 500Mi
+  storageClassName: ""
+  volumeMode: Filesystem
+  volumeName: jordbot-faiss-db-prod
