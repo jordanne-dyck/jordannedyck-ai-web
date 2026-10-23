@@ -16,7 +16,7 @@ import type { ChatMessage } from './chat-input';
 // model, temperature, limits, input window and fallback rules below.
 
 export const REWRITE_MODEL = 'gpt-4o-mini';
-export const REWRITE_TIMEOUT_MS = 1200;
+export const REWRITE_TIMEOUT_MS = 2500;
 export const REWRITE_MAX_TOKENS = 60;
 // Earlier user questions sent with the latest message.
 export const REWRITE_PRIOR_QUESTIONS = 3;
