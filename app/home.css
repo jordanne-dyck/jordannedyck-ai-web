@@ -107,6 +107,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .chips button:hover::before { background: currentColor; }
 .home .chips button:disabled { opacity: .5; cursor: default; }
 .home[data-chatting] .composer { position: sticky; }
+/* Once chatting, the sticky box keeps one question so it doesn't fill the screen */
+.home[data-chatting] .chips button:nth-of-type(n+2) { display: none; }
 .home .composer form { display: flex; background: var(--input); border-radius: 14px; overflow: hidden; }
 .home .composer input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--text); padding: 18px 20px; border: 0; background: transparent; outline: none; }
 .home .composer input::placeholder { color: var(--soft); }
@@ -166,8 +168,6 @@ html:has(.home) { scroll-behavior: smooth; }
   .home .msg { font-size: 16px; } .home .msg.user { max-width: 88%; }
   .home .cat-stack { width: 160px; height: 200px; }
   .home .chips button { font-size: 14px; }
-  /* Once chatting, the sticky box keeps one question so it doesn't fill the screen */
-  .home[data-chatting] .chips button:nth-of-type(n+2) { display: none; }
   .home .composer form button { padding: 0 18px; }
   .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 10px 24px; }
 }
