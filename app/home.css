@@ -1,0 +1,173 @@
+/* Home page: slate dusk palette, Fraunces + Neue Regrade, film effects.
+   Design source: nimbalyst-local/mockups/home-redesign-v11.mockup.html.
+   Everything is scoped under .home; /about reuses it (root "home about") and /dashboard keeps its own look. */
+
+body:has(.home) { background: #181614; }
+html:has(.home) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html:has(.home) { scroll-behavior: auto; } }
+
+.home {
+  --bg: #181614; --text: #ece3d3; --soft: #a39887; --fill: #26221f; --input: #201d1a; --rule: rgba(236, 227, 211, .3);
+  --block: #34404a; --name-ink: #ead9bf; --band: #c98b5e; --band-ink: #181614; --foot: #34404a; --foot-ink: #ead9bf;
+  --send: #c98b5e; --send-ink: #181614; --d1: #c98b5e; --d2: #8fa58a; --d3: #ead9bf;
+  --serif: var(--font-fraunces), Georgia, serif;
+  --sans: var(--font-regrade), system-ui, sans-serif;
+  --name-vs: "wght" 620, "opsz" 144, "SOFT" 100, "WONK" 1;
+  --big-size: clamp(44px, 6.5vw, 108px);
+
+  background: var(--bg); color: var(--text); font-family: var(--sans); font-variation-settings: "wght" 400, "ital" 0;
+  -webkit-font-smoothing: antialiased; overflow-x: clip; min-height: 100dvh;
+}
+.home a { color: inherit; text-decoration: none; }
+.home strong, .home b { font-weight: 400; font-variation-settings: "wght" 650, "ital" 0; }
+.home .label { font-family: var(--sans); text-transform: uppercase; letter-spacing: .09em; font-size: 12px; font-variation-settings: "wght" 450, "ital" 0; }
+/* Photos printed on faded stock */
+.home .name-photo img, .home .cat-stack img { filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+
+/* ---------- Sticky bar ---------- */
+.home .bar { position: fixed; top: 0; left: 0; right: 0; z-index: 8; padding: 6px 24px; background: var(--bg); display: flex; justify-content: space-between; align-items: center;
+  transform: translateY(-100%); visibility: hidden; transition: transform .35s ease, visibility .35s; }
+.home.scrolled .bar { transform: none; visibility: visible; }
+.home .bar a { padding: 12px 0; }
+.home .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.home .bar .who { font-family: var(--serif); font-variation-settings: var(--name-vs); font-size: 17px; letter-spacing: -0.02em; }
+
+/* ---------- Name block ---------- */
+.home .name-block { position: relative; overflow: hidden; background: var(--block); color: var(--name-ink); min-height: 64vh; display: flex; flex-direction: column; padding-top: 4vh; }
+.home .hero-top { position: relative; z-index: 3; padding: 0 2vw; max-width: min(52vw, 560px); }
+.home .hero-top p { font-size: 19px; line-height: 1.45; }
+.home .hero-top .ask { margin-top: 18px; min-height: 48px; padding: 0 22px; border-radius: 999px; background: var(--name-ink); color: var(--block);
+  font-size: 16px; font-variation-settings: "wght" 550, "ital" 0; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.home .hero-top .ask:hover { background: #fff3df; }
+/* The photo sits behind the name, so the block only needs the name's height */
+.home .name-photo { position: absolute; z-index: 0; right: 7vw; top: 5vh; bottom: 4vh; width: min(30vw, 420px); }
+.home .name-photo img { object-fit: contain; object-position: right center; will-change: transform; }
+.home .name { position: relative; z-index: 1; margin-top: auto; padding: 0 2vw calc(3.5vh + .2em); font-family: var(--serif); font-weight: 400;
+  font-variation-settings: var(--name-vs); line-height: .9; letter-spacing: -0.035em; white-space: nowrap; font-size: 22vw; }
+.home .name .line { display: block; width: max-content; }
+.home .name .ch { display: inline-block; transform: translateY(110%); animation: home-rise .9s cubic-bezier(.2, .8, .2, 1) forwards; animation-delay: calc(var(--i) * 45ms); }
+@keyframes home-rise { to { transform: none; } }
+/* Light leak: warm wash bleeding in from the corners */
+.home .name-block::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(55% 60% at 0% 0%, rgba(255, 150, 80, .32), transparent 70%), radial-gradient(40% 45% at 100% 100%, rgba(255, 90, 60, .16), transparent 70%); }
+
+/* ---------- Highlights: one slow row ---------- */
+.home .highlights { position: relative; background: var(--band); color: var(--band-ink); padding: 2.6vh 0 2.2vh; overflow: hidden; }
+.home .row { display: flex; align-items: center; white-space: nowrap; width: max-content; gap: .45em; animation: home-rtl 70s linear infinite; }
+.home .row .t { font-family: var(--serif); font-size: var(--big-size); line-height: 1.05; letter-spacing: -0.02em; font-style: italic;
+  font-variation-settings: "wght" 340, "opsz" 144, "SOFT" 100, "WONK" 1; }
+.home .row .sep { width: .16em; height: .16em; border-radius: 50%; background: currentColor; font-size: var(--big-size); flex: none; opacity: .6; }
+@keyframes home-rtl { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.home .name-links { position: relative; z-index: 1; display: flex; gap: 32px; align-items: center; margin: 3vh 2vw 0; padding-top: 12px; border-top: 1px solid currentColor; font-size: 17px; }
+.home .name-links a { padding: 10px 0; }
+.home a.icon { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; margin: 0 -10px; }
+.home a.icon svg { width: 20px; height: 20px; stroke-width: 1.75; }
+.home a.icon:hover { opacity: .7; }
+.home .after-answer { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.home .name-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.home .name-links .label { margin-left: auto; opacity: .75; }
+.home .name-links .pause { margin-left: 0; opacity: 1; min-height: 44px; padding: 0 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+/* Hover or focus pauses the band; the button pauses everything that moves */
+.home .highlights:hover .row, .home .highlights:focus-within .row,
+.home[data-paused] .row, .home[data-paused] .grain, .home[data-paused] .name .ch { animation-play-state: paused; }
+
+/* ---------- Chat ---------- */
+.home .chat { position: relative; width: min(740px, 100% - 40px); margin: 0 auto; padding-top: 9vh; }
+.home .intro h2 { font-family: var(--serif); font-weight: 400; font-variation-settings: "wght" 480, "opsz" 72, "SOFT" 100, "WONK" 0;
+  font-size: clamp(28px, 3.4vw, 42px); line-height: 1.15; letter-spacing: -0.015em; }
+.home .intro p { font-size: 17px; line-height: 1.6; max-width: 560px; color: var(--soft); margin-top: 14px; }
+.home .log { display: flex; flex-direction: column; gap: 30px; padding: 6vh 0 4vh; }
+.home .msg { font-size: 17px; line-height: 1.6; }
+.home .msg > .label { display: block; color: var(--soft); margin-bottom: 8px; }
+.home .msg.user { align-self: flex-end; max-width: 78%; background: var(--fill); padding: 14px 20px; border-radius: 18px 18px 4px 18px; }
+.home .msg.ai { align-self: flex-start; max-width: 94%; }
+.home .ai-message strong { color: inherit; font-weight: 400; font-variation-settings: "wght" 650, "ital" 0; }
+.home .ai-message h2, .home .ai-message h3 { font-weight: 400; font-variation-settings: "wght" 650, "ital" 0; }
+.home .ai-message a { text-decoration: underline; text-underline-offset: 3px; }
+.home .failed { color: var(--text); }
+.home .failed button, .home .failed a, .home .after-answer a { color: var(--d1); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 10px 0; }
+.home .after-answer { color: var(--soft); font-size: 15px; margin-top: -10px; }
+
+.home .cat-stack { position: relative; width: 190px; height: 230px; margin-left: 10px; }
+.home .cat-stack img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+
+.home .composer { position: relative; bottom: 0; z-index: 3; padding: 26px 0 14px; background: linear-gradient(to bottom, transparent, var(--bg) 26px); }
+.home .chips { display: flex; gap: 10px 26px; flex-wrap: wrap; margin-bottom: 14px; }
+/* Suggested questions: filled pills with a visible edge (3.9:1 against the page), so they read as buttons */
+.home .chips { gap: 10px; }
+.home .chips-label { width: 100%; color: var(--soft); }
+.home .chips button { font-size: 15px; display: inline-flex; align-items: center; gap: 9px; text-align: left; color: var(--text); cursor: pointer;
+  min-height: 44px; padding: 8px 18px 8px 14px; border: 1px solid rgba(236, 227, 211, .45); border-radius: 999px; background: var(--fill);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .35); transition: background .2s, color .2s, border-color .2s, transform .1s; }
+.home .chips button:hover { background: var(--band); color: var(--band-ink); border-color: var(--band); }
+.home .chips button:active { transform: translateY(1px); box-shadow: none; }
+.home .chips button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--d1); flex: none; }
+.home .chips button:nth-of-type(2)::before { background: var(--d2); }
+.home .chips button:nth-of-type(3)::before { background: var(--d3); }
+.home .chips button:hover::before { background: currentColor; }
+.home .chips button:disabled { opacity: .5; cursor: default; }
+.home[data-chatting] .composer { position: sticky; }
+/* Once chatting, the sticky box keeps one question so it doesn't fill the screen */
+.home[data-chatting] .chips button:nth-of-type(n+2) { display: none; }
+.home .composer form { display: flex; background: var(--input); border-radius: 14px; overflow: hidden; }
+.home .composer input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--text); padding: 18px 20px; border: 0; background: transparent; outline: none; }
+.home .composer input::placeholder { color: var(--soft); }
+.home .composer form:focus-within { box-shadow: 0 0 0 2px var(--d1); }
+.home .composer form button { font-size: 16px; background: var(--send); color: var(--send-ink); padding: 0 28px; cursor: pointer; font-variation-settings: "wght" 550, "ital" 0; }
+.home .composer form button:disabled { opacity: .55; cursor: default; }
+.home .fine { color: var(--soft); margin-top: 10px; line-height: 1.5; }
+
+/* ---------- Footer ---------- */
+.home footer { background: var(--foot); color: var(--foot-ink); margin-top: 10vh; padding: 9vh 24px 22px; }
+.home footer .big { font-family: var(--serif); font-style: italic; font-variation-settings: "wght" 340, "opsz" 144, "SOFT" 100, "WONK" 1;
+  font-size: clamp(34px, 6vw, 96px); letter-spacing: -0.02em; line-height: 1; }
+.home footer .big a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+.home footer .copied { min-height: 1.5em; margin-top: 14px; opacity: .85; }
+.home footer .frow a { padding: 10px 0; }
+.home footer .rule { height: 1px; background: currentColor; opacity: .55; margin: 5vh 0 12px; }
+.home footer .frow { display: flex; flex-wrap: wrap; gap: 10px 48px; font-size: 15px; }
+.home footer .frow.small { margin-top: 18px; justify-content: space-between; }
+
+/* Halation: red/cyan fringe and glow of 80s video on the big type */
+.home .name, .home .row .t, .home footer .big {
+  text-shadow: -1.5px 0 rgba(255, 90, 60, .4), 1.5px 0 rgba(80, 190, 255, .3), 0 0 22px rgba(255, 210, 170, .28); }
+
+/* ---------- Film layers (FilmEffects.tsx) ---------- */
+.home .fx { position: fixed; pointer-events: none; }
+/* Grain: an SVG feTurbulence tile, jumped around a few times a second so it crawls */
+.home .grain { inset: -50%; z-index: 15; opacity: .22; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: home-grain .9s steps(1) infinite; }
+@keyframes home-grain { 0% { transform: translate(0, 0); } 17% { transform: translate(-4%, -7%); } 33% { transform: translate(3%, -12%); }
+  50% { transform: translate(9%, 6%); } 67% { transform: translate(-6%, 9%); } 83% { transform: translate(2%, 4%); } }
+/* Vignette: darkened corners, like an old lens */
+.home .vignette { inset: 0; z-index: 14; background: radial-gradient(ellipse 85% 80% at 50% 48%, transparent 55%, rgba(12, 9, 7, .55) 100%); }
+/* Lens blur: soft focus only at the edges */
+.home .lens { inset: 0; z-index: 13; backdrop-filter: blur(2.5px); -webkit-backdrop-filter: blur(2.5px);
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 62%, #000 100%); mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 62%, #000 100%); }
+/* Dust and scratches: drawn on a canvas a few frames a second */
+.home .dust { inset: 0; z-index: 16; width: 100%; height: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home .row, .home .grain { animation: none; }
+  .home .name .ch { animation: none; transform: none; }
+  .home .name-photo img { transform: none !important; }
+  .home .bar { transition: none; }
+}
+@media (max-width: 760px) {
+  .home .bar { padding: 10px 16px; } .home .bar .who { font-size: 14px; }
+  .home .name-block { padding-top: 3vh; }
+  .home .name-block { min-height: 52vh; }
+  .home .name-photo { right: 4vw; top: 20vh; bottom: 2vh; width: 46vw; }
+  .home .hero-top { max-width: none; padding: 0 4vw; }
+  .home .hero-top p { font-size: 16px; max-width: 30ch; }
+  .home .hero-top .ask { margin-top: 12px; }
+  .home .lens { display: none; }
+  .home .name-links { gap: 18px; font-size: 15px; margin: 2vh 4vw; } .home .name-links span.label { display: none; } .home .name-links .pause { margin-left: auto; }
+  .home .chat { width: calc(100% - 32px); padding-top: 6vh; }
+  .home .msg { font-size: 16px; } .home .msg.user { max-width: 88%; }
+  .home .cat-stack { width: 160px; height: 200px; }
+  .home .chips button { font-size: 14px; }
+  .home .composer form button { padding: 0 18px; }
+  .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 10px 24px; }
+}

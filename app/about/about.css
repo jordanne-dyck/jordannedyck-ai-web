@@ -1,0 +1,52 @@
+/* About page: the home page's palette, type and film layers (from app/home.css,
+   via the .home root class), with its own layout under .about. */
+
+/* ---------- Top bar ---------- */
+.about .top { display: flex; align-items: center; gap: 28px; padding: 6px 24px; font-size: 16px; }
+.about .top a, .about .top .pause { padding: 12px 0; }
+.about .top a:hover, .about .top .pause:hover { text-decoration: underline; text-underline-offset: 4px; }
+.about .top .who { font-family: var(--serif); font-variation-settings: var(--name-vs); font-size: 17px; letter-spacing: -0.02em; margin-right: auto; }
+.about .top .pause { cursor: pointer; min-height: 44px; }
+
+/* ---------- Name block ---------- */
+.about .hero { position: relative; overflow: hidden; background: var(--block); color: var(--name-ink); padding: 9vh 24px 6vh; }
+.about .hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(55% 60% at 0% 0%, rgba(255, 150, 80, .32), transparent 70%), radial-gradient(40% 45% at 100% 100%, rgba(255, 90, 60, .16), transparent 70%); }
+.about .hero-inner { position: relative; z-index: 1; width: min(740px, 100%); margin: 0 auto; }
+.about h1 { font-family: var(--serif); font-weight: 400; font-variation-settings: var(--name-vs); font-size: clamp(56px, 10vw, 128px);
+  line-height: .9; letter-spacing: -0.035em;
+  text-shadow: -1.5px 0 rgba(255, 90, 60, .4), 1.5px 0 rgba(80, 190, 255, .3), 0 0 22px rgba(255, 210, 170, .28); }
+.about .hero .label { display: block; margin-top: 18px; opacity: .8; }
+.about .hero .lede { margin-top: 4vh; padding-top: 18px; border-top: 1px solid currentColor; font-size: 19px; line-height: 1.55; max-width: 600px; }
+
+/* ---------- How I work ---------- */
+.about main { width: min(740px, 100% - 40px); margin: 0 auto; padding-top: 9vh; }
+.about main h2.label { color: var(--soft); margin-bottom: 14px; }
+.about dl { border-bottom: 1px solid var(--rule); }
+.about dl > div { display: grid; grid-template-columns: 240px 1fr; gap: 24px; padding: 26px 0; border-top: 1px solid var(--rule); }
+.about dt { font-family: var(--serif); font-variation-settings: "wght" 480, "opsz" 72, "SOFT" 100, "WONK" 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.015em; }
+.about dt .num { display: block; margin-bottom: 6px; font-family: var(--sans); font-size: 12px; letter-spacing: .09em; color: var(--d1); font-variation-settings: "wght" 550, "ital" 0; }
+.about dd { font-size: 17px; line-height: 1.6; color: var(--soft); }
+.about .open-to { margin-top: 28px; font-size: 17px; line-height: 1.6; color: var(--soft); }
+.about .open-to strong { color: var(--text); }
+
+/* ---------- Ask jordbot ---------- */
+.about .cta { margin-top: 9vh; display: flex; align-items: center; gap: 28px; padding: 28px 32px; border-radius: 18px; background: var(--band); color: var(--band-ink); }
+.about .cta .cat { width: 140px; height: 140px; object-fit: contain; flex: none; filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+.about .cta h2 { font-family: var(--serif); font-style: italic; font-variation-settings: "wght" 340, "opsz" 144, "SOFT" 100, "WONK" 1;
+  font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; letter-spacing: -0.02em; }
+.about .cta p { margin-top: 6px; font-size: 16px; }
+.about .cta .ask { margin-top: 16px; min-height: 48px; padding: 0 22px; border-radius: 999px; background: var(--band-ink); color: var(--name-ink);
+  font-size: 16px; font-variation-settings: "wght" 550, "ital" 0; display: inline-flex; align-items: center; gap: 8px; }
+.about .cta .ask:hover { background: var(--block); }
+
+@media (max-width: 760px) {
+  .about .top { padding: 4px 16px; gap: 18px; font-size: 15px; } .about .top .who { font-size: 14px; }
+  .about .hero { padding: 6vh 16px 5vh; }
+  .about .hero .lede { font-size: 16px; }
+  .about main { width: calc(100% - 32px); padding-top: 6vh; }
+  .about dl > div { grid-template-columns: 1fr; gap: 8px; padding: 22px 0; }
+  .about dt { font-size: 22px; }
+  .about dd, .about .open-to { font-size: 16px; }
+  .about .cta { flex-direction: column; align-items: flex-start; gap: 16px; padding: 24px 20px; }
+}

@@ -1,11 +1,28 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Fraunces } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
+});
+
+// Home page: Fraunces for the name and big type, Neue Regrade for reading text.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  display: 'swap',
+  style: ['normal', 'italic'],
+  axes: ['SOFT', 'WONK', 'opsz'],
+  variable: '--font-fraunces',
+});
+
+const regrade = localFont({
+  src: './fonts/NeueRegrade-Variable.ttf',
+  weight: '300 800',
+  display: 'swap',
+  variable: '--font-regrade',
 });
 
 export const viewport: Viewport = {
@@ -16,8 +33,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://jordannedyck.com'),
-  title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-  description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
+  title: 'Jordanne Dyck | Product & AI Builder',
+  description: 'Product & AI Builder with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
   keywords: [
     'Jordanne Dyck',
     'AI Builder',
@@ -39,8 +56,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://jordannedyck.com',
-    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Product & AI Builder',
+    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
     siteName: 'Jordanne Dyck Portfolio',
     images: [
       {
@@ -53,8 +70,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Jordanne Dyck | AI Builder & Product Strategy Leader',
-    description: 'AI Builder, product & strategy leader — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Product & AI Builder',
+    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
     images: ['/og-image.jpg'],
   },
   robots: {
@@ -89,7 +106,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${regrade.variable}`}>
       <head>
         {/* Structured Data */}
         <script
@@ -100,8 +117,8 @@ export default function RootLayout({
               '@type': 'Person',
               '@id': 'https://jordannedyck.com/#person',
               name: 'Jordanne Dyck',
-              jobTitle: 'AI Builder & Product Strategy Leader',
-              description: 'AI Builder, product & strategy leader with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
+              jobTitle: 'Product & AI Builder',
+              description: 'Product & AI Builder with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
               url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
               sameAs: [

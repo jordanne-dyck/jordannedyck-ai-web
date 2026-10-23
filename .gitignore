@@ -58,3 +58,6 @@ monitoring/node_modules/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Raw cat photos: originals carry GPS EXIF. Only stripped, resized copies go in public/.
+cat-images/
