@@ -11,4 +11,4 @@ images:
   - name: quay.nekohouse.ca:8443/peter/jordbot
     newTag: v1.4
   - name: quay.nekohouse.ca:8443/peter/jordbot-web
-    newTag: v1.7
+    newTag: v1.8
