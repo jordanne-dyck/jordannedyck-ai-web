@@ -45,10 +45,10 @@ metadata:
   namespace: jordbot-dev
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 500Mi
   storageClassName: ""
   volumeMode: Filesystem
-  volumeName: jordbot-dev-faiss-share
+  volumeName: jordbot-faiss-db-dev

@@ -75,7 +75,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 
 | Resource | Name | Detail |
 |---|---|---|
-| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db` and, read-only in prod, PVC `faiss-share` at `/faiss` (index chosen by `FAISS_DIR`) |
+| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db`, and PVC `faiss-share` at `/faiss` (dev: RWX on PV `jordbot-faiss-db-dev`; prod: read-only on PV `jordbot-faiss-db-prod`). `FAISS_DIR` picks the version folder, now `/faiss/kb-a69ceae`; the prod backend reads it from v1.6 |
 | Frontend deployment / service | `jordannedyck-ai-web` | Next.js :3000 |
 | Database | `postgres` | Deployment, Service, PVC `postgres-data`, ConfigMap `postgres-schema` |
 | Route | `jordbot` (prod), `jordbot-dev` (dev) | |

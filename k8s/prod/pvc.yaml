@@ -51,4 +51,4 @@ spec:
       storage: 500Mi
   storageClassName: ""
   volumeMode: Filesystem
-  volumeName: jordbot-faiss-share
+  volumeName: jordbot-faiss-db-prod

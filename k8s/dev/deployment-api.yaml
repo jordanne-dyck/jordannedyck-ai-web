@@ -33,7 +33,7 @@ spec:
             # One immutable version folder on the faiss-share volume. Changing
             # this line is how an index is promoted; reverting it rolls back.
             - name: FAISS_DIR
-              value: /faiss/kb-bb98431
+              value: /faiss/kb-a69ceae
           image: quay.nekohouse.ca:8443/peter/jordbot:dev
           imagePullPolicy: Always
           name: jordannedyck-ai
