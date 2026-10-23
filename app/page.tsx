@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from 'ai/react';
-import { useState, useEffect, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Github, Linkedin } from 'lucide-react';
@@ -88,6 +88,28 @@ function CatLoader() {
   );
 }
 
+// Standard chat scrolling: a new question moves to the top of the screen and
+// the answer fills the space under it. The spacer at the end of the log holds
+// that space open, so nothing shifts as the cats give way to the answer.
+// Returns where the newest question sits when pinned, or null before the first.
+function fitSpacer(log: HTMLElement, spacer: HTMLElement, composer: HTMLElement, bar: HTMLElement) {
+  const users = log.querySelectorAll<HTMLElement>('.msg.user');
+  const last = users[users.length - 1];
+  if (!last) {
+    spacer.style.height = '0px';
+    return null;
+  }
+  // Just under the sticky name bar.
+  const target = last.getBoundingClientRect().top + scrollY - bar.offsetHeight - 16;
+  const spacerTop = spacer.getBoundingClientRect().top + scrollY;
+  const padBottom = parseFloat(getComputedStyle(log).paddingBottom);
+  // Tall enough that the composer stays at the bottom of the screen, not
+  // halfway up it with the footer showing below.
+  const h = Math.max(0, target + innerHeight - composer.offsetHeight - padBottom - spacerTop);
+  spacer.style.height = `${h}px`;
+  return target;
+}
+
 export default function Home() {
   // When the current answer was requested, for stream_completed/abandoned timing.
   const sentAt = useRef<number | null>(null);
@@ -126,10 +148,13 @@ export default function Home() {
   const blockRef = useRef<HTMLElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
   const photoRef = useRef<HTMLImageElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const userScrolledUp = useRef(false);
+  const questionsSeen = useRef(0);
   const [usedPrompts, setUsedPrompts] = useState<Set<number>>(new Set());
   // One switch stops all motion: the band, grain, dust (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
@@ -166,8 +191,6 @@ export default function Home() {
 
     const onScroll = () => {
       photo.style.transform = `translateY(${Math.min(scrollY, block.offsetHeight) * -0.12}px)`;
-      const fromBottom = document.documentElement.scrollHeight - scrollY - innerHeight;
-      userScrolledUp.current = fromBottom > 200;
     };
     addEventListener('scroll', onScroll, { passive: true });
 
@@ -176,11 +199,31 @@ export default function Home() {
     return () => { removeEventListener('resize', fit); removeEventListener('scroll', onScroll); io.disconnect(); };
   }, []);
 
+  // Refit the spacer on every change to the log, before paint. A new question
+  // scrolls to the top once; the answer then streams in below it without the
+  // page following it, so the reader isn't dragged along mid-sentence.
+  useLayoutEffect(() => {
+    const log = logRef.current, spacer = spacerRef.current, composer = composerRef.current, bar = barRef.current;
+    if (!log || !spacer || !composer || !bar) return;
+    const target = fitSpacer(log, spacer, composer, bar);
+    const questions = messages.filter(m => m.role === 'user').length;
+    // Instant, before paint. A smooth scroll is cancelled while the cats load
+    // (seen in Chromium), and the intro vanishing on the first question is a
+    // jump anyway.
+    if (questions > questionsSeen.current && target !== null) scrollTo({ top: target, behavior: 'instant' });
+    questionsSeen.current = questions;
+  }, [messages, isLoading, error]);
+
+  // The screen height and the composer height change without the log changing.
   useEffect(() => {
-    if (messages.length && !userScrolledUp.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
-  }, [messages, isLoading]);
+    const log = logRef.current, spacer = spacerRef.current, composer = composerRef.current, bar = barRef.current;
+    if (!log || !spacer || !composer || !bar) return;
+    const fit = () => fitSpacer(log, spacer, composer, bar);
+    const ro = new ResizeObserver(fit);
+    ro.observe(composer);
+    addEventListener('resize', fit);
+    return () => { ro.disconnect(); removeEventListener('resize', fit); };
+  }, []);
 
   const allPrompts = SUGGESTED_QUESTIONS;
 
@@ -201,7 +244,7 @@ export default function Home() {
   const answered = !isLoading && !error && messages.some(m => m.role === 'assistant');
   return (
     <div className="home" ref={rootRef} data-chatting={messages.length > 0 || undefined} data-paused={paused || undefined}>
-      <div className="bar">
+      <div className="bar" ref={barRef}>
         <span className="who" aria-hidden="true">Jordanne Dyck</span>
         <a href="#contact" className="label">Contact</a>
       </div>
@@ -256,7 +299,7 @@ export default function Home() {
         )}
 
         {/* ph-mask: session replay records this area's layout, not its words. */}
-        <div className="log ph-mask" role="log" aria-live="polite" aria-atomic="false">
+        <div className="log ph-mask" ref={logRef} role="log" aria-live="polite" aria-atomic="false">
           {messages.map((message, index) => (
             <div key={index} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
               <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
@@ -315,10 +358,10 @@ export default function Home() {
               <Socials onClick={ch => contact('after_answer', ch)} />
             </p>
           )}
-          <div ref={messagesEndRef} />
+          <div ref={spacerRef} aria-hidden="true" />
         </div>
 
-        <div className="composer">
+        <div className="composer" ref={composerRef}>
           {visiblePrompts.length > 0 && (
             <div className="chips" role="group" aria-label="Suggested questions">
               <span className="label chips-label">Try asking</span>
@@ -336,6 +379,12 @@ export default function Home() {
           )}
           <form
             onSubmit={(e) => {
+              // The box stays usable while an answer streams, so focus and the
+              // phone keyboard aren't lost; sending waits for the answer.
+              if (isLoading) {
+                e.preventDefault();
+                return;
+              }
               if (input.trim()) {
                 track({ name: 'message_sent', props: { source: 'typed' } });
                 sentAt.current = now();
@@ -350,7 +399,6 @@ export default function Home() {
               onChange={handleInputChange}
               placeholder="Ask about experience, projects, skills..."
               maxLength={2000}
-              disabled={isLoading}
               autoComplete="off"
               aria-label="Your question"
             />
