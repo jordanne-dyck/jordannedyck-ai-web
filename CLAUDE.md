@@ -51,8 +51,8 @@ Both repos are **public**. Commands below are bash (WSL or Git Bash).
 `master` of `jordannedyck-ai-web` is protected:
 
 - Every change goes through a PR, and the `Validate k8s manifests` check must pass.
-- Peter must review any change under `k8s/` or `.github/`, **except** `k8s/prod/release/kustomization.yaml` (`.github/CODEOWNERS`).
-- App code, docs and this file merge without his review.
+- Peter must review any change under `k8s/prod/`, `k8s/postgres/` or `.github/`, **except** `k8s/prod/release/kustomization.yaml` (`.github/CODEOWNERS`).
+- App code, docs, `k8s/dev/` and this file merge without his review.
 
 ## Architecture
 
@@ -75,7 +75,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 
 | Resource | Name | Detail |
 |---|---|---|
-| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db`, and PVC `faiss-share` at `/faiss` (dev: RWX on PV `jordbot-faiss-db-dev`; prod: read-only on PV `jordbot-faiss-db-prod`). `FAISS_DIR` picks the version folder, now `/faiss/kb-a69ceae`; the prod backend reads it from v1.6 |
+| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db`. Dev also mounts PVC `faiss-share` (RWX, PV `jordbot-faiss-db-dev`) at `/faiss`; `FAISS_DIR` picks the version folder, now `/faiss/kb-a69ceae`. Prod: PR #32 |
 | Frontend deployment / service | `jordannedyck-ai-web` | Next.js :3000 |
 | Database | `postgres` | Deployment, Service, PVC `postgres-data`, ConfigMap `postgres-schema` |
 | Route | `jordbot` (prod), `jordbot-dev` (dev) | |
@@ -212,7 +212,7 @@ Check that the chat answer makes sense, not just that it returns. If a pod crash
 ### Experiments in dev
 
 - You may `oc apply` or edit things in `jordbot-dev` to try something out.
-- Argo resets every object defined in `k8s/dev` back to git within minutes. Anything you want to keep must be committed and merged; changes under `k8s/` need Peter's review.
+- Argo resets every object defined in `k8s/dev` back to git within minutes. Anything you want to keep must be committed and merged; changes under `k8s/dev` merge without Peter, `k8s/prod` and `k8s/postgres` need his review.
 - Extra objects you create (a test pod or ConfigMap) aren't removed by Argo. Delete them when you're done.
 
 ### Schema changes
@@ -300,7 +300,7 @@ Don't attempt these. Write Jordanne a short request for Peter: what you need, wh
 
 - New or changed secrets or environment values from Doppler, including key rotation.
 - RBAC, ServiceAccounts, or anything outside `jordbot` and `jordbot-dev`.
-- Structural changes under `k8s/` or `.github/`: new objects, env vars, resources, replicas, routes. These are PRs he must approve (CODEOWNERS).
+- Structural changes under `k8s/prod/`, `k8s/postgres/` or `.github/`: new objects, env vars, resources, replicas, routes. These are PRs he must approve (CODEOWNERS).
 - Anything in prod beyond a release, a rollback or deleting a pod. That includes schema migrations, re-seeding the FAISS PVC and deploying the retention/backup CronJobs.
 - The cluster, Argo CD, Quay, DNS or haproxy.
 
