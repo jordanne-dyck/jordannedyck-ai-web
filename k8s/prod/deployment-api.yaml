@@ -29,6 +29,11 @@ spec:
         - envFrom:
             - secretRef:
                 name: openai-api-key
+          env:
+            # One immutable version folder on the faiss-share volume. Changing
+            # this line is how an index is promoted; reverting it rolls back.
+            - name: FAISS_DIR
+              value: /faiss/kb-bb98431
           image: quay.nekohouse.ca:8443/peter/jordbot  # tag: release/kustomization.yaml
           imagePullPolicy: Always
           livenessProbe:
@@ -57,6 +62,9 @@ spec:
           volumeMounts:
             - mountPath: /opt/app-root/src/faiss_db
               name: faiss-db
+            - mountPath: /faiss
+              name: faiss-share
+              readOnly: true
       dnsPolicy: ClusterFirst
       imagePullSecrets:
         - name: quaynekohouse
@@ -68,3 +76,7 @@ spec:
         - name: faiss-db
           persistentVolumeClaim:
             claimName: faiss-db
+        - name: faiss-share
+          persistentVolumeClaim:
+            claimName: faiss-share
+            readOnly: true
