@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard/admin
+Disallow: /api/
 
 Sitemap: https://jordannedyck.com/sitemap.xml
