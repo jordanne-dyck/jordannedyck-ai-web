@@ -60,6 +60,8 @@ const MAX_HELD = 200;
 export function stripCitationsTransform(sink: { raw: string }) {
   return <TOOLS extends ToolSet>() => {
     let buffer = '';
+    // The id of the text block being buffered; held text is sent under it.
+    let id = '';
     const flush = (controller: TransformStreamDefaultController<TextStreamPart<TOOLS>>, all: boolean) => {
       let cut = buffer.length;
       if (!all) {
@@ -70,13 +72,15 @@ export function stripCitationsTransform(sink: { raw: string }) {
       // chunk is removed as one piece.
       const out = stripCitations(buffer.slice(0, cut));
       buffer = buffer.slice(cut);
-      if (out) controller.enqueue({ type: 'text-delta', textDelta: out });
+      if (out) controller.enqueue({ type: 'text-delta', id, text: out });
     };
     return new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
       transform(part, controller) {
         if (part.type === 'text-delta') {
-          sink.raw += part.textDelta;
-          buffer += part.textDelta;
+          if (part.id !== id) flush(controller, true);
+          id = part.id;
+          sink.raw += part.text;
+          buffer += part.text;
           flush(controller, false);
           return;
         }
