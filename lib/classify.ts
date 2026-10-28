@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
+import { generateText, Output, type LanguageModelUsage } from 'ai';
 import { z } from 'zod';
 import { pool } from './db';
 import { estimateCostUsd } from './cost';
@@ -117,8 +117,7 @@ export type PaidLabelInput = {
   chunks: CitationChunk[];
 };
 
-type Usage = { promptTokens: number; completionTokens: number };
-const costOf = (u: Usage) => estimateCostUsd(LABEL_MODEL, u.promptTokens, u.completionTokens);
+const costOf = (u: LanguageModelUsage) => estimateCostUsd(LABEL_MODEL, u.inputTokens ?? 0, u.outputTokens ?? 0);
 
 async function moderate(query: string): Promise<{ flagged: boolean; categories: string[] }> {
   const res = await fetch('https://api.openai.com/v1/moderations', {
@@ -147,10 +146,10 @@ async function classifyTopic(
   query: string,
   previousQuery: string | null,
 ): Promise<{ offTopic: boolean; cost: number }> {
-  const { object, usage } = await generateObject({
-    model: openai(LABEL_MODEL),
+  const { output: object, usage } = await generateText({
+    model: openai.chat(LABEL_MODEL),
     temperature: 0,
-    schema: z.object({ label: z.enum(['on', 'off']) }),
+    output: Output.object({ schema: z.object({ label: z.enum(['on', 'off']) }) }),
     system:
       "You label questions sent to the chatbot on Jordanne Dyck's personal website. " +
       "The chatbot answers questions about Jordanne's career, experience, projects, skills " +
@@ -190,17 +189,19 @@ export async function judgeGrounding(
 }> {
   // An answer with no citation markers is judged as one uncited segment.
   const judged = (segments.length ? segments : [{ text: answer, ids: [] }]).slice(0, MAX_JUDGED_SEGMENTS);
-  const { object, usage } = await generateObject({
-    model: openai(LABEL_MODEL),
+  const { output: object, usage } = await generateText({
+    model: openai.chat(LABEL_MODEL),
     temperature: 0,
-    schema: z.object({
-      claims: z.array(
-        z.object({
-          n: z.number().int(),
-          supported: z.enum(['yes', 'other', 'no']),
-          reason: z.string().describe('Empty for "yes". Otherwise one sentence naming what the source does not say.'),
-        }),
-      ),
+    output: Output.object({
+      schema: z.object({
+        claims: z.array(
+          z.object({
+            n: z.number().int(),
+            supported: z.enum(['yes', 'other', 'no']),
+            reason: z.string().describe('Empty for "yes". Otherwise one sentence naming what the source does not say.'),
+          }),
+        ),
+      }),
     }),
     system:
       'You check whether each numbered claim in an answer is supported by the source chunks it cites. ' +

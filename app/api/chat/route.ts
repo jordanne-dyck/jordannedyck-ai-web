@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { createDataStreamResponse, streamText } from 'ai';
+import { createUIMessageStream, createUIMessageStreamResponse, streamText, toUIMessageStream } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { getOrCreateSessionId } from '@/lib/session';
@@ -14,6 +14,7 @@ import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
+import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
 const MODEL = 'gpt-4o';
 
@@ -26,23 +27,12 @@ const NO_RESPONSE = {
   timeToFirstTokenMs: null,
 };
 
-// Emitted to the client as an `8:` message annotation so the e2e eval runner
+// Sent to the client as a data-retrieval part so the e2e eval runner
 // (jordannedyck-ai/run_e2e.py) and the Checkly chat check can see what was
 // retrieved. Only written when EMIT_RETRIEVAL is set or the request carries a
 // valid x-monitor-token, so production visitors never see knowledge-base
 // filenames, chunk ids or text.
-type RetrievalAnnotation = {
-  type: 'retrieval';
-  // The text retrieval ran on: the follow-up rewrite, or the latest message.
-  query: string;
-  status: 'ok' | 'empty' | 'error';
-  chunks: {
-    chunk_id: string | null;
-    filename: string | null;
-    similarity: number;
-    content: string;
-  }[];
-};
+type RetrievalAnnotation = RetrievalData;
 
 type SearchResult = {
   content: string;
@@ -95,21 +85,21 @@ async function searchExperience(
       const best = data.results.reduce((a, b) => (b.similarity > a.similarity ? b : a));
       return {
         context,
-        retrieval: { type: 'retrieval', query, status: 'ok', chunks },
+        retrieval: { query, status: 'ok', chunks },
         meta: { topCategory: best.metadata.category ?? null, indexVersion },
       };
     }
 
     return {
       context: 'No relevant information found.',
-      retrieval: { type: 'retrieval', query, status: 'empty', chunks: [] },
+      retrieval: { query, status: 'empty', chunks: [] },
       meta: { ...noMeta, indexVersion },
     };
   } catch (error) {
     console.error('Search error:', error);
     return {
       context: 'Unable to search knowledge base.',
-      retrieval: { type: 'retrieval', query, status: 'error', chunks: [] },
+      retrieval: { query, status: 'error', chunks: [] },
       meta: noMeta,
     };
   }
@@ -256,86 +246,104 @@ export async function POST(req: NextRequest) {
     });
 
   try {
-    return createDataStreamResponse({
-      execute: (dataStream) => {
+    const stream = createUIMessageStream<ChatUIMessage>({
+      execute: async ({ writer }) => {
+        // The start part goes first so the data parts below join the same
+        // assistant message as the text.
+        writer.write({ type: 'start' });
         if (process.env.EMIT_RETRIEVAL || isSynthetic) {
-          dataStream.writeMessageAnnotation(retrieval);
+          writer.write({ type: 'data-retrieval', data: retrieval });
         }
+        // Resolved once onFinish has written its parts, or the call failed.
+        // The finish part is sent after it, so the event id is never late.
+        let settle = () => {};
+        const settled = new Promise<void>((resolve) => { settle = resolve; });
         // The answer with its [chunk-id] citations, which the visitor's stream
         // and onFinish's `text` no longer carry.
         const cited = { raw: '' };
         const result = streamText({
-          model: openai(MODEL),
+          // Chat Completions, as with AI SDK v4 and run_eval.py; the v7
+          // provider's default is the Responses API.
+          model: openai.chat(MODEL),
           system: systemPrompt,
           messages,
           temperature: 0.7,
-          maxTokens: 1000,
+          maxOutputTokens: 1000,
           experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
               firstTokenAt = Date.now();
             }
           },
-          onFinish: async ({ text, usage }) => {
-            const promptTokens = usage.promptTokens ?? null;
-            const completionTokens = usage.completionTokens ?? null;
-            const { segments, citedIds } = parseCitations(cited.raw);
-            if (process.env.EMIT_RETRIEVAL || isSynthetic) {
-              dataStream.writeMessageAnnotation({ type: 'citations', answer: cited.raw, segments });
-            }
-            const rowId = await logRedacted({
-              ...baseEvent,
-              flags: {
-                ...baseEvent.flags,
-                ...freeLabels(query, text),
-                citations: {
-                  ...citationLabels(segments, retrieval.chunks),
-                  // Redacted like response_text, which holds the same answer
-                  // without its citations.
-                  answer: redactPii(cited.raw).text,
+          onEnd: async ({ text, usage }) => {
+            try {
+              const promptTokens = usage.inputTokens ?? null;
+              const completionTokens = usage.outputTokens ?? null;
+              const { segments, citedIds } = parseCitations(cited.raw);
+              if (process.env.EMIT_RETRIEVAL || isSynthetic) {
+                writer.write({ type: 'data-citations', data: { answer: cited.raw, segments } });
+              }
+              const rowId = await logRedacted({
+                ...baseEvent,
+                flags: {
+                  ...baseEvent.flags,
+                  ...freeLabels(query, text),
+                  citations: {
+                    ...citationLabels(segments, retrieval.chunks),
+                    // Redacted like response_text, which holds the same answer
+                    // without its citations.
+                    answer: redactPii(cited.raw).text,
+                  },
                 },
-              },
-              citedChunkIds: citedIds,
-              responseText: text,
-              promptTokens,
-              completionTokens,
-              costUsd:
-                promptTokens != null && completionTokens != null
-                  ? estimateCostUsd(MODEL, promptTokens, completionTokens)
-                  : null,
-              latencyMs: elapsed(),
-              timeToFirstTokenMs: firstTokenAt ? firstTokenAt - requestStart : null,
-              error: null,
-              rateLimited: false,
-            });
-            // The row id lets the visitor rate this answer (POST /api/feedback,
-            // which also checks the jb_sid cookie). Not sent to Checkly, which
-            // never rates, so the monitor stream is unchanged.
-            if (rowId && !isSynthetic) {
-              dataStream.writeMessageAnnotation({ type: 'event', id: rowId });
-            }
-            // Paid labels run after the insert and update the row. Skipped for
-            // Checkly's test chats, which would only pay to label a fixed question.
-            if (rowId && !isSynthetic) {
-              const userTurns = messages.filter((m) => m.role === 'user');
-              void paidLabels({
-                rowId,
-                query,
-                previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
-                answer: text,
-                segments,
-                chunks: retrieval.chunks,
+                citedChunkIds: citedIds,
+                responseText: text,
+                promptTokens,
+                completionTokens,
+                costUsd:
+                  promptTokens != null && completionTokens != null
+                    ? estimateCostUsd(MODEL, promptTokens, completionTokens)
+                    : null,
+                latencyMs: elapsed(),
+                timeToFirstTokenMs: firstTokenAt ? firstTokenAt - requestStart : null,
+                error: null,
+                rateLimited: false,
               });
+              // The row id lets the visitor rate this answer (POST /api/feedback,
+              // which also checks the jb_sid cookie). Not sent to Checkly, which
+              // never rates, so the monitor stream is unchanged.
+              if (rowId && !isSynthetic) {
+                writer.write({ type: 'data-event', data: { id: rowId } });
+              }
+              // Paid labels run after the insert and update the row. Skipped for
+              // Checkly's test chats, which would only pay to label a fixed question.
+              if (rowId && !isSynthetic) {
+                const userTurns = messages.filter((m) => m.role === 'user');
+                void paidLabels({
+                  rowId,
+                  query,
+                  previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
+                  answer: text,
+                  segments,
+                  chunks: retrieval.chunks,
+                });
+              }
+            } finally {
+              settle();
             }
           },
           onError: async ({ error }) => {
             await logFailure(error);
+            settle();
           },
+          onAbort: () => settle(),
         });
 
-        result.mergeIntoDataStream(dataStream);
+        writer.merge(toUIMessageStream({ stream: result.stream, sendStart: false, sendFinish: false }));
+        await settled;
+        writer.write({ type: 'finish' });
       },
     });
+    return createUIMessageStreamResponse({ stream });
   } catch (err) {
     logFailure(err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

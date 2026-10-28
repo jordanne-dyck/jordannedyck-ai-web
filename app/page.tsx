@@ -1,6 +1,7 @@
 'use client';
 
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -9,6 +10,7 @@ import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
 import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
+import type { ChatUIMessage } from '@/lib/chat-message';
 import { FilmEffects } from '@/app/components/FilmEffects';
 import './home.css';
 
@@ -19,15 +21,26 @@ const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
 const now = () => Date.now();
 const randomCat = () => CATS[Math.floor(Math.random() * CATS.length)];
 
-// The logged row id, from the `event` annotation the chat route sends once
-// the answer is stored. Absent for answers that were not logged.
-function rowIdOf(annotations: unknown[] | undefined): string | null {
-  for (const a of annotations ?? []) {
-    const ev = a as { type?: unknown; id?: unknown } | null;
-    if (ev?.type === 'event' && typeof ev.id === 'string') return ev.id;
+// The logged row id, from the data-event part the chat route sends once the
+// answer is stored. Absent for answers that were not logged.
+function rowIdOf(message: ChatUIMessage): string | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-event') return p.data.id;
   }
   return null;
 }
+
+const textOf = (message: ChatUIMessage) =>
+  message.parts.map(p => (p.type === 'text' ? p.text : '')).join('');
+
+// /api/chat takes plain { role, content } turns (lib/chat-input.ts), the same
+// body Checkly and the eval runners send, plus source and clientId.
+const transport = new DefaultChatTransport<ChatUIMessage>({
+  api: '/api/chat',
+  prepareSendMessagesRequest: ({ messages, body }) => ({
+    body: { ...body, messages: messages.map(m => ({ role: m.role, content: textOf(m) })) },
+  }),
+});
 
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
@@ -114,9 +127,11 @@ export default function Home() {
   // When the current answer was requested, for stream_completed/abandoned timing.
   const sentAt = useRef<number | null>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, append, error, reload } = useChat({
-    api: '/api/chat',
-    onFinish: () => {
+  const [input, setInput] = useState('');
+  const { messages, status, sendMessage, error, regenerate } = useChat<ChatUIMessage>({
+    transport,
+    onFinish: ({ isError, isAbort, isDisconnect }) => {
+      if (isError || isAbort || isDisconnect) return;
       if (sentAt.current !== null) {
         track({ name: 'stream_completed', props: { ms_elapsed: now() - sentAt.current } });
         sentAt.current = null;
@@ -127,6 +142,7 @@ export default function Home() {
       sentAt.current = null;
     },
   });
+  const isLoading = status === 'submitted' || status === 'streaming';
 
   useEffect(() => {
     initAnalytics();
@@ -176,7 +192,7 @@ export default function Home() {
   const retry = () => {
     track({ name: 'answer_retried', props: {} });
     sentAt.current = now();
-    reload({ body: { clientId: clientId() } });
+    regenerate({ body: { clientId: clientId() } });
   };
 
   // Name block: a different cat on every visit, the name fitted to the width,
@@ -236,11 +252,13 @@ export default function Home() {
     sentAt.current = now();
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
-    append({ role: 'user', content: prompt }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
   };
 
-  // The cats stand in until the first words of the answer arrive.
-  const waiting = isLoading && messages[messages.length - 1]?.role === 'user';
+  // The cats stand in until the first words of the answer arrive. The
+  // assistant message exists from the stream's start, before any text.
+  const last = messages[messages.length - 1];
+  const waiting = isLoading && (last?.role === 'user' || (last !== undefined && !textOf(last)));
   const answered = !isLoading && !error && messages.some(m => m.role === 'assistant');
   return (
     <div className="home" ref={rootRef} data-chatting={messages.length > 0 || undefined} data-paused={paused || undefined}>
@@ -300,49 +318,54 @@ export default function Home() {
 
         {/* ph-mask: session replay records this area's layout, not its words. */}
         <div className="log ph-mask" ref={logRef} role="log" aria-live="polite" aria-atomic="false">
-          {messages.map((message, index) => (
-            <div key={index} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
-              <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
-              {message.role === 'user' ? (
-                message.content
-              ) : (
-                <div
-                  className="ai-message"
-                  onCopy={() => track({ name: 'answer_copied', props: {} })}
-                >
-                  <ReactMarkdown
-                    // Model output never loads images: an image URL is
-                    // the markdown exfiltration path.
-                    disallowedElements={['img']}
-                    components={{
-                      a: ({ node: _node, ...props }) => (
-                        <a className="underline" {...props} target="_blank" rel="noopener noreferrer" />
-                      ),
-                      p:({ node: _node, ...props }) => (
-                        <p className="my-3 first:mt-0 last:mb-0" {...props} />
-                      ),
-                      ul: ({ node: _node, ...props }) => (
-                        <ul className="my-3 ml-6 list-disc space-y-2 first:mt-0 last:mb-0" {...props} />
-                      ),
-                      li: ({ node: _node, ...props }) => <li {...props} />,
-                      h2: ({ node: _node, ...props }) => (
-                        <h2 className="text-lg mt-4 mb-2 first:mt-0" {...props} />
-                      ),
-                      h3: ({ node: _node, ...props }) => (
-                        <h3 className="text-base mt-3 mb-1.5 first:mt-0" {...props} />
-                      ),
-                    }}
+          {messages.map(message => {
+            const text = textOf(message);
+            // An answer that has not started, or failed before any text.
+            if (message.role !== 'user' && !text) return null;
+            return (
+              <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
+                <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
+                {message.role === 'user' ? (
+                  text
+                ) : (
+                  <div
+                    className="ai-message"
+                    onCopy={() => track({ name: 'answer_copied', props: {} })}
                   >
-                    {message.content}
-                  </ReactMarkdown>
-                  {(() => {
-                    const rowId = rowIdOf(message.annotations);
-                    return rowId ? <Feedback rowId={rowId} /> : null;
-                  })()}
-                </div>
-              )}
-            </div>
-          ))}
+                    <ReactMarkdown
+                      // Model output never loads images: an image URL is
+                      // the markdown exfiltration path.
+                      disallowedElements={['img']}
+                      components={{
+                        a: ({ node: _node, ...props }) => (
+                          <a className="underline" {...props} target="_blank" rel="noopener noreferrer" />
+                        ),
+                        p:({ node: _node, ...props }) => (
+                          <p className="my-3 first:mt-0 last:mb-0" {...props} />
+                        ),
+                        ul: ({ node: _node, ...props }) => (
+                          <ul className="my-3 ml-6 list-disc space-y-2 first:mt-0 last:mb-0" {...props} />
+                        ),
+                        li: ({ node: _node, ...props }) => <li {...props} />,
+                        h2: ({ node: _node, ...props }) => (
+                          <h2 className="text-lg mt-4 mb-2 first:mt-0" {...props} />
+                        ),
+                        h3: ({ node: _node, ...props }) => (
+                          <h3 className="text-base mt-3 mb-1.5 first:mt-0" {...props} />
+                        ),
+                      }}
+                    >
+                      {text}
+                    </ReactMarkdown>
+                    {(() => {
+                      const rowId = rowIdOf(message);
+                      return rowId ? <Feedback rowId={rowId} /> : null;
+                    })()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {waiting && <CatLoader />}
           {error && !isLoading && (
             <div className="msg ai failed" role="alert">
@@ -381,22 +404,19 @@ export default function Home() {
             onSubmit={(e) => {
               // The box stays usable while an answer streams, so focus and the
               // phone keyboard aren't lost; sending waits for the answer.
-              if (isLoading) {
-                e.preventDefault();
-                return;
-              }
-              if (input.trim()) {
-                track({ name: 'message_sent', props: { source: 'typed' } });
-                sentAt.current = now();
-              }
-              handleSubmit(e, { body: { source: 'typed', clientId: clientId() } });
+              e.preventDefault();
+              if (isLoading || !input.trim()) return;
+              track({ name: 'message_sent', props: { source: 'typed' } });
+              sentAt.current = now();
+              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId() } });
+              setInput('');
             }}
             aria-label="Chat with AI assistant"
           >
             <input
               ref={inputRef}
               value={input}
-              onChange={handleInputChange}
+              onChange={e => setInput(e.target.value)}
               placeholder="Ask about experience, projects, skills..."
               maxLength={2000}
               autoComplete="off"

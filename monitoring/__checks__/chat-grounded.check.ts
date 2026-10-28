@@ -8,7 +8,7 @@ import { monitorTokenHeader, monitorTokenVariable } from './monitor-token'
 // in the backend repo, never in app/api/chat/route.ts. Do not pick a fact the
 // system prompt already contains (e.g. DECIEM): the check would pass with
 // retrieval down. The x-monitor-token header marks these rows is_synthetic in
-// chat_events and makes the site send the retrieval annotation.
+// chat_events and makes the site send the retrieval part.
 export const MONITOR_QUESTION = 'What was FundLocal, and which company was it designed for?'
 
 new ApiCheck('chat-grounded', {
@@ -31,7 +31,7 @@ new ApiCheck('chat-grounded', {
     body: JSON.stringify({ messages: [{ role: 'user', content: MONITOR_QUESTION }] }),
     assertions: [
       AssertionBuilder.statusCode().equals(200),
-      // Line written by reassemble-stream.js from the 8: retrieval annotation.
+      // Line written by reassemble-stream.js from the retrieval part.
       // status=ok only when at least one chunk came back.
       AssertionBuilder.textBody().contains('[retrieval] status=ok'),
       AssertionBuilder.textBody().notContains('chunks=0'),

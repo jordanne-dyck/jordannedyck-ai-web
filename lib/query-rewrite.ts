@@ -84,9 +84,9 @@ export async function rewriteQuery(messages: ChatMessage[]): Promise<QueryRewrit
   const signal = AbortSignal.timeout(REWRITE_TIMEOUT_MS);
   try {
     const { text, usage } = await generateText({
-      model: openai(REWRITE_MODEL),
+      model: openai.chat(REWRITE_MODEL),
       temperature: 0,
-      maxTokens: REWRITE_MAX_TOKENS,
+      maxOutputTokens: REWRITE_MAX_TOKENS,
       // A retry would blow the latency budget; the fallback is the raw message.
       maxRetries: 0,
       system: REWRITE_SYSTEM_PROMPT,
@@ -95,8 +95,8 @@ export async function rewriteQuery(messages: ChatMessage[]): Promise<QueryRewrit
     });
     const ms = Date.now() - start;
     const costUsd =
-      usage.promptTokens != null && usage.completionTokens != null
-        ? estimateCostUsd(REWRITE_MODEL, usage.promptTokens, usage.completionTokens)
+      usage.inputTokens != null && usage.outputTokens != null
+        ? estimateCostUsd(REWRITE_MODEL, usage.inputTokens, usage.outputTokens)
         : null;
     const query = cleanRewrite(text);
     if (query === null) return { query: raw, status: 'rejected', ms, costUsd };

@@ -84,7 +84,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 
 ### Chat API contract
 
-`POST /api/chat` (Next.js forwards retrieval to Flask), body `{"messages": [{"role": "user", "content": "your question"}]}`. Returns a streaming SSE response.
+`POST /api/chat` (Next.js forwards retrieval to Flask), body `{"messages": [{"role": "user", "content": "your question"}]}`. Returns an AI SDK UI message stream (SSE: `data: {"type":"text-delta","delta":"..."}` lines; types in `lib/chat-message.ts`). Requests with `x-monitor-token` or `EMIT_RETRIEVAL` also get `data-retrieval` and `data-citations` parts. Before 2026-10-27 this was the AI SDK v4 data stream (`0:` / `8:` lines).
 
 ### Observability
 
