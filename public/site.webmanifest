@@ -4,8 +4,8 @@
   "description": "Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F5F0",
-  "theme_color": "#F5F5F0",
+  "background_color": "#34404a",
+  "theme_color": "#34404a",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
