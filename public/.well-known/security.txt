@@ -1,0 +1,4 @@
+Contact: mailto:jordanne.dyck@gmail.com
+Expires: 2027-10-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://jordannedyck.com/.well-known/security.txt
