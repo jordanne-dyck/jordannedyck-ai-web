@@ -59,9 +59,10 @@ export const metadata: Metadata = {
     title: 'Jordanne Dyck | Product & AI Builder',
     description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
     siteName: 'Jordanne Dyck Portfolio',
+    // LinkedIn and Slack cache previews by URL: give a changed image a new file name.
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/og-image-v2.jpg',
         width: 1200,
         height: 630,
         alt: 'Jordanne Dyck holding her cat, next to her name and title',
@@ -72,7 +73,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Jordanne Dyck | Product & AI Builder',
     description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
-    images: ['/og-image.jpg'],
+    images: ['/og-image-v2.jpg'],
   },
   robots: {
     index: true,
