@@ -21,3 +21,8 @@ export const QUALITY_MIN_ANSWERED = 5;
 export const QUALITY_MAX_EMPTY_RATE = 0.3;
 export const QUALITY_MAX_GAP_RATE = 0.4;
 export const QUALITY_MAX_NOT_GROUNDED_RATE = 0.2;
+
+// Spend this calendar month (UTC) at or above this raises the admin banner and
+// fails the Checkly abuse check. Estimated from token counts for jordbot
+// traffic only, so it reads lower than OpenAI's bill, which also covers evals.
+export const MONTHLY_SPEND_ALERT_USD = 10;
