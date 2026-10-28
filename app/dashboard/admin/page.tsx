@@ -112,6 +112,10 @@ export default async function AdminPage({
 
   return (
     <AdminShell tab="log">
+      <p className="mb-2 text-sm text-zinc-400">
+        Spend this month (estimated, jordbot traffic only): $
+        {anomalies.spendMonthToDateUsd.toFixed(2)} of the ${anomalies.spendMonthAlertUsd.toFixed(2)} alert
+      </p>
       <AnomalyBanner flags={anomalies} labels24h={labels24h} failedLogins={failedLogins} />
 
       <FilterBar filters={filters} />
@@ -133,6 +137,11 @@ function AnomalyBanner({
   const items: string[] = [];
   if (flags.spendLastHourUsd > 0.5) {
     items.push(`Spend in last hour: $${flags.spendLastHourUsd.toFixed(4)}`);
+  }
+  if (flags.spendMonthToDateUsd >= flags.spendMonthAlertUsd) {
+    items.push(
+      `Spend this month: $${flags.spendMonthToDateUsd.toFixed(2)}, over the $${flags.spendMonthAlertUsd.toFixed(2)} alert. Check the OpenAI credit balance`,
+    );
   }
   if (flags.errorsLastHour > 0) {
     items.push(`${flags.errorsLastHour} errors in last hour`);
