@@ -11,6 +11,7 @@ import {
   QUALITY_MAX_NOT_GROUNDED_RATE,
 } from './thresholds';
 import { SUGGESTED_QUESTIONS } from './suggested-questions';
+import { gapAdmitted } from './eval-checks';
 
 // Spend includes the paid labels (lib/classify.ts), which record their cost in
 // flags.label_cost_usd rather than cost_usd, so cost_usd stays the chat cost.
@@ -1153,4 +1154,94 @@ export async function getEvalCandidates(days = 30): Promise<EvalCandidate[]> {
     out.push(c);
   }
   return out.sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
+}
+
+// ── Questions the record does not cover (plan C.1, 2026-10-30) ───────────────
+// Turns where the answer said the knowledge base does not cover the question:
+// the free gap_declared label (lib/eval-checks.ts gapAdmitted). Each one is a
+// candidate KB edit, written to the question, and a named case in the backend
+// eval set. This list only surfaces them; nothing here edits the KB or evals.
+
+export type GapQuestion = {
+  key: string;
+  question: string;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  isButton: boolean;
+  // The most recent turn that asked it.
+  latest: {
+    id: string;
+    sessionId: string;
+    turnIndex: number | null;
+    topSimilarity: number | null;
+    // The sentences of the answer that declared the gap: what is missing.
+    gapSentences: string[];
+    // The question before it, when this was a follow-up and needs it to make sense.
+    previousQuery: string | null;
+    // The standalone rewrite retrieval ran on, for a follow-up (flags.query_rewrite).
+    searchedAs: string | null;
+  };
+};
+
+export function gapSentences(answer: string): string[] {
+  return answer
+    .replace(/\*\*/g, '')
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s && gapAdmitted(s));
+}
+
+function rewriteOf(flags: Record<string, unknown>): string | null {
+  const r = flags.query_rewrite as { status?: string; query?: string } | undefined;
+  return r?.status === 'ok' && r.query ? r.query : null;
+}
+
+export async function getGapQuestions(days = 30): Promise<GapQuestion[]> {
+  const { rows } = await pool.query<EventDbRow & { previous_query: string | null }>(
+    `SELECT ${EVENT_COLUMNS},
+            CASE WHEN e.turn_index > 1 THEN (
+              SELECT p.query FROM chat_events p
+               WHERE p.session_id = e.session_id AND p.created_at < e.created_at
+               ORDER BY p.created_at DESC LIMIT 1
+            ) END AS previous_query
+       FROM chat_events e
+       WHERE ${ANSWERED} AND ${sinceDays(days)}
+         AND ${LABEL_BY_KEY.gap_declared.sql}
+         AND NOT (${ABUSE_SQL})
+       ORDER BY created_at DESC
+       LIMIT 1000`,
+  );
+
+  // Rows arrive newest first, so the first row of each group is the latest.
+  const groups = new Map<string, GapQuestion>();
+  for (const raw of rows) {
+    const row = toEventRow(raw);
+    const key = row.query.trim().toLowerCase();
+    const g = groups.get(key);
+    if (g) {
+      g.count++;
+      g.firstSeen = row.createdAt;
+      g.isButton ||= row.isButton;
+      continue;
+    }
+    groups.set(key, {
+      key,
+      question: row.query.trim(),
+      count: 1,
+      firstSeen: row.createdAt,
+      lastSeen: row.createdAt,
+      isButton: row.isButton,
+      latest: {
+        id: row.id,
+        sessionId: row.sessionId,
+        turnIndex: row.turnIndex,
+        topSimilarity: row.topSimilarity,
+        gapSentences: gapSentences(row.responseText ?? ''),
+        previousQuery: raw.previous_query,
+        searchedAs: rewriteOf(row.flags),
+      },
+    });
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
 }
