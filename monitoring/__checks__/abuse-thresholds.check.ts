@@ -25,7 +25,7 @@ new ApiCheck('abuse-thresholds', {
   maxResponseTime: 15000,
   request: {
     method: 'GET',
-    url: 'https://www.jordannedyck.com/api/health?deep=1',
+    url: 'https://jordannedyck.com/api/health?deep=1',
     headers: [monitorTokenHeader],
     assertions: [
       AssertionBuilder.statusCode().equals(200),

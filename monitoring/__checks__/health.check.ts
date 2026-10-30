@@ -12,7 +12,7 @@ new ApiCheck('health', {
   maxResponseTime: 15000,
   request: {
     method: 'GET',
-    url: 'https://www.jordannedyck.com/api/health',
+    url: 'https://jordannedyck.com/api/health',
     assertions: [
       AssertionBuilder.statusCode().equals(200),
       AssertionBuilder.jsonBody('$.db').equals(true),

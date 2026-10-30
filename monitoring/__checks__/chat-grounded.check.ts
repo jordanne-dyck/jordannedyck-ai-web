@@ -26,7 +26,7 @@ new ApiCheck('chat-grounded', {
   },
   request: {
     method: 'POST',
-    url: 'https://www.jordannedyck.com/api/chat',
+    url: 'https://jordannedyck.com/api/chat',
     headers: [{ key: 'Content-Type', value: 'application/json' }, monitorTokenHeader],
     body: JSON.stringify({ messages: [{ role: 'user', content: MONITOR_QUESTION }] }),
     assertions: [
