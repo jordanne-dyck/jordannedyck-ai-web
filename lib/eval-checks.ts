@@ -34,10 +34,16 @@ export const GAP_RE = new RegExp(
 export const NO_COVERAGE_RE = new RegExp(
   String.raw`\b(?:does|do|did)\s*(?:n't|not)\s+` +
     String.raw`(?:appear\s+to\s+|seem\s+to\s+|specifically\s+|explicitly\s+)?` +
-    String.raw`(?:provide|mention|include|contain|cover|specify|detail|indicate|reference|address|note)\b` +
+    // show|say|describe|establish|state|list: jordannedyck-ai aa633ba (#112).
+    String.raw`(?:provide|mention|include|contain|cover|specify|detail|indicate|reference|address|note` +
+    String.raw`|show|say|describe|establish|state|list)\b` +
     String.raw`|\bno\s+(?:mention|record|reference|details?|indication)\s+of\b` +
     String.raw`|\bnothing\s+in\s+the\s+(?:context|knowledge\s+base|record|material)\b` +
-    String.raw`|\bnot\s+(?:reflected|present|available)\s+in\s+the\b`,
+    // provided|stated|mentioned|... and the optional adverb: #128 said
+    // "not provided in the context".
+    String.raw`|\bnot\s+(?:explicitly\s+|specifically\s+|directly\s+)?` +
+    String.raw`(?:reflected|present|available|provided|stated|mentioned|included|covered|described` +
+    String.raw`|documented|specified|detailed)\s+in\s+the\b`,
 );
 
 // C10 / T2.3: did the answer explicitly admit the corpus does not cover this?
