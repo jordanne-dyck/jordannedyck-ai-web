@@ -75,7 +75,7 @@ export default async function InsightsPage({
             label="Gap declared"
             value={String(quality.gapDeclared)}
             hint={`${quality.gapWithStrongMatch} had a KB match of ${STRONG_MATCH}+`}
-            href={logLink('label=gap_declared')}
+            href={`/dashboard/admin/gaps?range=${range}`}
           />
           <Card
             label="First-person slips"
