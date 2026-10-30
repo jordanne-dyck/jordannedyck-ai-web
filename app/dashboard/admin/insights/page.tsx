@@ -16,6 +16,10 @@ export const dynamic = 'force-dynamic';
 const RANGES = { '7d': 7, '30d': 30, '90d': 90 } as const;
 type Range = keyof typeof RANGES;
 
+// The judge joins lead-in lines to the claim after them from this prod deploy
+// on (foldLeadIns in lib/classify.ts), so "grounded" reads higher after it.
+const JUDGE_FOLDS_LEAD_INS_FROM = '2026-10-30';
+
 // Turns the logged data into things to act on. Everything here links back to
 // the turns behind it; nothing here changes the prompt, the KB or the evals.
 export default async function InsightsPage({
@@ -68,7 +72,7 @@ export default async function InsightsPage({
           <Card
             label="Grounded (judge)"
             value={pct(quality.judged.grounded, judged)}
-            hint={`${quality.judged.grounded} yes · ${quality.judged.partial} partly · ${quality.judged.notGrounded} no · ${judged} judged`}
+            hint={`${quality.judged.grounded} yes · ${quality.judged.partial} partly · ${quality.judged.notGrounded} no · ${judged} judged · lead-in lines judged with the next claim from ${JUDGE_FOLDS_LEAD_INS_FROM}, so not comparable across that date`}
             href={logLink('label=not_grounded')}
           />
           <Card

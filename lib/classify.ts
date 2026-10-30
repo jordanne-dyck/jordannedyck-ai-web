@@ -170,6 +170,31 @@ const MAX_JUDGED_SEGMENTS = 40;
 
 type ClaimVerdict = { n: number; ids: string[]; text: string; supported: 'other' | 'no'; reason: string };
 
+// A lead-in is an uncited segment ending in a colon ("Her hands-on builds
+// include:"). Judged alone it read "no" 49 times in the 215 answers of
+// 2026-10-22; joined to the claim after it, it is still checked, detail and
+// all. Mirrors citation_checks.fold_lead_ins in jordannedyck-ai (2026-10-30).
+const LEAD_IN_END_RE = /:[*_\s]*$/;
+const LIST_MARK_RE = /^(?:[-*]|\d+\.)\s+/;
+
+export function foldLeadIns(segments: Segment[]): Segment[] {
+  const out: Segment[] = [];
+  let lead: string[] = [];
+  for (let s of segments) {
+    if (!s.ids.length && LEAD_IN_END_RE.test(s.text)) {
+      lead.push(s.text);
+      continue;
+    }
+    if (lead.length) {
+      s = { text: [...lead, s.text.replace(LIST_MARK_RE, '')].join(' '), ids: s.ids };
+      lead = [];
+    }
+    out.push(s);
+  }
+  // Lead-ins with nothing after them are judged on their own.
+  return out.concat(lead.map((text) => ({ text, ids: [] })));
+}
+
 // Judges each cited segment against the chunks it cites (claim by claim since
 // 2026-10-15; before, one verdict for the whole answer). Catches a reading the
 // source does not state, the ops-011 kind of defect, as well as invented facts.
@@ -188,7 +213,7 @@ export async function judgeGrounding(
   cost: number;
 }> {
   // An answer with no citation markers is judged as one uncited segment.
-  const judged = (segments.length ? segments : [{ text: answer, ids: [] }]).slice(0, MAX_JUDGED_SEGMENTS);
+  const judged = foldLeadIns(segments.length ? segments : [{ text: answer, ids: [] }]).slice(0, MAX_JUDGED_SEGMENTS);
   const { output: object, usage } = await generateText({
     model: openai.chat(LABEL_MODEL),
     temperature: 0,
