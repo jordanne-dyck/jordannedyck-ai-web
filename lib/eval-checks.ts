@@ -5,7 +5,8 @@
 // from a C10 failure in an eval run. run_eval.py has already been bitten by a
 // drifted copy (run_e2e.py, 2026-09-11): this port keeps all three gap tests
 // and runs them on lowercased text, exactly as gap_admitted() does.
-// Ported from jordannedyck-ai origin/master (f4f5b60) on 2026-10-14.
+// Ported from jordannedyck-ai origin/master (f4f5b60) on 2026-10-14; in sync
+// with fc29cb6 as of 2026-10-30.
 // Python's re and JavaScript's RegExp agree on every construct used here.
 
 export const PHONE_RE = /(?:\(?647\)?[\s.\-]*454[\s.\-]*2244)|(?:6474542244)/;
