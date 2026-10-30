@@ -9,12 +9,12 @@ new ApiCheck('homepage', {
   maxResponseTime: 15000,
   request: {
     method: 'GET',
-    url: 'https://www.jordannedyck.com',
+    url: 'https://jordannedyck.com',
     followRedirects: true,
     assertions: [
       AssertionBuilder.statusCode().equals(200),
-      // Hero heading in app/page.tsx.
-      AssertionBuilder.textBody().contains('AI Resume Assistant'),
+      // Chat intro heading in app/page.tsx.
+      AssertionBuilder.textBody().contains('Ask me anything'),
     ],
   },
 })

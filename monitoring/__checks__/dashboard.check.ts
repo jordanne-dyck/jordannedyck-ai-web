@@ -9,7 +9,7 @@ new ApiCheck('dashboard', {
   maxResponseTime: 15000,
   request: {
     method: 'GET',
-    url: 'https://www.jordannedyck.com/dashboard',
+    url: 'https://jordannedyck.com/dashboard',
     followRedirects: true,
     assertions: [
       AssertionBuilder.statusCode().equals(200),
