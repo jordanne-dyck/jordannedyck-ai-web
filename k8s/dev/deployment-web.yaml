@@ -46,6 +46,11 @@ spec:
                 secretKeyRef:
                   key: IP_HASH_SALT
                   name: app-observability
+            - name: MONITOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: MONITOR_TOKEN
+                  name: app-observability
           envFrom:
             - secretRef:
                 name: openai-api-key
