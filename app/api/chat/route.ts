@@ -46,13 +46,17 @@ type RetrievalMeta = {
   topCategory: string | null;
   // Reported by the backend's /search once it exposes one; null until then.
   indexVersion: string | null;
+  // The retrieval method /search reports, e.g. "hybrid-lock3-bm25-rrf60";
+  // null from backends that predate it. Hybrid search left index_version
+  // unchanged, so this is what traces a ranker change in chat_events.
+  ranker: string | null;
 };
 
 async function searchExperience(
   query: string,
 ): Promise<{ context: string; retrieval: RetrievalAnnotation; meta: RetrievalMeta }> {
   const apiUrl = backendUrl();
-  const noMeta: RetrievalMeta = { topCategory: null, indexVersion: null };
+  const noMeta: RetrievalMeta = { topCategory: null, indexVersion: null, ranker: null };
   try {
     const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
@@ -60,8 +64,10 @@ async function searchExperience(
       body: JSON.stringify({ query, n_results: 5 })
     });
 
-    const data: { results?: SearchResult[]; index_version?: string } = await response.json();
+    const data: { results?: SearchResult[]; index_version?: string; ranker?: string } =
+      await response.json();
     const indexVersion = typeof data.index_version === 'string' ? data.index_version : null;
+    const ranker = typeof data.ranker === 'string' ? data.ranker : null;
 
     if (data.results && data.results.length > 0) {
       // Only id and title: no relevance score, category or file path, which do
@@ -86,14 +92,14 @@ async function searchExperience(
       return {
         context,
         retrieval: { query, status: 'ok', chunks },
-        meta: { topCategory: best.metadata.category ?? null, indexVersion },
+        meta: { topCategory: best.metadata.category ?? null, indexVersion, ranker },
       };
     }
 
     return {
       context: 'No relevant information found.',
       retrieval: { query, status: 'empty', chunks: [] },
-      meta: { ...noMeta, indexVersion },
+      meta: { ...noMeta, indexVersion, ranker },
     };
   } catch (error) {
     console.error('Search error:', error);
@@ -218,6 +224,9 @@ export async function POST(req: NextRequest) {
     isSynthetic,
     flags: {
       ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
+      // In flags rather than a column, so no schema change. Absent when
+      // /search reported none.
+      ...(meta.ranker ? { ranker: meta.ranker } : {}),
       // Logged so retrieval can be audited. time_to_first_token_ms already
       // includes `ms`; turn_index > 1 picks out the follow-ups.
       query_rewrite: {

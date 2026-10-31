@@ -46,7 +46,8 @@ export function TurnDetails({ row, ipHref }: { row: EventRow; ipHref?: string })
         </dd>
         <dt className="text-zinc-500">Versions</dt>
         <dd className="font-mono">
-          prompt {row.promptVersion ?? '—'} · index {row.indexVersion ?? '—'}
+          prompt {row.promptVersion ?? '—'} · index {row.indexVersion ?? '—'} · ranker{' '}
+          {typeof row.flags.ranker === 'string' ? row.flags.ranker : '—'}
         </dd>
         <dt className="text-zinc-500">Flags</dt>
         <dd className="font-mono break-all">{flagKeys.length ? JSON.stringify(row.flags) : '—'}</dd>
