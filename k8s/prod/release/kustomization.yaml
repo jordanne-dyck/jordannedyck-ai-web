@@ -9,6 +9,6 @@ apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 images:
   - name: quay.nekohouse.ca:8443/peter/jordbot
-    newTag: v1.6
+    newTag: v1.7
   - name: quay.nekohouse.ca:8443/peter/jordbot-web
-    newTag: v1.11
+    newTag: v1.12
