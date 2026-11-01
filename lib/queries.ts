@@ -9,6 +9,7 @@ import {
   QUALITY_MAX_EMPTY_RATE,
   QUALITY_MAX_GAP_RATE,
   QUALITY_MAX_NOT_GROUNDED_RATE,
+  MONTHLY_SPEND_ALERT_USD,
 } from './thresholds';
 import { SUGGESTED_QUESTIONS } from './suggested-questions';
 import { gapAdmitted } from './eval-checks';
@@ -324,6 +325,8 @@ export async function getMonitorStats(): Promise<MonitorStats> {
 
 export type AnomalyFlags = {
   spendLastHourUsd: number;
+  spendMonthToDateUsd: number;
+  spendMonthAlertUsd: number;
   errorsLastHour: number;
   rateLimitedLastHour: number;
   topIpHashLastHour: { ipHash: string; requests: number } | null;
@@ -342,6 +345,13 @@ export async function getAnomalyFlags(): Promise<AnomalyFlags> {
        COUNT(*) FILTER (WHERE rate_limited = TRUE)::TEXT AS rate_limited
      FROM chat_events
      WHERE created_at > NOW() - INTERVAL '1 hour' AND is_synthetic = FALSE`,
+  );
+
+  // Calendar month in UTC, the same window as OpenAI's monthly spend alerts.
+  const { rows: month } = await pool.query<{ spend: string }>(
+    `SELECT COALESCE(SUM(${TOTAL_COST}), 0)::TEXT AS spend
+       FROM chat_events
+       WHERE created_at >= date_trunc('month', NOW(), 'UTC') AND is_synthetic = FALSE`,
   );
 
   const { rows: topIp } = await pool.query<{ ip_hash: string; requests: string }>(
@@ -365,6 +375,8 @@ export async function getAnomalyFlags(): Promise<AnomalyFlags> {
 
   return {
     spendLastHourUsd: Number(agg[0].spend),
+    spendMonthToDateUsd: Number(month[0].spend),
+    spendMonthAlertUsd: MONTHLY_SPEND_ALERT_USD,
     errorsLastHour: Number(agg[0].errors),
     rateLimitedLastHour: Number(agg[0].rate_limited),
     topIpHashLastHour:
