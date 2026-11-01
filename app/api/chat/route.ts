@@ -12,7 +12,7 @@ import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
-import { citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
+import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
 import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
@@ -31,7 +31,9 @@ const NO_RESPONSE = {
 // (jordannedyck-ai/run_e2e.py) and the Checkly chat check can see what was
 // retrieved. Only written when EMIT_RETRIEVAL is set or the request carries a
 // valid x-monitor-token, so production visitors never see knowledge-base
-// filenames, chunk ids or text.
+// filenames, chunk ids or text. Since E.2 (2026-11-01) visitors do see the
+// titles of the sources an answer cites, through the data-sources part
+// (buildSources in lib/citations.ts), and nothing else about the chunks.
 type RetrievalAnnotation = RetrievalData;
 
 type SearchResult = {
@@ -85,6 +87,7 @@ async function searchExperience(
       const chunks = data.results.map((r) => ({
         chunk_id: r.metadata.chunk_id ?? null,
         filename: r.metadata.filename ?? null,
+        title: r.metadata.title ?? null,
         similarity: Math.round(r.similarity * 10000) / 10000,
         content: r.content,
       }));
@@ -292,6 +295,9 @@ export async function POST(req: NextRequest) {
               if (process.env.EMIT_RETRIEVAL || isSynthetic) {
                 writer.write({ type: 'data-citations', data: { answer: cited.raw, segments } });
               }
+              // Every request: titles and numbers only, so the client can mark
+              // cited sentences and list the sources under the answer.
+              writer.write({ type: 'data-sources', data: buildSources(segments, retrieval.chunks) });
               const rowId = await logRedacted({
                 ...baseEvent,
                 flags: {

@@ -3,8 +3,9 @@ import type { TextStreamPart, ToolSet } from 'ai';
 // Chunk-id citations (added 2026-10-15). The model ends each factual sentence
 // with the ids of the chunks it drew on, e.g. "…an innovation lab. [ops-009]",
 // so a checker can test each claim against its own source. Visitors never see
-// them: stripCitationsTransform removes them before the stream leaves the
-// server, as route.ts already promises for chunk ids.
+// the ids: stripCitationsTransform removes them before the stream leaves the
+// server, as route.ts already promises for chunk ids. Visitors see source
+// titles and numbers instead (buildSources, E.2).
 //
 // MUST STAY IN SYNC with CITE_RE and strip_citations() in
 // jordannedyck-ai/run_eval.py, so the eval scores the text a visitor sees.
@@ -47,6 +48,45 @@ function pushSegment(segments: Segment[], text: string, ids: string[]) {
   // Headings, bullets markers and stray punctuation are not claims.
   if (!/[a-z]{3}/i.test(t) && !ids.length) return;
   segments.push({ text: t, ids });
+}
+
+// What a visitor sees of the citations (E.2, decided 2026-11-01): source
+// titles only, never chunk ids, filenames or chunk text. Titles belong to a
+// file rather than a chunk, so chunks that share a title share a number,
+// numbered in the order the answer first cites them. Each cited segment lists
+// its numbers; its text is the citation-free answer text the visitor already
+// has, which the client matches to place the markers. Ids that were not
+// retrieved for this turn have no title and are dropped.
+export type SourcesData = {
+  sources: { n: number; title: string }[];
+  segments: { text: string; n: number[] }[];
+};
+
+export function buildSources(
+  segments: Segment[],
+  chunks: { chunk_id: string | null; title: string | null }[],
+): SourcesData {
+  const titleOf = new Map<string, string>();
+  for (const c of chunks) {
+    if (c.chunk_id && c.title) titleOf.set(c.chunk_id, c.title);
+  }
+  const numberOf = new Map<string, number>();
+  const out: SourcesData = { sources: [], segments: [] };
+  for (const s of segments) {
+    const n: number[] = [];
+    for (const id of s.ids) {
+      const title = titleOf.get(id);
+      if (!title) continue;
+      if (!numberOf.has(title)) {
+        numberOf.set(title, numberOf.size + 1);
+        out.sources.push({ n: numberOf.size, title });
+      }
+      const num = numberOf.get(title) as number;
+      if (!n.includes(num)) n.push(num);
+    }
+    if (n.length) out.segments.push({ text: s.text, n });
+  }
+  return out;
 }
 
 // Holds back the tail of the buffer that could still become a citation: an open

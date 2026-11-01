@@ -84,6 +84,17 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .ai-message strong { color: inherit; font-weight: 400; font-variation-settings: "wght" 650, "ital" 0; }
 .home .ai-message h2, .home .ai-message h3 { font-weight: 400; font-variation-settings: "wght" 650, "ital" 0; }
 .home .ai-message a { text-decoration: underline; text-underline-offset: 3px; }
+/* Citations (E.2): superscript numbers after cited sentences, sources listed under the answer */
+.home .ai-message sup.cite { font-size: .68em; line-height: 0; margin-left: 1px; }
+.home .ai-message sup.cite + sup.cite::before { content: ","; color: var(--soft); }
+.home .ai-message sup.cite a { color: var(--d1); text-decoration: none; padding: 0 1px; }
+.home .ai-message sup.cite a:hover, .home .ai-message sup.cite a:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
+.home .sources { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--soft); font-size: 14px; line-height: 1.5; }
+.home .sources .label { display: block; margin-bottom: 6px; }
+.home .sources ol { list-style: decimal; padding-left: 22px; }
+.home .sources li { padding: 2px 6px; margin-left: -6px; border-radius: 4px; scroll-margin: 90px 0 160px; transition: background .4s, color .4s; }
+.home .sources li::marker { color: var(--d1); }
+.home .sources li:target { background: var(--fill); color: var(--text); }
 .home .failed { color: var(--text); }
 .home .failed button, .home .failed a, .home .after-answer a { color: var(--d1); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 10px 0; }
 .home .after-answer { color: var(--soft); font-size: 15px; margin-top: -10px; }
