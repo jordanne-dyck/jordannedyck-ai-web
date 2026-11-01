@@ -18,6 +18,11 @@ import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
 const MODEL = 'gpt-4o';
 
+// A hung backend or model ends in the error state, not an endless loader.
+// An answer is at most 1000 tokens, which gpt-4o streams well inside a minute.
+const SEARCH_TIMEOUT_MS = 10_000;
+const ANSWER_TIMEOUT = { firstChunkMs: 20_000, totalMs: 60_000 };
+
 // The event fields that stay empty whenever no answer was generated.
 const NO_RESPONSE = {
   responseText: null,
@@ -63,7 +68,8 @@ async function searchExperience(
     const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, n_results: 5 })
+      body: JSON.stringify({ query, n_results: 5 }),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
 
     const data: { results?: SearchResult[]; index_version?: string; ranker?: string } =
@@ -281,6 +287,7 @@ export async function POST(req: NextRequest) {
           messages,
           temperature: 0.7,
           maxOutputTokens: 1000,
+          timeout: ANSWER_TIMEOUT,
           experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
@@ -350,7 +357,13 @@ export async function POST(req: NextRequest) {
             await logFailure(error);
             settle();
           },
-          onAbort: () => settle(),
+          // Only ANSWER_TIMEOUT aborts the call. The SDK ends the stream without
+          // an error part; this one puts the visitor's page in its error state.
+          onAbort: async () => {
+            writer.write({ type: 'error', errorText: 'The answer timed out.' });
+            await logFailure(new Error('timeout'));
+            settle();
+          },
         });
 
         writer.merge(toUIMessageStream({ stream: result.stream, sendStart: false, sendFinish: false }));
