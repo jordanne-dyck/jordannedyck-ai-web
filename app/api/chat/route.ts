@@ -14,7 +14,6 @@ import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
-import { withCiteReminder } from '@/lib/cite-reminder';
 import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
 const MODEL = 'gpt-4o';
@@ -215,8 +214,6 @@ export async function POST(req: NextRequest) {
   const retrievalMs = Date.now() - searchStart;
 
   const systemPrompt = buildSystemPrompt(context);
-  // Only the model sees the reminder; the rewrite, labels and log use `messages`.
-  const reminded = withCiteReminder(messages);
 
   let firstTokenAt: number | null = null;
 
@@ -247,9 +244,6 @@ export async function POST(req: NextRequest) {
       // In flags rather than a column, so no schema change. Absent when
       // /search reported none.
       ...(meta.ranker ? { ranker: meta.ranker } : {}),
-      // prompt_version hashes the system prompt only, so the reminder is
-      // recorded here. Absent on first turns, which never get it.
-      ...(reminded.added ? { cite_reminder: true } : {}),
       // Logged so retrieval can be audited. time_to_first_token_ms already
       // includes `ms`; turn_index > 1 picks out the follow-ups.
       query_rewrite: {
@@ -313,10 +307,7 @@ export async function POST(req: NextRequest) {
           // provider's default is the Responses API.
           model: openai.chat(MODEL),
           system: systemPrompt,
-          messages: reminded.messages,
-          // For the cite reminder, which the SDK otherwise rejects. Safe:
-          // parseChatInput dropped every system turn the client sent.
-          allowSystemInMessages: true,
+          messages,
           temperature: 0.7,
           maxOutputTokens: 1000,
           timeout: ANSWER_TIMEOUT,
