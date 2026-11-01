@@ -61,7 +61,14 @@ type RetrievalMeta = {
 
 async function searchExperience(
   query: string,
-): Promise<{ context: string; retrieval: RetrievalAnnotation; meta: RetrievalMeta }> {
+): Promise<{
+  context: string;
+  retrieval: RetrievalAnnotation;
+  meta: RetrievalMeta;
+  // Set when /search failed or timed out. The caller then sends the visitor
+  // the error state instead of an answer the model wrote without sources.
+  failure?: string;
+}> {
   const apiUrl = backendUrl();
   const noMeta: RetrievalMeta = { topCategory: null, indexVersion: null, ranker: null };
   try {
@@ -116,6 +123,7 @@ async function searchExperience(
       context: 'Unable to search knowledge base.',
       retrieval: { query, status: 'error', chunks: [] },
       meta: noMeta,
+      failure: `search: ${error instanceof Error ? error.name : 'error'}`,
     };
   }
 }
@@ -202,7 +210,7 @@ export async function POST(req: NextRequest) {
   // visitor's own words for logging and labels.
   const rewrite = await rewriteQuery(messages);
   const searchStart = Date.now();
-  const { context, retrieval, meta } = await searchExperience(rewrite.query);
+  const { context, retrieval, meta, failure } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
 
   const systemPrompt = buildSystemPrompt(context);
@@ -262,6 +270,21 @@ export async function POST(req: NextRequest) {
       error: (err instanceof Error ? err.message : String(err)).slice(0, 500),
       rateLimited: false,
     });
+
+  // With no retrieved context the model answers from nothing and invents
+  // facts (dev, 2026-11-01: a made-up Loblaw role, no sources, judge skipped).
+  if (failure) {
+    await logFailure(new Error(failure));
+    return createUIMessageStreamResponse({
+      stream: createUIMessageStream<ChatUIMessage>({
+        execute: ({ writer }) => {
+          writer.write({ type: 'start' });
+          writer.write({ type: 'error', errorText: 'Search is unavailable.' });
+          writer.write({ type: 'finish' });
+        },
+      }),
+    });
+  }
 
   try {
     const stream = createUIMessageStream<ChatUIMessage>({
