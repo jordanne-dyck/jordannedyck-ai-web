@@ -176,12 +176,20 @@ type ClaimVerdict = { n: number; ids: string[]; text: string; supported: 'other'
 // all. Mirrors citation_checks.fold_lead_ins in jordannedyck-ai (2026-10-30).
 const LEAD_IN_END_RE = /:[*_\s]*$/;
 const LIST_MARK_RE = /^(?:[-*]|\d+\.)\s+/;
+// A heading with no colon introduces what follows the same way: a markdown
+// heading, or a line that is all bold ("**How it was built**"). Matches the
+// whole line, like citation_checks.HEADING_RE (2026-11-01).
+const HEADING_RE = /^(?:#{1,6}\s+\S.*|\*\*[^*]+\*\*|__[^_]+__)$/;
+
+function isLeadIn(s: Segment): boolean {
+  return !s.ids.length && (LEAD_IN_END_RE.test(s.text) || HEADING_RE.test(s.text.trim()));
+}
 
 export function foldLeadIns(segments: Segment[]): Segment[] {
   const out: Segment[] = [];
   let lead: string[] = [];
   for (let s of segments) {
-    if (!s.ids.length && LEAD_IN_END_RE.test(s.text)) {
+    if (isLeadIn(s)) {
       lead.push(s.text);
       continue;
     }

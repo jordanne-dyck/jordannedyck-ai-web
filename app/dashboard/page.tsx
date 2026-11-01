@@ -144,7 +144,7 @@ export default async function DashboardPage() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
             <h2 className="text-sm font-medium text-zinc-300">Button questions clicked (last 30d)</h2>
             <p className="mb-4 mt-1 text-xs text-zinc-500">
-              {buttons.totalClicks} clicks · only 2 of the 9 buttons show at a time
+              {buttons.totalClicks} clicks · 3 of the 9 buttons show at a time, then 1 once a chat starts
             </p>
             {buttons.clicks.length > 0 ? (
               <BarList items={buttons.clicks.map((c) => ({ label: c.question, value: c.count }))} />
@@ -176,8 +176,9 @@ export default async function DashboardPage() {
           >
             jordannedyck-ai-web
           </a>
-          . No personally identifiable information is collected. User queries are
-          stored for analytics and shown only in the private admin view.
+          . Questions and answers are stored with emails and phone numbers removed.
+          IP addresses are stored only as a one-way hash. Questions are shown only
+          in the private admin view.
         </footer>
       </div>
     </main>

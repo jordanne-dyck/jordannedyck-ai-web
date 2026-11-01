@@ -2,6 +2,15 @@
 
 The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface where visitors ask about my professional experience. Answers are grounded in a knowledge base served by the [jordannedyck-ai](https://github.com/jordanne-dyck/jordannedyck-ai) backend.
 
+## What it does
+
+- **Answers questions about my work** in a streamed chat, with suggested questions to start from.
+- **Takes follow-ups.** A question like "how was that measured?" is answered in the context of the conversation.
+- **Collects visitor feedback**: thumbs up or down on each answer.
+- **Shows public metrics** at `/dashboard`: volume, latency, spend and the questions people click.
+- **Gives me an admin view**: every conversation, plus an insights tab.
+- **Reports its own health** at `/api/health`, which Checkly checks every 5 minutes.
+
 ## How a question is answered
 
 1. The browser sends the conversation to `POST /api/chat`.
