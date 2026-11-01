@@ -11,6 +11,8 @@ import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
 import type { ChatUIMessage } from '@/lib/chat-message';
+import type { SourcesData } from '@/lib/citations';
+import { placeMarkers, SOURCE_HREF } from '@/lib/citation-markers';
 import { FilmEffects } from '@/app/components/FilmEffects';
 import './home.css';
 
@@ -26,6 +28,15 @@ const randomCat = () => CATS[Math.floor(Math.random() * CATS.length)];
 function rowIdOf(message: ChatUIMessage): string | null {
   for (const p of message.parts) {
     if (p.type === 'data-event') return p.data.id;
+  }
+  return null;
+}
+
+// The cited sources, from the data-sources part sent once the answer is
+// complete. Absent while streaming and from answers made before E.2.
+function sourcesOf(message: ChatUIMessage): SourcesData | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-sources') return p.data;
   }
   return null;
 }
@@ -322,6 +333,9 @@ export default function Home() {
             const text = textOf(message);
             // An answer that has not started, or failed before any text.
             if (message.role !== 'user' && !text) return null;
+            const sources = message.role === 'user' ? null : sourcesOf(message);
+            const titleOf = new Map(sources?.sources.map(s => [s.n, s.title]));
+            const sourceId = (n: number) => `${message.id}-source-${n}`;
             return (
               <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
                 <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
@@ -337,9 +351,22 @@ export default function Home() {
                       // the markdown exfiltration path.
                       disallowedElements={['img']}
                       components={{
-                        a: ({ node: _node, ...props }) => (
-                          <a className="underline" {...props} target="_blank" rel="noopener noreferrer" />
-                        ),
+                        a: ({ node: _node, ...props }) => {
+                          // A marker placeMarkers inserted: a superscript
+                          // that jumps to its line in the sources list.
+                          const n = props.href?.startsWith(SOURCE_HREF)
+                            ? Number(props.href.slice(SOURCE_HREF.length))
+                            : NaN;
+                          const title = titleOf.get(n);
+                          if (title) {
+                            return (
+                              <sup className="cite">
+                                <a href={`#${sourceId(n)}`} title={title} aria-label={`Source ${n}: ${title}`}>{n}</a>
+                              </sup>
+                            );
+                          }
+                          return <a className="underline" {...props} target="_blank" rel="noopener noreferrer" />;
+                        },
                         p:({ node: _node, ...props }) => (
                           <p className="my-3 first:mt-0 last:mb-0" {...props} />
                         ),
@@ -355,8 +382,18 @@ export default function Home() {
                         ),
                       }}
                     >
-                      {text}
+                      {sources ? placeMarkers(text, sources.segments).text : text}
                     </ReactMarkdown>
+                    {sources && sources.sources.length > 0 && (
+                      <div className="sources">
+                        <span className="label">Sources</span>
+                        <ol>
+                          {sources.sources.map(s => (
+                            <li key={s.n} id={sourceId(s.n)} value={s.n}>{s.title}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
                     {(() => {
                       const rowId = rowIdOf(message);
                       return rowId ? <Feedback rowId={rowId} /> : null;
