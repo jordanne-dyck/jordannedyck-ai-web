@@ -94,6 +94,19 @@ async function searchExperience(
       signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
 
+    // A non-200 is a failure, not an empty result: Flask error bodies are JSON
+    // with no `results`, so without this they logged as 'empty' and the model
+    // answered without sources (#13).
+    if (!response.ok) {
+      console.error('Search error: HTTP', response.status);
+      return {
+        context: 'Unable to search knowledge base.',
+        retrieval: { query, status: 'error', chunks: [] },
+        meta: noMeta,
+        failure: `search: http_${response.status}`,
+      };
+    }
+
     const data: { results?: SearchResult[]; index_version?: string; ranker?: string } =
       await response.json();
     const indexVersion = typeof data.index_version === 'string' ? data.index_version : null;
@@ -191,7 +204,15 @@ export async function POST(req: NextRequest) {
   };
 
   // Monitor requests skip the rate limit so Checkly never trips it.
-  const limit = isSynthetic ? { allowed: true as const } : await checkRateLimit(ipHash);
+  // Fails open: with Postgres down the check throws, and every chat used to
+  // return a bare 500. chat_events can't be written then either, and
+  // /api/health reports db:false (decided 2026-11-02).
+  const limit = isSynthetic
+    ? { allowed: true as const }
+    : await checkRateLimit(ipHash).catch((error) => {
+        console.error('Rate limit check failed, allowing request:', error);
+        return { allowed: true as const };
+      });
   if (!limit.allowed) {
     logRedacted({
       ...rejectedEvent,
