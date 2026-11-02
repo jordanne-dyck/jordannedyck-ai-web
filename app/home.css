@@ -86,12 +86,13 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .ai-message a { text-decoration: underline; text-underline-offset: 3px; }
 /* Citations (E.2): superscript numbers after cited sentences, sources listed under the answer */
 .home .ai-message sup.cite { font-size: .68em; line-height: 0; margin-left: 1px; }
-.home .ai-message sup.cite + sup.cite::before { content: ","; color: var(--soft); }
+/* Comma only between markers that touch ("1,2"); placeMarkers flags them. `sup.cite + sup.cite` also matched cites in separate sentences. */
+.home .ai-message sup.cite-next::before { content: ","; color: var(--soft); }
 .home .ai-message sup.cite a { color: var(--d1); text-decoration: none; padding: 0 1px; }
 .home .ai-message sup.cite a:hover, .home .ai-message sup.cite a:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
 /* Touch: the numbers alone are 5-8 x 12 px. An invisible ::after widens each tap area to about 16 x 32 px
    without moving the text. It reaches mostly rightwards: in "1,2" the gap is about 3 px, so a wider left
-   reach would let 2's area cover the 1. (`+` can't tell "1,2" from cites in separate sentences, so no pair rule.) */
+   reach would let 2's area cover the 1. Kept for every cite, not only .cite-next pairs: lone cites lose 6 px of left reach at most. */
 @media (pointer: coarse) {
   .home .ai-message sup.cite a { position: relative; }
   .home .ai-message sup.cite a::after { content: ""; position: absolute; inset: -10px -8px -10px -2px; }

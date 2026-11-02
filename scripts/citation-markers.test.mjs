@@ -16,9 +16,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { buildSources, parseCitations, stripCitations } from '../lib/citations.ts';
-import { placeMarkers, SOURCE_HREF } from '../lib/citation-markers.ts';
+import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '../lib/citation-markers.ts';
 
-const MARKER_RE = new RegExp(String.raw`(?:&#8203;)?\[\d+\]\(${SOURCE_HREF}\d+\)`, 'g');
+const MARKER_RE = new RegExp(String.raw`(?:&#8203;)?\[\d+\]\((?:${SOURCE_NEXT_HREF}|${SOURCE_HREF})\d+\)`, 'g');
 
 // Titles as the index has them: several chunks share one file title.
 const TITLES = {
@@ -50,7 +50,10 @@ function checkPlacement(name, raw) {
   assert.equal(placed.missed, 0, 'every cited segment is placed');
   assert.ok(placed.placed <= data.segments.length);
   for (const s of data.sources) {
-    assert.ok(placed.text.includes(`(${SOURCE_HREF}${s.n})`), `source ${s.n} has no marker`);
+    assert.ok(
+      [SOURCE_HREF, SOURCE_NEXT_HREF].some((href) => placed.text.includes(`(${href}${s.n})`)),
+      `source ${s.n} has no marker`,
+    );
   }
   for (const line of placed.text.split('\n')) {
     assert.ok(!/^\s*(?:&#8203;)?\[\d+\]\(/.test(line), `marker starts a line: ${line}`);
@@ -104,7 +107,21 @@ test('chunks sharing a title share a number; numbers follow first citation', () 
     { n: 3, title: TITLES['ecom-001'] },
   ]);
   assert.deepEqual(data.segments.map((s) => s.n), [[1], [2, 3], [2]]);
-  assert.match(placed.text, /P&L\.\[2\]\(#source-2\)\[3\]\(#source-3\)/);
+  assert.match(placed.text, /P&L\.\[2\]\(#source-2\)\[3\]\(#source-next-3\)/);
+});
+
+// Seen on dev 2026-11-01: a cite got a comma although a sentence sat between it
+// and the one before, because CSS `sup + sup` ignores text. Only a link that
+// directly follows another is "next".
+test('only a marker directly after another is flagged for a comma', () => {
+  const { placed } = checkPlacement(
+    'comma adjacency',
+    'She built it. [tiktok-001] It runs autonomous commerce. [ecom-001] And more. [ops-002, ecom-001]',
+  );
+  assert.equal(
+    placed.text,
+    `She built it.[1](${SOURCE_HREF}1) It runs autonomous commerce.[2](${SOURCE_HREF}2) And more.[3](${SOURCE_HREF}3)[2](${SOURCE_NEXT_HREF}2)`,
+  );
 });
 
 test('ids not retrieved this turn are dropped, and so are their segments', () => {
