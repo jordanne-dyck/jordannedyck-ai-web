@@ -23,6 +23,20 @@ const MODEL = 'gpt-4o';
 const SEARCH_TIMEOUT_MS = 10_000;
 const ANSWER_TIMEOUT = { firstChunkMs: 20_000, totalMs: 60_000 };
 
+// The SDK's own timeout.firstChunkMs never fires with openai.chat: the
+// provider's doStream waits for the first output chunk before the SDK arms
+// that timer (ai 7.0.154, @ai-sdk/openai 4.0.103; tested 2026-11-01). This
+// one starts with the call, so it also covers a connection or response that
+// never starts. Cleared by the first text, or when the call ends.
+function firstChunkDeadline(ms: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException(`First chunk timeout of ${ms}ms exceeded`, 'TimeoutError')),
+    ms,
+  );
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 // The event fields that stay empty whenever no answer was generated.
 const NO_RESPONSE = {
   responseText: null,
@@ -302,6 +316,7 @@ export async function POST(req: NextRequest) {
         // The answer with its [chunk-id] citations, which the visitor's stream
         // and onFinish's `text` no longer carry.
         const cited = { raw: '' };
+        const firstChunk = firstChunkDeadline(ANSWER_TIMEOUT.firstChunkMs);
         const result = streamText({
           // Chat Completions, as with AI SDK v4 and run_eval.py; the v7
           // provider's default is the Responses API.
@@ -310,14 +325,17 @@ export async function POST(req: NextRequest) {
           messages,
           temperature: 0.7,
           maxOutputTokens: 1000,
-          timeout: ANSWER_TIMEOUT,
+          abortSignal: firstChunk.signal,
+          timeout: { totalMs: ANSWER_TIMEOUT.totalMs },
           experimental_transform: stripCitationsTransform(cited),
           onChunk: ({ chunk }) => {
             if (firstTokenAt === null && chunk.type === 'text-delta') {
               firstTokenAt = Date.now();
+              firstChunk.clear();
             }
           },
           onEnd: async ({ text, usage }) => {
+            firstChunk.clear();
             try {
               const promptTokens = usage.inputTokens ?? null;
               const completionTokens = usage.outputTokens ?? null;
@@ -377,12 +395,14 @@ export async function POST(req: NextRequest) {
             }
           },
           onError: async ({ error }) => {
+            firstChunk.clear();
             await logFailure(error);
             settle();
           },
           // Only ANSWER_TIMEOUT aborts the call. The SDK ends the stream without
           // an error part; this one puts the visitor's page in its error state.
           onAbort: async () => {
+            firstChunk.clear();
             writer.write({ type: 'error', errorText: 'The answer timed out.' });
             await logFailure(new Error('timeout'));
             settle();
