@@ -12,10 +12,17 @@
 // A segment that cannot be found (the stream and the parsed text differ) ends
 // the run and gets no marker; so does a run whose end falls inside a link or
 // inline code. The sources list still shows, so the fallback is the list alone.
+//
+// A run citing several sources gets their links back to back, and each link
+// after the first uses SOURCE_NEXT_HREF, so page.tsx puts a comma between them
+// ("1,2"). CSS can't decide that: `sup + sup` ignores text nodes, so it also
+// matches two markers with a sentence between them.
+//
 // Pure, with no runtime imports, so node --test can load it directly
 // (scripts/citation-markers.test.mjs).
 
 export const SOURCE_HREF = '#source-';
+export const SOURCE_NEXT_HREF = '#source-next-';
 
 export type MarkerSegment = { text: string; n: number[] };
 
@@ -37,7 +44,7 @@ export function placeMarkers(
       // After "!" the link would parse as an image, which the renderer drops; a
       // zero-width space entity keeps them apart.
       const sep = answer[run.at - 1] === '!' ? '&#8203;' : '';
-      inserts.push({ at: run.at, marker: sep + run.n.map((n) => `[${n}](${SOURCE_HREF}${n})`).join('') });
+      inserts.push({ at: run.at, marker: sep + run.n.map((n, i) => `[${n}](${i ? SOURCE_NEXT_HREF : SOURCE_HREF}${n})`).join('') });
     } else {
       missed++;
     }

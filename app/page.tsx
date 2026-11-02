@@ -12,7 +12,7 @@ import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
 import type { ChatUIMessage } from '@/lib/chat-message';
 import type { SourcesData } from '@/lib/citations';
-import { placeMarkers, SOURCE_HREF } from '@/lib/citation-markers';
+import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '@/lib/citation-markers';
 import { FilmEffects } from '@/app/components/FilmEffects';
 import './home.css';
 
@@ -353,14 +353,17 @@ export default function Home() {
                       components={{
                         a: ({ node: _node, ...props }) => {
                           // A marker placeMarkers inserted: a superscript
-                          // that jumps to its line in the sources list.
-                          const n = props.href?.startsWith(SOURCE_HREF)
-                            ? Number(props.href.slice(SOURCE_HREF.length))
+                          // that jumps to its line in the sources list. A
+                          // "next" marker directly follows another: "1,2".
+                          const next = props.href?.startsWith(SOURCE_NEXT_HREF);
+                          const prefix = next ? SOURCE_NEXT_HREF : SOURCE_HREF;
+                          const n = props.href?.startsWith(prefix)
+                            ? Number(props.href.slice(prefix.length))
                             : NaN;
                           const title = titleOf.get(n);
                           if (title) {
                             return (
-                              <sup className="cite">
+                              <sup className={next ? 'cite cite-next' : 'cite'}>
                                 <a href={`#${sourceId(n)}`} title={title} aria-label={`Source ${n}: ${title}`}>{n}</a>
                               </sup>
                             );

@@ -86,7 +86,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .ai-message a { text-decoration: underline; text-underline-offset: 3px; }
 /* Citations (E.2): superscript numbers after cited sentences, sources listed under the answer */
 .home .ai-message sup.cite { font-size: .68em; line-height: 0; margin-left: 1px; }
-.home .ai-message sup.cite + sup.cite::before { content: ","; color: var(--soft); }
+/* Comma only between markers that touch ("1,2"); placeMarkers flags them. `sup.cite + sup.cite` also matched cites in separate sentences. */
+.home .ai-message sup.cite-next::before { content: ","; color: var(--soft); }
 .home .ai-message sup.cite a { color: var(--d1); text-decoration: none; padding: 0 1px; }
 .home .ai-message sup.cite a:hover, .home .ai-message sup.cite a:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
 .home .sources { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--soft); font-size: 14px; line-height: 1.5; }
