@@ -56,3 +56,20 @@ export function gapAdmitted(answer: string): boolean {
     NO_COVERAGE_RE.test(low)
   );
 }
+
+// T1.8 — no speculation. MUST STAY IN SYNC with SPECULATION_RE in
+// jordannedyck-ai/run_eval.py, added 2026-11-01 (answer-gaps findings, option
+// 2b) from M05 turn 2: "which likely supported loyalty indirectly". Narrow on
+// purpose: a broad hedge list matched 320 of 3,081 stored answers, most of them
+// grounded counterfactuals or facts like "twice as likely to buy again".
+// Python's re.IGNORECASE is the 'i' flag; 'g' is for matchAll only.
+export const SPECULATION_RE = new RegExp(
+  String.raw`\b(?:she|her work|this role|the role|it|they|which|this)\s+(?:most\s+)?(?:likely|probably|presumably)\b` +
+    String.raw`|\blikely (?:focus|involv|includ|cover|span|centr|draw|leverag|enta|requir|reflect)\w*`,
+  'gi',
+);
+
+// T1.8 — the matched spans, so a false positive is visible.
+export function speculationSpans(answer: string): string[] {
+  return Array.from(answer.matchAll(SPECULATION_RE), (m) => m[0]);
+}

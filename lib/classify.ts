@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { pool } from './db';
 import { estimateCostUsd } from './cost';
 import { buildSystemPrompt } from './system-prompt';
-import { FIRST_PERSON_RE, PHONE_RE, gapAdmitted } from './eval-checks';
+import { FIRST_PERSON_RE, PHONE_RE, gapAdmitted, speculationSpans } from './eval-checks';
 import type { CitationChunk, Segment } from './citations';
 
 // Labels for one chat turn, written to chat_events.flags.
@@ -71,17 +71,22 @@ function normalise(s: string): string {
 }
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+// Jordanne's own published address, the one on the page. An answer that gives
+// it to a visitor asking how to reach her is not personal details
+// (answer-gaps findings, 2026-11-01).
+const OWN_EMAIL = 'jordanne.dyck@gmail.com';
 // North American and international numbers with 10 or more digits. Years and
 // money amounts never reach 10 digits with these separators.
 const PHONE_ANY_RE = /(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g;
 
 // Replaces visitors' emails and phone numbers before a row is stored.
-// Jordanne's own published number is left as is. Storage only: the original
-// text has already gone to OpenAI to be answered. Decided 2026-10-14.
+// Jordanne's own published number and email are left as is. Storage only: the
+// original text has already gone to OpenAI to be answered. Decided 2026-10-14.
 export function redactPii(text: string): { text: string; found: boolean } {
   let found = false;
   const out = text
-    .replace(EMAIL_RE, () => {
+    .replace(EMAIL_RE, (m) => {
+      if (m.toLowerCase() === OWN_EMAIL) return m;
       found = true;
       return '[email]';
     })
@@ -104,6 +109,7 @@ export function freeLabels(query: string, answer: string | null): Record<string,
     if (gapAdmitted(answer)) flags.gap_declared = true;
     if (FIRST_PERSON_RE.test(answer)) flags.first_person = true;
     if (PHONE_RE.test(answer)) flags.phone = true;
+    if (speculationSpans(answer).length) flags.speculation = true;
   }
   return flags;
 }

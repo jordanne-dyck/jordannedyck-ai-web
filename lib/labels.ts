@@ -10,6 +10,7 @@ export type LabelKey =
   | 'gap_declared'
   | 'first_person'
   | 'phone'
+  | 'speculation'
   | 'not_grounded'
   | 'pii'
   | 'oversize'
@@ -40,6 +41,9 @@ export const LABELS: LabelDef[] = [
   { key: 'gap_declared', name: 'Gap declared', kind: 'quality', sql: flag('gap_declared') },
   { key: 'first_person', name: 'First person', kind: 'quality', sql: flag('first_person') },
   { key: 'phone', name: 'Phone in answer', kind: 'quality', sql: flag('phone') },
+  // T1.8. Shown and filterable, but not in FLAGGING_LABELS: its tier is still
+  // Jordanne's decision, and run_eval.py keeps it non-blocking until then.
+  { key: 'speculation', name: 'Speculation', kind: 'quality', sql: flag('speculation') },
   {
     key: 'not_grounded',
     name: 'Not grounded',
