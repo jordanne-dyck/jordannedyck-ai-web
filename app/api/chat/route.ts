@@ -3,7 +3,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, streamText, toUIM
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { getOrCreateSessionId } from '@/lib/session';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, type RateLimitResult } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
@@ -86,6 +86,12 @@ async function searchExperience(
 }> {
   const apiUrl = backendUrl();
   const noMeta: RetrievalMeta = { topCategory: null, indexVersion: null, ranker: null };
+  const failed = (failure: string) => ({
+    context: 'Unable to search knowledge base.',
+    retrieval: { query, status: 'error' as const, chunks: [] },
+    meta: noMeta,
+    failure,
+  });
   try {
     const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
@@ -93,6 +99,13 @@ async function searchExperience(
       body: JSON.stringify({ query, n_results: 5 }),
       signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
+
+    // A 5xx from Flask can still carry a JSON body with no results, which
+    // would otherwise read as an empty search and get an unsourced answer.
+    if (!response.ok) {
+      console.error('Search error: HTTP', response.status);
+      return failed(`search: http_${response.status}`);
+    }
 
     const data: { results?: SearchResult[]; index_version?: string; ranker?: string } =
       await response.json();
@@ -134,12 +147,19 @@ async function searchExperience(
     };
   } catch (error) {
     console.error('Search error:', error);
-    return {
-      context: 'Unable to search knowledge base.',
-      retrieval: { query, status: 'error', chunks: [] },
-      meta: noMeta,
-      failure: `search: ${error instanceof Error ? error.name : 'error'}`,
-    };
+    return failed(`search: ${error instanceof Error ? error.name : 'error'}`);
+  }
+}
+
+// Fails open: with Postgres down the chat still answers, unlimited until it is
+// back (decided 2026-11-02). Before this, a thrown query escaped POST and the
+// visitor got a 500 with an empty body.
+async function rateLimitOrAllow(ipHash: string): Promise<RateLimitResult & { unchecked?: true }> {
+  try {
+    return await checkRateLimit(ipHash);
+  } catch (error) {
+    console.error('Rate limit check failed, allowing request:', error);
+    return { allowed: true, unchecked: true };
   }
 }
 
@@ -191,7 +211,7 @@ export async function POST(req: NextRequest) {
   };
 
   // Monitor requests skip the rate limit so Checkly never trips it.
-  const limit = isSynthetic ? { allowed: true as const } : await checkRateLimit(ipHash);
+  const limit = isSynthetic ? { allowed: true as const } : await rateLimitOrAllow(ipHash);
   if (!limit.allowed) {
     logRedacted({
       ...rejectedEvent,
@@ -258,6 +278,8 @@ export async function POST(req: NextRequest) {
     isSynthetic,
     flags: {
       ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
+      // The rate-limit query failed and the request was let through.
+      ...('unchecked' in limit ? { rate_limit_unchecked: true } : {}),
       // In flags rather than a column, so no schema change. Absent when
       // /search reported none.
       ...(meta.ranker ? { ranker: meta.ranker } : {}),

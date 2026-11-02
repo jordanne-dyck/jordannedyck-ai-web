@@ -12,9 +12,9 @@ const DAILY_LIMIT = 100;
 export async function checkRateLimit(ipHash: string): Promise<RateLimitResult> {
   // Local development without a database: allow everything rather than throwing.
   // `pool` is a lazy Proxy whose first property access throws when DATABASE_URL is
-  // unset, and route.ts calls this BEFORE its try block — so without this guard every
-  // request 500s with an empty body. Added 2026-09-11 to run the eval end to end
-  // locally.
+  // unset. route.ts would now fail open on that throw anyway (rateLimitOrAllow), but
+  // this guard keeps local runs from logging an error per request. Added 2026-09-11
+  // to run the eval end to end locally.
   //
   // NAMED DIVERGENCE: with no DATABASE_URL there is no rate limiting at all. This path
   // conformance-tests retrieval, prompt and generation — NOT rate limiting, and not the
