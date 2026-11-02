@@ -89,6 +89,12 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .ai-message sup.cite + sup.cite::before { content: ","; color: var(--soft); }
 .home .ai-message sup.cite a { color: var(--d1); text-decoration: none; padding: 0 1px; }
 .home .ai-message sup.cite a:hover, .home .ai-message sup.cite a:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
+/* Touch: the numbers alone are 5-8 x 12 px. An invisible ::after widens each tap area to about 24 x 32 px
+   without moving the text; kept narrow sideways so adjacent cites ("1,2") split the space between them. */
+@media (pointer: coarse) {
+  .home .ai-message sup.cite a { position: relative; }
+  .home .ai-message sup.cite a::after { content: ""; position: absolute; inset: -10px -8px; }
+}
 .home .sources { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--soft); font-size: 14px; line-height: 1.5; }
 .home .sources .label { display: block; margin-bottom: 6px; }
 .home .sources ol { list-style: decimal; padding-left: 22px; }
