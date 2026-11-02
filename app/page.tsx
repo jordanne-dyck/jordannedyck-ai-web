@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { APICallError, DefaultChatTransport } from 'ai';
 import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -407,7 +407,12 @@ export default function Home() {
           {error && !isLoading && (
             <div className="msg ai failed" role="alert">
               <span className="label">jordbot</span>
-              That answer didn&apos;t come through. <button type="button" onClick={retry}>Try again</button>, or{' '}
+              {/* A 429 from /api/chat: retrying now would only be refused again. */}
+              {APICallError.isInstance(error) && error.statusCode === 429 ? (
+                <>You&apos;ve asked a lot of questions in a short time, so jordbot is taking a break. Come back later, or{' '}</>
+              ) : (
+                <>That answer didn&apos;t come through. <button type="button" onClick={retry}>Try again</button>, or{' '}</>
+              )}
               <a href={`mailto:${EMAIL}`} onClick={() => contact('after_answer', 'email')}>email Jordanne</a>.
             </div>
           )}
