@@ -15,6 +15,7 @@ import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
 import { withCiteReminder } from '@/lib/cite-reminder';
+import { keepSignedTurns, signTurn } from '@/lib/turn-signature';
 import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
 const MODEL = 'gpt-4o';
@@ -220,7 +221,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { messages, turnIndex } = input;
+  // Earlier answers reach the rewrite and the model only if this server signed
+  // them for this session; forged or edited ones are dropped here, before
+  // anything reads them (lib/turn-signature.ts).
+  const { turnIndex } = input;
+  const { messages, unsigned } = keepSignedTurns(input.messages, sessionId);
   // Follow-ups are searched on a standalone rewrite; `query` stays the
   // visitor's own words for logging and labels.
   const rewrite = await rewriteQuery(messages);
@@ -258,6 +263,7 @@ export async function POST(req: NextRequest) {
     isSynthetic,
     flags: {
       ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
+      ...(unsigned ? { unsigned_assistant_turns: unsigned } : {}),
       // In flags rather than a column, so no schema change. Absent when
       // /search reported none.
       ...(meta.ranker ? { ranker: meta.ranker } : {}),
@@ -349,6 +355,11 @@ export async function POST(req: NextRequest) {
               const promptTokens = usage.inputTokens ?? null;
               const completionTokens = usage.outputTokens ?? null;
               const { segments, citedIds } = parseCitations(cited.raw);
+              // Signs the text the visitor received (citations stripped), so
+              // this answer can go back to the model next turn. Written before
+              // the database insert, so a slow insert can't hold it back.
+              const sig = signTurn(sessionId, text);
+              if (sig) writer.write({ type: 'data-turn-sig', data: { sig } });
               if (process.env.EMIT_RETRIEVAL || isSynthetic) {
                 writer.write({ type: 'data-citations', data: { answer: cited.raw, segments } });
               }

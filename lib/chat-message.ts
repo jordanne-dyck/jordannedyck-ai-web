@@ -8,6 +8,8 @@ import type { Segment, SourcesData } from './citations';
 //   data-sources    source titles and which sentences cite them; every request.
 //                   Titles only: no chunk ids, filenames or chunk text (E.2)
 //   data-event      the chat_events row id, which the visitor rates the answer by
+//   data-turn-sig   the answer's signature, sent back with it next turn
+//                   (lib/turn-signature.ts); only when TURN_SIGNING_KEY is set
 // They replace the AI SDK v4 `8:` message annotations (changed 2026-10-27).
 export type RetrievalData = {
   // The text retrieval ran on: the follow-up rewrite, or the latest message.
@@ -27,6 +29,7 @@ export type ChatDataParts = {
   citations: { answer: string; segments: Segment[] };
   sources: SourcesData;
   event: { id: string };
+  'turn-sig': { sig: string };
 };
 
 export type ChatUIMessage = UIMessage<never, ChatDataParts>;
