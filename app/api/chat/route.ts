@@ -11,6 +11,7 @@ import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } fr
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
+import { pickProject } from '@/lib/projects';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -376,11 +377,18 @@ export async function POST(req: NextRequest) {
               // Every request: titles and numbers only, so the client can mark
               // cited sentences and list the sources under the answer.
               writer.write({ type: 'data-sources', data: buildSources(segments, retrieval.chunks) });
+              // The project card under the answer. Only the slug leaves the
+              // server, never the filename or chunk id it was picked from.
+              const project = pickProject(segments.flatMap((s) => s.ids), retrieval.chunks);
+              if (project) {
+                writer.write({ type: 'data-project', data: { slug: project } });
+              }
               const rowId = await logRedacted({
                 ...baseEvent,
                 flags: {
                   ...baseEvent.flags,
                   ...freeLabels(query, text),
+                  ...(project ? { project_card: project } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer

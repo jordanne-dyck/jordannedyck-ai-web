@@ -14,6 +14,8 @@ import type { ChatUIMessage } from '@/lib/chat-message';
 import type { SourcesData } from '@/lib/citations';
 import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '@/lib/citation-markers';
 import { FilmEffects } from '@/app/components/FilmEffects';
+import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
+import { projectBySlug, type Project } from '@/lib/projects';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -37,6 +39,15 @@ function rowIdOf(message: ChatUIMessage): string | null {
 function sourcesOf(message: ChatUIMessage): SourcesData | null {
   for (const p of message.parts) {
     if (p.type === 'data-sources') return p.data;
+  }
+  return null;
+}
+
+// The project card to show under an answer, from the data-project part the
+// chat route sends when the answer cites one of her project files.
+function projectOf(message: ChatUIMessage): Project | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-project') return projectBySlug(p.data.slug);
   }
   return null;
 }
@@ -186,6 +197,9 @@ export default function Home() {
   // One switch stops all motion: the band, grain, dust (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [openProject, setOpenProject] = useState<Project | null>(null);
+  // The card that opened the panel, kept after closing so focus can go back to it.
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
 
   // The first-screen button: take the visitor to the chat, cursor in the box.
   const askJordbot = () => {
@@ -264,6 +278,22 @@ export default function Home() {
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
     sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
+  };
+
+  const showProject = (project: Project, el: HTMLElement) => {
+    track({ name: 'project_opened', props: { slug: project.slug } });
+    setOpener(el);
+    setOpenProject(project);
+  };
+  // A question from the panel is a button question, like a suggested one.
+  const askAboutProject = (question: string, index: number) => {
+    const project = openProject;
+    setOpenProject(null);
+    if (!project || isLoading) return;
+    track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
+    track({ name: 'message_sent', props: { source: 'project' } });
+    sentAt.current = now();
+    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId() } });
   };
 
   // The cats stand in until the first words of the answer arrive. The
@@ -401,6 +431,10 @@ export default function Home() {
                       const rowId = rowIdOf(message);
                       return rowId ? <Feedback rowId={rowId} /> : null;
                     })()}
+                    {(() => {
+                      const project = projectOf(message);
+                      return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
+                    })()}
                   </div>
                 )}
               </div>
@@ -493,6 +527,7 @@ export default function Home() {
         </div>
       </footer>
 
+      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} />
       <FilmEffects paused={paused} />
     </div>
   );

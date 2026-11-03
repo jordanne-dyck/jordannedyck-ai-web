@@ -35,7 +35,10 @@ export async function initAnalytics(): Promise<void> {
 
 export type AnalyticsEvent =
   | { name: 'chip_clicked'; props: { index: number; text: string } }
-  | { name: 'message_sent'; props: { source: 'chip' | 'typed' } }
+  | { name: 'message_sent'; props: { source: 'chip' | 'typed' | 'project' } }
+  // Project cards: opening one, and asking one of its panel questions.
+  | { name: 'project_opened'; props: { slug: string } }
+  | { name: 'project_question_clicked'; props: { slug: string; index: number } }
   | { name: 'stream_completed'; props: { ms_elapsed: number } }
   | { name: 'stream_abandoned'; props: { ms_elapsed: number } }
   | { name: 'answer_copied'; props: Record<string, never> }
