@@ -171,15 +171,23 @@ export function citesCareer(citedIds: string[]): boolean {
   return citedIds.some((id) => CAREER_CHUNKS.has(id));
 }
 
-// A question that asks for the timeline itself, e.g. "show the timeline again".
-// These show it even when it was already shown this visit.
+// For an answer with no citations at all: whether the top retrieved chunk is
+// role history. The top one only, so an answer that retrieved a career chunk
+// in passing doesn't get the timeline.
+export function leadsWithCareer(chunks: { chunk_id: string | null }[]): boolean {
+  const top = chunks[0]?.chunk_id;
+  return !!top && CAREER_CHUNKS.has(top);
+}
+
+// A question that names the timeline, e.g. "show the timeline again".
 export function asksForTimeline(query: string): boolean {
   return /\btime ?line\b/i.test(query);
 }
 
 // A question asking for her career as a whole: the timeline is the answer, so
-// the written answer is kept short (decided 2026-11-04). Includes every
-// question that names the timeline.
+// the written answer is kept short, and it shows even when it was already
+// shown this visit (decided 2026-11-04). Includes every question that names
+// the timeline.
 export function asksForOverview(query: string): boolean {
   return (
     asksForTimeline(query) ||

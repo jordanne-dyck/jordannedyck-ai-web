@@ -51,8 +51,8 @@ export const PROJECTS: Project[] = [
   },
   {
     // From experience/independent-practice.md, not projects/: shown for the
-    // consulting chunks only (see CHUNK_PROJECTS). Freelance, so a project
-    // rather than a role on the timeline (decided 2026-11-04).
+    // consulting chunks only (see CHUNK_PROJECTS). Also on the timeline, as
+    // her independent practice (decided 2026-11-04).
     slug: 'warai-neko',
     title: 'Warai Neko',
     when: '2026 – present',

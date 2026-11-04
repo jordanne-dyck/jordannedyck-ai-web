@@ -84,13 +84,6 @@ export function parseSource(body: unknown): 'button' | 'typed' | null {
   return source === 'button' || source === 'typed' ? source : null;
 }
 
-// Whether the page has already shown the career timeline this visit, so an
-// overview question only gets the short answer when the timeline will show.
-// Added 2026-11-04.
-export function parseTimelineShown(body: unknown): boolean {
-  return (body as { timelineShown?: unknown })?.timelineShown === true;
-}
-
 // PostHog's anonymous distinct id, sent by app/page.tsx when PostHog is loaded,
 // so chat_events.client_id joins a row to its session replay. Free text from
 // the client, so only a short id-shaped value is kept. Added 2026-10-14.
