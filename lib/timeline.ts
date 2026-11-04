@@ -175,3 +175,21 @@ export function citesCareer(citedIds: string[]): boolean {
 export function asksForTimeline(query: string): boolean {
   return /\btime ?line\b/i.test(query);
 }
+
+// A question asking for her career as a whole: the timeline is the answer, so
+// the written answer is kept short (decided 2026-11-04). Includes every
+// question that names the timeline.
+export function asksForOverview(query: string): boolean {
+  return (
+    asksForTimeline(query) ||
+    /\bcareer\s+(?:history|path|journey|story|arc|overview|so far)\b|\bwork\s+history\b|\bwalk\s+(?:me|us)\s+through\s+(?:her|jordanne'?s?)\s+(?:career|experience|background)\b/i.test(query)
+  );
+}
+
+// Added to the system prompt for an overview question when the timeline will
+// show. Not in jordannedyck-ai/run_eval.py's SYSTEM_PROMPT yet: these answers
+// are flagged timeline_prompt in chat_events so evals can tell them apart
+// (gap accepted 2026-11-04; add it to the backend before prod).
+export const TIMELINE_NOTE =
+  '# THIS ANSWER\n\nAn animated timeline of her whole career, with every role, date and school, appears directly under this answer. ' +
+  'Write 2 to 3 sentences on the arc of her career and what connects it, citing as usual. Do not list roles, employers or dates: the timeline shows them.';

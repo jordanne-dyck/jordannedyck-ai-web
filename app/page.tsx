@@ -237,7 +237,7 @@ export default function Home() {
   const retry = () => {
     track({ name: 'answer_retried', props: {} });
     sentAt.current = now();
-    regenerate({ body: { clientId: clientId() } });
+    regenerate({ body: { clientId: clientId(), timelineShown: timelineMsg !== null } });
   };
 
   // Name block: a different cat on every visit, the name fitted to the width,
@@ -297,7 +297,7 @@ export default function Home() {
     sentAt.current = now();
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
-    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: timelineMsg !== null } });
   };
 
   // The timeline shows under the first answer that carries it, once per visit.
@@ -322,7 +322,7 @@ export default function Home() {
     track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
     track({ name: 'message_sent', props: { source: 'project' } });
     sentAt.current = now();
-    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId(), timelineShown: timelineMsg !== null } });
   };
 
   // The cats stand in until the first words of the answer arrive. The
@@ -521,7 +521,7 @@ export default function Home() {
               if (isLoading || !input.trim()) return;
               track({ name: 'message_sent', props: { source: 'typed' } });
               sentAt.current = now();
-              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId() } });
+              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId(), timelineShown: timelineMsg !== null } });
               setInput('');
             }}
             aria-label="Chat with AI assistant"

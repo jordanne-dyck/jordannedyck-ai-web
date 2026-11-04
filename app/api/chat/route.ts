@@ -7,12 +7,12 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
-import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import { parseChatInput, parseSource, parseClientId, parseTimelineShown, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
-import { asksForTimeline, citesCareer } from '@/lib/timeline';
+import { asksForOverview, asksForTimeline, citesCareer, TIMELINE_NOTE } from '@/lib/timeline';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -189,6 +189,10 @@ export async function POST(req: NextRequest) {
   const source = parseSource(body);
   const clientId = parseClientId(body);
   const query = input.lastUserContent;
+  // An overview question gets the timeline as its answer, and a short written
+  // lead-in, when the page will show it: named, or not yet shown this visit.
+  const timelineExplicit = asksForTimeline(query);
+  const timelineLead = timelineExplicit || (asksForOverview(query) && !parseTimelineShown(body));
   const elapsed = () => Date.now() - requestStart;
 
   // Shared by the two early exits, which never reach retrieval.
@@ -252,7 +256,7 @@ export async function POST(req: NextRequest) {
   const { context, retrieval, meta, failure } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
 
-  const systemPrompt = buildSystemPrompt(context);
+  const systemPrompt = buildSystemPrompt(context) + (timelineLead ? `\n\n${TIMELINE_NOTE}` : '');
   // Only the model sees the reminder; the rewrite, labels and log use `messages`.
   const reminded = withCiteReminder(messages);
 
@@ -391,8 +395,7 @@ export async function POST(req: NextRequest) {
               }
               // The career timeline. The page shows it once per visit unless the
               // question asks for it (`explicit`), and in place of the project card.
-              const timelineExplicit = asksForTimeline(query);
-              const timeline = timelineExplicit || citesCareer(citedIds);
+              const timeline = timelineLead || citesCareer(citedIds);
               if (timeline) {
                 writer.write({ type: 'data-timeline', data: { explicit: timelineExplicit } });
               }
@@ -404,7 +407,9 @@ export async function POST(req: NextRequest) {
                   ...(project ? { project_card: project } : {}),
                   ...(predicted ? { project_predicted: predicted } : {}),
                   // Sent, not necessarily shown: the page decides once per visit.
-                  ...(timeline ? { timeline: timelineExplicit ? 'explicit' : 'cited' } : {}),
+                  ...(timeline ? { timeline: timelineExplicit ? 'explicit' : timelineLead ? 'overview' : 'cited' } : {}),
+                  // The system prompt had TIMELINE_NOTE added: not the eval prompt.
+                  ...(timelineLead ? { timeline_prompt: true } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer
