@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     // LinkedIn and Slack cache previews by URL: give a changed image a new file name.
     images: [
       {
-        url: '/og-image-v2.jpg',
+        url: '/og-image-v3.jpg',
         width: 1200,
         height: 630,
         alt: 'Jordanne Dyck holding her cat, next to her name and title',
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Jordanne Dyck | Sr. Product Manager',
     description: 'I build DTC products that bridge human and digital moments at scale.',
-    images: ['/og-image-v2.jpg'],
+    images: ['/og-image-v3.jpg'],
   },
   robots: {
     index: true,

@@ -39,7 +39,7 @@ const EXPERTISE = [
   },
   {
     name: 'Human and digital balance',
-    text: 'I decide where people guide and where technology does, then build both sides. At DECIEM that was Regimen Builder, the AI Personal Shopper built on it, and service automation that cut resolution time 86% while human agents kept the cases that needed them.',
+    text: 'At DECIEM I made that call three times: Regimen Builder, the AI Personal Shopper built on it, and service automation that cut resolution time 86% while human agents kept the cases that needed them.',
   },
   {
     name: 'AI fluency',
