@@ -286,9 +286,10 @@ html:has(.home) { scroll-behavior: smooth; }
   .home .tl-captions { position: relative; top: auto; align-self: stretch; margin-top: 48px; }
   .home .tl-caption { padding: 0 0 0 16px; border: 0; border-left: 2px solid var(--d1); border-radius: 0; background: none; }
 }
-/* The highlight's image or clip: a fixed-height crop above the text, never over it */
+/* The highlight's image or clip: a fixed-height crop above the text, never over it.
+   Centred, like the project cards: the top of a screen recording is browser chrome. */
 .home .tl-media { display: block; height: 110px; overflow: hidden; border-radius: 6px; margin-bottom: 10px; background: var(--fill); }
-.home .tl-media img, .home .tl-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top;
+.home .tl-media img, .home .tl-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center;
   filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
 @media (min-width: 761px) { .home .tl-caption .tl-media { height: 170px; } }
 .home .tl-caption .label { color: var(--d1); }
