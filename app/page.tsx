@@ -17,6 +17,7 @@ import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
+import { splitAtTimeline } from '@/lib/timeline';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -395,16 +396,15 @@ export default function Home() {
             const sources = message.role === 'user' ? null : sourcesOf(message);
             const titleOf = new Map(sources?.sources.map(s => [s.n, sourceLabel(s)]));
             const sourceId = (n: number) => `${message.id}-source-${n}`;
-            return (
-              <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
-                <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
-                {message.role === 'user' ? (
-                  text
-                ) : (
-                  <div
-                    className="ai-message"
-                    onCopy={() => track({ name: 'answer_copied', props: {} })}
-                  >
+            // The timeline takes the project card's place (decided 2026-11-04),
+            // inside the answer where it marks the spot, otherwise after it.
+            const timeline = message.role === 'user' ? null : timelineOf(message);
+            const showTimeline = !!timeline && (timeline.explicit || timelineMsg === message.id);
+            const timelineEl = timeline && showTimeline
+              ? <Timeline explicit={timeline.explicit} paused={paused} onOpenProject={(p, el) => showProject(p, el, 'timeline')} />
+              : null;
+            const [before, after] = splitAtTimeline(sources ? placeMarkers(text, sources.segments).text : text);
+            const markdown = (body: string) => (
                     <ReactMarkdown
                       // Model output never loads images: an image URL is
                       // the markdown exfiltration path.
@@ -444,8 +444,26 @@ export default function Home() {
                         ),
                       }}
                     >
-                      {sources ? placeMarkers(text, sources.segments).text : text}
+                      {body}
                     </ReactMarkdown>
+            );
+            return (
+              <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
+                <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
+                {message.role === 'user' ? (
+                  text
+                ) : (
+                  <div
+                    className="ai-message"
+                    onCopy={() => track({ name: 'answer_copied', props: {} })}
+                  >
+                    {markdown(before)}
+                    {after !== null && (
+                      <>
+                        {timelineEl}
+                        {markdown(after)}
+                      </>
+                    )}
                     {sources && sources.sources.length > 0 && (
                       <div className="sources">
                         <span className="label">Sources</span>
@@ -461,11 +479,7 @@ export default function Home() {
                       return rowId ? <Feedback rowId={rowId} /> : null;
                     })()}
                     {(() => {
-                      // The timeline takes the project card's place (decided 2026-11-04).
-                      const timeline = timelineOf(message);
-                      if (timeline && (timeline.explicit || timelineMsg === message.id)) {
-                        return <Timeline explicit={timeline.explicit} paused={paused} onOpenProject={(p, el) => showProject(p, el, 'timeline')} />;
-                      }
+                      if (showTimeline) return after === null ? timelineEl : null;
                       const project = projectOf(message);
                       return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
                     })()}

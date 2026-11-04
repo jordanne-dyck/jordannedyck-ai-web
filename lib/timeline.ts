@@ -186,10 +186,45 @@ export function asksForOverview(query: string): boolean {
   );
 }
 
+// Where the timeline goes in an overview answer: the model writes it on its own
+// line, the page plays the timeline there (decided 2026-11-04). Braces, not
+// square brackets, which the citation code treats as chunk ids.
+export const TIMELINE_MARKER = '{{timeline}}';
+const MARKER_RE = /[ \t]*\{\{\s*timeline\s*\}\}[ \t]*/i;
+
 // Added to the system prompt for an overview question when the timeline will
-// show. Not in jordannedyck-ai/run_eval.py's SYSTEM_PROMPT yet: these answers
-// are flagged timeline_prompt in chat_events so evals can tell them apart
-// (gap accepted 2026-11-04; add it to the backend before prod).
-export const TIMELINE_NOTE =
-  '# THIS ANSWER\n\nAn animated timeline of her whole career, with every role, date and school, appears directly under this answer. ' +
-  'Write 2 to 3 sentences on the arc of her career and what connects it, citing as usual. Do not list roles, employers or dates: the timeline shows them.';
+// show, just before the knowledge base context. Not in
+// jordannedyck-ai/run_eval.py's SYSTEM_PROMPT yet: these answers are flagged
+// timeline_prompt in chat_events so evals can tell them apart (gap accepted
+// 2026-11-04; add it to the backend before prod).
+export const TIMELINE_NOTE = `# THIS ANSWER
+
+An animated timeline of her whole career, with every role, employer, date and school, plays inside this answer. Build the answer around it, in exactly this shape:
+
+1. One or two sentences on the arc of her career: where she started, what she moved toward, and the thread that connects it. Cite as usual.
+2. The line ${TIMELINE_MARKER} on its own, written exactly like that.
+3. One sentence on where she is now, or what the arc adds up to. Cite as usual.
+
+Do not list roles, employers, dates or schools, and do not walk through her jobs one by one: the timeline shows them. No headings or bullets.
+
+The shape, with placeholder content:
+
+She moved from A to B, and the thread through it is C. [chunk id]
+${TIMELINE_MARKER}
+Today she does D. [chunk id]`;
+
+// The answer without the placeholder: for the log, the labels and the
+// grounding judge, so it is never read as an uncited claim.
+export function withoutTimelineMarker(answer: string): string {
+  return answer.replace(new RegExp(MARKER_RE.source + '(?:\\r?\\n)?', 'gi'), '');
+}
+
+// The answer split at the placeholder: the text before the timeline, and the
+// text after it (null when there is no placeholder). While the answer streams,
+// a placeholder still arriving at the end is hidden.
+export function splitAtTimeline(answer: string): [string, string | null] {
+  const text = answer.replace(/\{(?:\{[a-z\s]*\}?)?$/i, '');
+  const m = text.match(MARKER_RE);
+  if (!m || m.index === undefined) return [text, null];
+  return [text.slice(0, m.index).trimEnd(), text.slice(m.index + m[0].length).trimStart()];
+}

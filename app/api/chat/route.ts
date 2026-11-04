@@ -12,7 +12,7 @@ import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
-import { asksForOverview, asksForTimeline, citesCareer, TIMELINE_NOTE } from '@/lib/timeline';
+import { asksForOverview, asksForTimeline, citesCareer, TIMELINE_NOTE, withoutTimelineMarker } from '@/lib/timeline';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -256,7 +256,13 @@ export async function POST(req: NextRequest) {
   const { context, retrieval, meta, failure } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
 
-  const systemPrompt = buildSystemPrompt(context) + (timelineLead ? `\n\n${TIMELINE_NOTE}` : '');
+  // The overview note goes after the answer rules, just before the context.
+  const basePrompt = buildSystemPrompt(context);
+  const systemPrompt = !timelineLead
+    ? basePrompt
+    : basePrompt.includes('# KNOWLEDGE BASE CONTEXT')
+      ? basePrompt.replace('# KNOWLEDGE BASE CONTEXT', `${TIMELINE_NOTE}\n\n# KNOWLEDGE BASE CONTEXT`)
+      : `${basePrompt}\n\n${TIMELINE_NOTE}`;
   // Only the model sees the reminder; the rewrite, labels and log use `messages`.
   const reminded = withCiteReminder(messages);
 
@@ -371,14 +377,17 @@ export async function POST(req: NextRequest) {
               firstChunk.clear();
             }
           },
-          onEnd: async ({ text, usage }) => {
+          onEnd: async ({ text: streamed, usage }) => {
             firstChunk.clear();
             try {
+              // The timeline placeholder is for the page only.
+              const text = withoutTimelineMarker(streamed);
+              const raw = withoutTimelineMarker(cited.raw);
               const promptTokens = usage.inputTokens ?? null;
               const completionTokens = usage.outputTokens ?? null;
-              const { segments, citedIds } = parseCitations(cited.raw);
+              const { segments, citedIds } = parseCitations(raw);
               if (process.env.EMIT_RETRIEVAL || isSynthetic) {
-                writer.write({ type: 'data-citations', data: { answer: cited.raw, segments } });
+                writer.write({ type: 'data-citations', data: { answer: raw, segments } });
               }
               // Every request: titles, headings and numbers only, so the client
               // can mark cited sentences and list the sources under the answer.
@@ -414,7 +423,7 @@ export async function POST(req: NextRequest) {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer
                     // without its citations.
-                    answer: redactPii(cited.raw).text,
+                    answer: redactPii(raw).text,
                   },
                 },
                 citedChunkIds: citedIds,
