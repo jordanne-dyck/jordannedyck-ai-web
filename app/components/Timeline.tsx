@@ -325,8 +325,9 @@ export function Timeline({
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
-    // Starts once the frame is (nearly) all in view between the bar and the
-    // question box, not behind either.
+    // Starts once most of the frame (60%) is in view between the bar and the
+    // question box. Captions sit at its top or beside it, so a lower edge
+    // still behind the question box hides nothing that matters.
     const { bar, composer } = visibleSpace();
     const io = new IntersectionObserver(
       ([entry]) => {
@@ -335,7 +336,7 @@ export function Timeline({
           play();
         }
       },
-      { threshold: 0.9, rootMargin: `-${Math.round(bar)}px 0px -${Math.round(composer)}px 0px` },
+      { threshold: 0.6, rootMargin: `-${Math.round(bar)}px 0px -${Math.round(composer)}px 0px` },
     );
     io.observe(el);
     return () => {
