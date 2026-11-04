@@ -5,8 +5,9 @@ import type { Segment, SourcesData } from './citations';
 // the answer text, an assistant message can carry these data parts:
 //   data-retrieval  what was retrieved; monitor and EMIT_RETRIEVAL requests only
 //   data-citations  the answer with its [chunk-id] citations; same requests only
-//   data-sources    source titles and which sentences cite them; every request.
-//                   Titles only: no chunk ids, filenames or chunk text (E.2)
+//   data-sources    source titles, section headings and which sentences cite
+//                   them; every request. No chunk ids, filenames or chunk body
+//                   text (E.2)
 //   data-event      the chat_events row id, which the visitor rates the answer by
 //   data-project    the slug of the project card shown under the answer; every
 //                   request. Slug only: no filename or chunk id

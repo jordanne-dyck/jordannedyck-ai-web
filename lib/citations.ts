@@ -5,7 +5,7 @@ import type { TextStreamPart, ToolSet } from 'ai';
 // so a checker can test each claim against its own source. Visitors never see
 // the ids: stripCitationsTransform removes them before the stream leaves the
 // server, as route.ts already promises for chunk ids. Visitors see source
-// titles and numbers instead (buildSources, E.2).
+// titles, section headings and numbers instead (buildSources, E.2).
 //
 // MUST STAY IN SYNC with CITE_RE and strip_citations() in
 // jordannedyck-ai/run_eval.py, so the eval scores the text a visitor sees.
@@ -50,44 +50,71 @@ function pushSegment(segments: Segment[], text: string, ids: string[]) {
   segments.push({ text: t, ids });
 }
 
-// What a visitor sees of the citations (E.2, decided 2026-11-01): source
-// titles only, never chunk ids, filenames or chunk text. Titles belong to a
-// file rather than a chunk, so chunks that share a title share a number,
-// numbered in the order the answer first cites them. Each cited segment lists
-// its numbers; its text is the citation-free answer text the visitor already
-// has, which the client matches to place the markers. Ids that were not
-// retrieved for this turn have no title and are dropped.
+// What a visitor sees of the citations (E.2): the source title and the
+// chunk's section heading, never chunk ids, filenames or chunk body text.
+// Titles only was decided 2026-11-01 (4a); the heading was added 2026-11-04
+// (Jord's option B) because titles alone were vague: 5 of 8 dev answers cited
+// "Professional Overview". Chunks that share a title and heading share a
+// number, numbered in the order the answer first cites them. Each cited
+// segment lists its numbers; its text is the citation-free answer text the
+// visitor already has, which the client matches to place the markers. Ids that
+// were not retrieved for this turn have no title and are dropped.
 export type SourcesData = {
-  sources: { n: number; title: string }[];
+  sources: { n: number; title: string; section?: string }[];
   segments: { text: string; n: number[] }[];
 };
 
+// The chunk's first markdown heading, which the KB author wrote and which is
+// shown to visitors. Null when it only repeats the title, as the first chunk
+// of a project file does ("Regimen Builder" > "Regimen Builder"), or starts
+// with the title's lead ("Abnormal Innovation - Internal Strategy & ...").
+export function sectionOf(content: string | null | undefined, title: string): string | null {
+  const line = content?.split('\n').find((l) => /^#{1,6}\s/.test(l));
+  if (!line) return null;
+  const heading = line.replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim();
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const lead = norm(title.split(/\s[-—]\s/)[0]);
+  if (!heading || norm(heading) === norm(title) || norm(heading).startsWith(lead)) return null;
+  return heading;
+}
+
 export function buildSources(
   segments: Segment[],
-  chunks: { chunk_id: string | null; title: string | null }[],
+  chunks: { chunk_id: string | null; title: string | null; content?: string | null }[],
 ): SourcesData {
-  const titleOf = new Map<string, string>();
+  const sourceOf = new Map<string, { title: string; section: string | null }>();
   for (const c of chunks) {
-    if (c.chunk_id && c.title) titleOf.set(c.chunk_id, c.title);
+    if (c.chunk_id && c.title) {
+      sourceOf.set(c.chunk_id, { title: c.title, section: sectionOf(c.content, c.title) });
+    }
   }
   const numberOf = new Map<string, number>();
   const out: SourcesData = { sources: [], segments: [] };
   for (const s of segments) {
     const n: number[] = [];
     for (const id of s.ids) {
-      const title = titleOf.get(id);
-      if (!title) continue;
-      if (!numberOf.has(title)) {
-        numberOf.set(title, numberOf.size + 1);
-        out.sources.push({ n: numberOf.size, title });
+      const source = sourceOf.get(id);
+      if (!source) continue;
+      const key = `${source.title}\n${source.section ?? ''}`;
+      if (!numberOf.has(key)) {
+        numberOf.set(key, numberOf.size + 1);
+        out.sources.push({
+          n: numberOf.size,
+          title: source.title,
+          ...(source.section ? { section: source.section } : {}),
+        });
       }
-      const num = numberOf.get(title) as number;
+      const num = numberOf.get(key) as number;
       if (!n.includes(num)) n.push(num);
     }
     if (n.length) out.segments.push({ text: s.text, n });
   }
   return out;
 }
+
+// The line a visitor reads for a source: "Title › Section heading".
+export const sourceLabel = (s: { title: string; section?: string }) =>
+  s.section ? `${s.title} › ${s.section}` : s.title;
 
 // Holds back the tail of the buffer that could still become a citation: an open
 // "[" whose text so far fits an id list, and any spaces before it. Everything
