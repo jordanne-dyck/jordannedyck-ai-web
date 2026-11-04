@@ -221,3 +221,16 @@ export function pickProject(
   for (const [slug, n] of counts) if (best === null || n > counts.get(best)!) best = slug;
   return best;
 }
+
+// The project a card would show if it had to be picked before the answer is
+// written, from the retrieved chunks alone (same counting as pickProject, in
+// retrieval order). Logged next to the real pick, not shown: the comparison
+// decides whether the model can be told in advance that a card will appear.
+export function predictProject(
+  chunks: { chunk_id: string | null; filename: string | null }[],
+): string | null {
+  return pickProject(
+    chunks.flatMap((c) => (c.chunk_id ? [c.chunk_id] : [])),
+    chunks,
+  );
+}

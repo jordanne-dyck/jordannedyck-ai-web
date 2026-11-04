@@ -5,7 +5,7 @@
 // not just a failed count.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickProject, projectBySlug, PROJECTS } from '../lib/projects.ts';
+import { pickProject, predictProject, projectBySlug, PROJECTS } from '../lib/projects.ts';
 
 const chunks = [
   { chunk_id: 'res-1', filename: 'knowledge-base/projects/ai-resume.md' },
@@ -45,4 +45,13 @@ test('every launch project resolves by slug and has two questions', () => {
     assert.equal(projectBySlug(p.slug), p);
     assert.equal(p.questions.length, 2);
   }
+});
+
+test('predictProject: counts every retrieved chunk, ties to the first retrieved', () => {
+  const got = predictProject(chunks);
+  console.log(`  all chunks -> ${got}`);
+  // ai-resume 2, virtual-shelf 2: ai-resume was retrieved first.
+  assert.equal(got, 'ai-resume');
+  assert.equal(predictProject(chunks.slice(2)), 'virtual-shelf');
+  assert.equal(predictProject([{ chunk_id: 'dtx-exp', filename: 'knowledge-base/experience/deciem.md' }]), null);
 });
