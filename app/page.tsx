@@ -11,7 +11,7 @@ import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
 import type { ChatUIMessage } from '@/lib/chat-message';
-import type { SourcesData } from '@/lib/citations';
+import { sourceLabel, type SourcesData } from '@/lib/citations';
 import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '@/lib/citation-markers';
 import { FilmEffects } from '@/app/components/FilmEffects';
 import './home.css';
@@ -334,7 +334,7 @@ export default function Home() {
             // An answer that has not started, or failed before any text.
             if (message.role !== 'user' && !text) return null;
             const sources = message.role === 'user' ? null : sourcesOf(message);
-            const titleOf = new Map(sources?.sources.map(s => [s.n, s.title]));
+            const titleOf = new Map(sources?.sources.map(s => [s.n, sourceLabel(s)]));
             const sourceId = (n: number) => `${message.id}-source-${n}`;
             return (
               <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
@@ -392,7 +392,7 @@ export default function Home() {
                         <span className="label">Sources</span>
                         <ol>
                           {sources.sources.map(s => (
-                            <li key={s.n} id={sourceId(s.n)} value={s.n}>{s.title}</li>
+                            <li key={s.n} id={sourceId(s.n)} value={s.n}>{sourceLabel(s)}</li>
                           ))}
                         </ol>
                       </div>

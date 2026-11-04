@@ -15,7 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildSources, parseCitations, stripCitations } from '../lib/citations.ts';
+import { buildSources, parseCitations, sectionOf, sourceLabel, stripCitations } from '../lib/citations.ts';
 import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '../lib/citation-markers.ts';
 
 const MARKER_RE = new RegExp(String.raw`(?:&#8203;)?\[\d+\]\((?:${SOURCE_NEXT_HREF}|${SOURCE_HREF})\d+\)`, 'g');
@@ -130,6 +130,45 @@ test('ids not retrieved this turn are dropped, and so are their segments', () =>
   assert.deepEqual(data.sources, [{ n: 1, title: 'How I Operate' }]);
   assert.equal(data.segments.length, 1);
   assert.equal(placed.text, `Real claim.[1](${SOURCE_HREF}1) Invented claim.`);
+});
+
+// Chunk text as /search returns it: a header line, then the section heading.
+const chunk = (id, title, heading, body = 'Body text that is never shown.') => ({
+  chunk_id: id,
+  title,
+  content: `[experience] [${title}] [${id}]\n\n# ${heading}\n\n${body}`,
+});
+
+test('section headings split one title into numbered sources', () => {
+  const raw = 'She owned the P&L. [exp-039] She ran Loblaw growth. [exp-028] And more P&L. [exp-039]';
+  const { data } = run(raw, [
+    chunk('exp-039', 'Professional Overview - Jordanne Dyck', 'P&L Ownership'),
+    chunk('exp-028', 'Professional Overview - Jordanne Dyck', 'Loblaw Digital (Feb 2016 - May 2019)'),
+  ]);
+  assert.deepEqual(data.sources, [
+    { n: 1, title: 'Professional Overview - Jordanne Dyck', section: 'P&L Ownership' },
+    { n: 2, title: 'Professional Overview - Jordanne Dyck', section: 'Loblaw Digital (Feb 2016 - May 2019)' },
+  ]);
+  assert.deepEqual(data.segments.map((s) => s.n), [[1], [2], [1]]);
+  assert.equal(sourceLabel(data.sources[0]), 'Professional Overview - Jordanne Dyck › P&L Ownership');
+});
+
+test('a heading that repeats the title or its lead is dropped', () => {
+  assert.equal(sectionOf('# Regimen Builder\n\ntext', 'Regimen Builder'), null);
+  assert.equal(
+    sectionOf('# Abnormal Innovation - Internal Strategy & Innovation Lab', 'Abnormal Innovation - Internal Digital Strategy & Innovation Lab'),
+    null,
+  );
+  assert.equal(sectionOf('## **Evolution** to `AI`', 'Regimen Builder'), 'Evolution to AI');
+  assert.equal(sectionOf('No heading here.', 'Regimen Builder'), null);
+  assert.equal(sectionOf(undefined, 'Regimen Builder'), null);
+});
+
+test('visitor payload never carries chunk body text or the header line', () => {
+  const { data } = run('A claim. [ops-002]', [chunk('ops-002', 'How I Operate', 'End-to-End Ownership', 'SECRET-BODY')]);
+  const json = JSON.stringify(data);
+  assert.ok(!/SECRET-BODY|\[experience\]|ops-002/.test(json), json);
+  assert.deepEqual(data.sources, [{ n: 1, title: 'How I Operate', section: 'End-to-End Ownership' }]);
 });
 
 test('visitor payload carries titles and answer text only, no ids', () => {

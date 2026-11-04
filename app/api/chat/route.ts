@@ -52,8 +52,9 @@ const NO_RESPONSE = {
 // retrieved. Only written when EMIT_RETRIEVAL is set or the request carries a
 // valid x-monitor-token, so production visitors never see knowledge-base
 // filenames, chunk ids or text. Since E.2 (2026-11-01) visitors do see the
-// titles of the sources an answer cites, through the data-sources part
-// (buildSources in lib/citations.ts), and nothing else about the chunks.
+// titles of the sources an answer cites, and since 2026-11-04 each chunk's
+// section heading, through the data-sources part (buildSources in
+// lib/citations.ts), and nothing else about the chunks.
 type RetrievalAnnotation = RetrievalData;
 
 type SearchResult = {
@@ -373,8 +374,8 @@ export async function POST(req: NextRequest) {
               if (process.env.EMIT_RETRIEVAL || isSynthetic) {
                 writer.write({ type: 'data-citations', data: { answer: cited.raw, segments } });
               }
-              // Every request: titles and numbers only, so the client can mark
-              // cited sentences and list the sources under the answer.
+              // Every request: titles, headings and numbers only, so the client
+              // can mark cited sentences and list the sources under the answer.
               writer.write({ type: 'data-sources', data: buildSources(segments, retrieval.chunks) });
               const rowId = await logRedacted({
                 ...baseEvent,
