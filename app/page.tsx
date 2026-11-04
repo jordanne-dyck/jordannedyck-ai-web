@@ -71,7 +71,7 @@ function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => voi
   );
 }
 const NAME_LINES = ['Jordanne Dyck'];
-const HIGHLIGHTS = ['Product & AI builder', '15+ years shipping', 'DECIEM', 'Loblaw Digital'];
+const HIGHLIGHTS = ['Sr. Product Manager', 'Human + digital, at scale', 'DECIEM', 'Loblaw Digital'];
 
 // Sizes the name so its widest line fills the block. Measured on a still copy,
 // because the letters are mid-animation when this runs.
@@ -280,7 +280,7 @@ export default function Home() {
 
       <header className="name-block" ref={blockRef}>
         <div className="hero-top">
-          <p>Product &amp; AI builder. 15+ years shipping. Ask my AI anything about my work.</p>
+          <p>I build DTC products that bridge human and digital moments at scale. Ask my AI anything about my work.</p>
           <button type="button" className="ask" onClick={askJordbot}>Ask jordbot <span aria-hidden="true">↓</span></button>
         </div>
         <div className="name-photo" aria-hidden="true">
@@ -304,12 +304,12 @@ export default function Home() {
             <span key={`${copy}-${t}`} className="contents"><span className="t">{t}</span><i className="sep" /></span>
           )))}
         </div>
-        <p className="sr-only">Product and AI builder. 15+ years shipping. DECIEM, Loblaw Digital.</p>
+        <p className="sr-only">Sr. Product Manager. DTC products that bridge human and digital moments at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
           <a href={`mailto:${EMAIL}`} onClick={() => contact('hero', 'email')}>Email</a>
           <Socials onClick={ch => contact('hero', ch)} />
-          <span className="label">Product &amp; AI builder</span>
+          <span className="label">Sr. Product Manager</span>
           <button type="button" className="label pause" aria-pressed={paused} onClick={() => setPaused(p => !p)}>
             {paused ? 'Play motion' : 'Pause motion'}
           </button>
@@ -321,8 +321,8 @@ export default function Home() {
           <div className="intro">
             <h2>Ask me anything<br />about Jordanne&apos;s work.</h2>
             <p>
-              I answer from her resume and project notes. Try the digital ecosystem she owned at DECIEM, the production AI she
-              shipped, or why she builds for companies pushing what&apos;s possible.
+              I answer from her resume and project notes. Try how she decided where people guide and where technology does at
+              DECIEM, the AI she shipped to production, or Regimen Builder.
             </p>
           </div>
         )}

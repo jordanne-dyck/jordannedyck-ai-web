@@ -33,11 +33,13 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://jordannedyck.com'),
-  title: 'Jordanne Dyck | Product & AI Builder',
-  description: 'Product & AI Builder with 15+ years shipping at scale. From growth marketing to production AI — bridging technical product development with business strategy and customer experience.',
+  title: 'Jordanne Dyck | Sr. Product Manager',
+  description: 'Sr. Product Manager. I build DTC products that bridge human and digital moments at scale, across beauty, luxury, pharmacy, grocery, retail and finance.',
   keywords: [
     'Jordanne Dyck',
-    'AI Builder',
+    'DTC Product Management',
+    'Service Design',
+    'Human-AI Escalation Design',
     'Product Strategy',
     'Agentic AI',
     'Digital Transformation',
@@ -56,8 +58,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://jordannedyck.com',
-    title: 'Jordanne Dyck | Product & AI Builder',
-    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Sr. Product Manager',
+    description: 'I build DTC products that bridge human and digital moments at scale.',
     siteName: 'Jordanne Dyck Portfolio',
     // LinkedIn and Slack cache previews by URL: give a changed image a new file name.
     images: [
@@ -71,8 +73,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Jordanne Dyck | Product & AI Builder',
-    description: 'Product & AI Builder — 15+ years shipping at scale. From growth marketing to production AI.',
+    title: 'Jordanne Dyck | Sr. Product Manager',
+    description: 'I build DTC products that bridge human and digital moments at scale.',
     images: ['/og-image-v2.jpg'],
   },
   robots: {
@@ -118,8 +120,8 @@ export default function RootLayout({
               '@type': 'Person',
               '@id': 'https://jordannedyck.com/#person',
               name: 'Jordanne Dyck',
-              jobTitle: 'Product & AI Builder',
-              description: 'Product & AI Builder with 15+ years shipping at scale. Bridges technical product development with business strategy and customer experience.',
+              jobTitle: 'Sr. Product Manager',
+              description: 'Sr. Product Manager. I build DTC products that bridge human and digital moments at scale, across beauty, luxury, pharmacy, grocery, retail and finance.',
               url: 'https://jordannedyck.com',
               email: 'jordanne.dyck@gmail.com',
               sameAs: [
