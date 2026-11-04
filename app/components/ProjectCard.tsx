@@ -1,7 +1,30 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { Project } from '@/lib/projects';
+import { childProjects, type Project } from '@/lib/projects';
+
+// A still or a muted, looping clip. Clips are short screen recordings with
+// nothing to hear, so they play inline like a GIF. With reduced motion they
+// stay on the first frame.
+function Media({ src }: { src: string }) {
+  if (src.endsWith('.mp4')) {
+    return (
+      <video
+        src={src}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+        ref={(v) => {
+          if (v && !matchMedia('(prefers-reduced-motion: reduce)').matches) v.play().catch(() => {});
+        }}
+      />
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element -- small static images, same treatment as the cats
+  return <img src={src} alt="" />;
+}
 
 // The card under an answer that draws on one of Jordanne's projects. The slug
 // comes from the `project` annotation the chat route sends.
@@ -16,8 +39,7 @@ export function ProjectCard({ project, onOpen }: { project: Project; onOpen: (op
     >
       {img && (
         <span className="card-img">
-          {/* eslint-disable-next-line @next/next/no-img-element -- small static image, same treatment as the cats */}
-          <img src={img} alt="" />
+          <Media src={img} />
         </span>
       )}
       <span className="rows label">
@@ -37,11 +59,14 @@ export function ProjectPanel({
   opener,
   onClose,
   onAsk,
+  onOpenProject,
 }: {
   project: Project | null;
   opener: HTMLElement | null;
   onClose: () => void;
   onAsk: (question: string, index: number) => void;
+  // Swaps the open panel to another project, for the lab's project list.
+  onOpenProject: (project: Project) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -74,10 +99,7 @@ export function ProjectPanel({
           <div className="project-body">
             {project.images.length > 0 && (
               <div className="gallery" data-count={Math.min(project.images.length, 3)}>
-                {project.images.slice(0, 3).map((src) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- small static images
-                  <img key={src} src={src} alt="" />
-                ))}
+                {project.images.slice(0, 3).map((src) => <Media key={src} src={src} />)}
               </div>
             )}
             <h3 id="project-title">{project.title}</h3>
@@ -93,6 +115,26 @@ export function ProjectPanel({
               <span className="label">Result</span>
               <ul>{project.results.map((r) => <li key={r}>{r}</li>)}</ul>
             </div>
+            {childProjects(project.slug).length > 0 && (
+              <div className="sec">
+                <span className="label">Projects from the lab</span>
+                <ul className="links">
+                  {childProjects(project.slug).map((c) => (
+                    <li key={c.slug}><button type="button" onClick={() => onOpenProject(c)}>{c.title} →</button></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {project.links && (
+              <div className="sec">
+                <span className="label">See it</span>
+                <ul className="links">
+                  {project.links.map((l) => (
+                    <li key={l.href}><a href={l.href} target="_blank" rel="noopener noreferrer">{l.label} ↗</a></li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="project-foot">
             <span className="label">Ask about this project</span>

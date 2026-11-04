@@ -31,6 +31,8 @@ export type ChatDataParts = {
   sources: SourcesData;
   event: { id: string };
   project: { slug: string };
+  // The career timeline; `explicit` when the question asked for it.
+  timeline: { explicit: boolean };
 };
 
 export type ChatUIMessage = UIMessage<never, ChatDataParts>;

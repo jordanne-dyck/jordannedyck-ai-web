@@ -16,6 +16,7 @@ import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '@/lib/citation-mark
 import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
+import { Timeline } from '@/app/components/Timeline';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -63,6 +64,19 @@ const transport = new DefaultChatTransport<ChatUIMessage>({
     body: { ...body, messages: messages.map(m => ({ role: m.role, content: textOf(m) })) },
   }),
 });
+
+// The timeline part: null when the answer has none, otherwise whether the
+// question asked for it.
+function timelineOf(message: ChatUIMessage): { explicit: boolean } | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-timeline') return { explicit: p.data.explicit };
+  }
+  return null;
+}
+
+// The answer that showed the timeline this visit, kept for the tab's life so a
+// reload doesn't show it again.
+const TIMELINE_KEY = 'jb_timeline_shown';
 
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
@@ -200,6 +214,12 @@ export default function Home() {
   const [openProject, setOpenProject] = useState<Project | null>(null);
   // The card that opened the panel, kept after closing so focus can go back to it.
   const [opener, setOpener] = useState<HTMLElement | null>(null);
+  // The answer that showed the timeline earlier in this tab, before a reload.
+  // Read once; only answers render the timeline, so the server's null is safe.
+  const [shownBefore] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(TIMELINE_KEY); } catch { return null; }
+  });
 
   // The first-screen button: take the visitor to the chat, cursor in the box.
   const askJordbot = () => {
@@ -280,8 +300,17 @@ export default function Home() {
     sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
   };
 
-  const showProject = (project: Project, el: HTMLElement) => {
-    track({ name: 'project_opened', props: { slug: project.slug } });
+  // The timeline shows under the first answer that carries it, once per visit.
+  // Later answers show it only when the question asked for it.
+  const timelineMsg =
+    shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
+  useEffect(() => {
+    if (!timelineMsg || shownBefore) return;
+    try { sessionStorage.setItem(TIMELINE_KEY, timelineMsg); } catch {}
+  }, [timelineMsg, shownBefore]);
+
+  const showProject = (project: Project, el: HTMLElement, from: 'card' | 'timeline' = 'card') => {
+    track({ name: 'project_opened', props: { slug: project.slug, from } });
     setOpener(el);
     setOpenProject(project);
   };
@@ -432,6 +461,11 @@ export default function Home() {
                       return rowId ? <Feedback rowId={rowId} /> : null;
                     })()}
                     {(() => {
+                      // The timeline takes the project card's place (decided 2026-11-04).
+                      const timeline = timelineOf(message);
+                      if (timeline && (timeline.explicit || timelineMsg === message.id)) {
+                        return <Timeline explicit={timeline.explicit} paused={paused} onOpenProject={(p, el) => showProject(p, el, 'timeline')} />;
+                      }
                       const project = projectOf(message);
                       return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
                     })()}
@@ -527,7 +561,7 @@ export default function Home() {
         </div>
       </footer>
 
-      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} />
+      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject} />
       <FilmEffects paused={paused} />
     </div>
   );

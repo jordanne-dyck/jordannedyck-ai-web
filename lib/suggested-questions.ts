@@ -1,9 +1,13 @@
 // The suggested-question buttons under the chat box (app/page.tsx). Shared with
 // the dashboard so rows logged before buttons reported `source` can still be
 // matched by text. Editing a question here changes that match for old rows.
+// The first three show on arrival. The second always shows the career timeline
+// (asksForTimeline in lib/timeline.ts); the third should show a project card.
 export const SUGGESTED_QUESTIONS = [
-  "How has Jordanne demonstrated systems thinking?",
   "What did Jordanne build herself, hands on keyboard?",
+  "Walk me through Jordanne's career timeline",
+  "How did Regimen Builder help new customers know where to start?",
+  "How has Jordanne demonstrated systems thinking?",
   "Why did Jordanne turn the store off for Black Friday?",
   "How does Jordanne prove an idea before the data exists?",
   "Why does Jordanne say your next customer never sees your interface?",
