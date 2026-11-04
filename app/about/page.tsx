@@ -38,8 +38,8 @@ const EXPERTISE = [
     text: "I built DECIEM's digital function from near zero, grew DTC sales to $150M+ annually, and took TikTok Shop from zero to $30M.",
   },
   {
-    name: 'The DTC customer journey as one system',
-    text: 'I treat acquisition, personalization, retention and loyalty as one system. Acquisition quality sets the retention ceiling, and retention economics set what acquisition can afford.',
+    name: 'Human and digital balance',
+    text: 'I decide where people guide and where technology does, then build both sides. At DECIEM that was Regimen Builder, the AI Personal Shopper built on it, and service automation that cut resolution time 86% while human agents kept the cases that needed them.',
   },
   {
     name: 'AI fluency',
