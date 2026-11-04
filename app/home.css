@@ -210,17 +210,26 @@ html:has(.home) { scroll-behavior: smooth; }
 
 /* Career timeline under an answer: a short vertical clip. Years run down the
    frame; JS moves the playhead and camera, CSS only fades the labels. */
-.home .timeline { margin-top: 22px; width: min(380px, 100%); }
+.home .timeline { margin: 22px 0 4px; }
+/* Desktop: the frame on the left of the answer column, captions beside it */
+.home .tl-body { position: relative; }
+@media (min-width: 761px) {
+  .home .tl-body { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 32px; }
+}
 .home .tl-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; color: var(--soft); }
 .home .tl-year { font-family: var(--serif); font-size: 26px; color: var(--text); font-variant-numeric: tabular-nums; }
-.home .tl-stage { position: relative; isolation: isolate; aspect-ratio: 9 / 14; overflow: hidden; border-radius: 10px; background: var(--fill); }
+/* No card: the frame sits on the page like the answer's text. Its top and
+   bottom fade out instead of ending at a box edge. Height set in Timeline.tsx
+   to fit between the page bar and the question box. */
+.home .tl-stage { position: relative; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
 /* Film look, as on the rest of the page: the home grain inside the frame, and a
    faint flicker on the year counter. Both stop with pause or reduced motion. */
-.home .tl-grain { position: absolute; z-index: 5; pointer-events: none; }
 .home .tl-year { animation: tl-flicker 2.4s steps(1) infinite; }
 @keyframes tl-flicker { 0%, 100% { opacity: 1; } 31% { opacity: .82; } 33% { opacity: 1; } 71% { opacity: .9; } 72% { opacity: 1; } }
 .home[data-paused] .tl-year { animation: none; }
-.home .tl-tick { position: absolute; left: 8px; transform: translateY(-50%); font-size: 11px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.home .tl-tick { position: absolute; left: 0; transform: translateY(-50%); font-size: 11px; color: var(--soft); font-variant-numeric: tabular-nums; }
 .home .tl-axis { position: absolute; left: 44px; top: 0; bottom: 0; border-left: 1px solid var(--rule); }
 .home .tl-band { position: absolute; left: 50px; width: 10px; border-radius: 3px; transition: opacity .3s; }
 /* Education: the narrow lane beside the work blocks */
@@ -256,25 +265,32 @@ html:has(.home) { scroll-behavior: smooth; }
 .home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 .home .tl-back { position: absolute; top: 8px; right: 8px; padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px;
   background: var(--bg); color: var(--text); cursor: pointer; }
-.home .tl-hint { color: var(--soft); margin: 8px 0 0; }
+/* The line under the timeline, styled like the answer's Sources line */
+.home .tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; margin-top: 14px; padding-top: 8px;
+  border-top: 1px solid var(--rule); color: var(--soft); }
+.home .tl-meta button, .home .tl-meta summary { color: var(--soft); cursor: pointer; padding: 8px 0; min-height: 24px; }
+.home .tl-meta button:hover, .home .tl-meta summary:hover { color: var(--text); }
+.home .tl-meta details { order: 3; }
+.home .tl-meta details[open] { flex-basis: 100%; }
+.home .tl-hint { color: var(--soft); }
 /* Pause and Skip to end while the clip plays */
-.home .tl-controls { display: flex; gap: 20px; margin-top: 6px; }
-.home .tl-controls button { color: var(--text); cursor: pointer; padding: 8px 0; min-height: 24px; }
+.home .tl-controls { display: flex; gap: 20px; }
 .home .tl-controls button:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 .home .tl-playhead { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--d1); }
-.home .tl-caption { position: absolute; left: 10px; right: 10px; bottom: 10px; display: grid; gap: 3px; padding: 12px 14px;
-  border-radius: 8px; background: var(--bg); border: 1px solid var(--rule); z-index: 6; }
-/* Above the grain (z-index 5): its blend otherwise lets the year line show through */
-.home .tl-caption { transition: none; }
-.home .tl-media { display: block; height: 110px; overflow: hidden; border-radius: 6px; margin-bottom: 8px; background: var(--fill); }
-.home .tl-media img, .home .tl-media video { width: 100%; height: 100%; object-fit: cover; filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+/* Captions: beside the frame on desktop, over its top on phones (the moment
+   sits lower in the frame, see MOMENTS). All are drawn; one is visible. */
+.home .tl-captions { position: absolute; top: 48px; left: 0; right: 0; z-index: 3; pointer-events: none; }
+.home .tl-caption { position: absolute; top: 0; left: 0; right: 0; display: grid; gap: 3px;
+  padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--rule); }
+@media (min-width: 761px) {
+  .home .tl-captions { position: relative; top: auto; align-self: stretch; margin-top: 48px; }
+  .home .tl-caption { padding: 0 0 0 16px; border: 0; border-left: 2px solid var(--d1); border-radius: 0; background: none; }
+  .home .tl-caption .tl-media { height: 170px; }
+}
 .home .tl-caption .label { color: var(--d1); }
 .home .tl-caption strong { font-weight: 500; font-size: 17px; }
 .home .tl-caption span:last-child { font-size: 14px; color: var(--soft); line-height: 1.4; }
-.home .tl-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 10px; }
-.home .tl-foot details { flex: 1; }
-.home .tl-foot summary { color: var(--soft); cursor: pointer; padding: 6px 0; }
-.home .tl-replay { color: var(--text); cursor: pointer; padding: 6px 0; white-space: nowrap; }
+.home .tl-replay { white-space: nowrap; }
 .home .tl-edu-head { display: block; color: var(--soft); margin-top: 18px; }
 .home .tl-list > li { padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .home .tl-list > li:last-child { border-bottom: 0; }

@@ -144,6 +144,17 @@ function Media({ src }: { src: string }) {
 const stillWanted = (paused: boolean) =>
   paused || (typeof window !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+// The visible space for the frame: the window less the page's fixed bar, the
+// sticky question box and the timeline's own header row. Captions sit inside or
+// beside the frame, so the whole of it must fit.
+function visibleSpace() {
+  if (typeof window === 'undefined') return { height: 480, bar: 0, composer: 0 };
+  const bar = document.querySelector('.home .bar')?.getBoundingClientRect().height ?? 0;
+  const composer = document.querySelector<HTMLElement>('.home .composer')?.offsetHeight ?? 0;
+  const max = matchMedia('(min-width: 761px)').matches ? 560 : 600;
+  return { height: Math.round(Math.min(Math.max(innerHeight - bar - composer - 72, 320), max)), bar, composer };
+}
+
 // Where to zoom for an entry: its whole span, at least 18 months, ending no
 // later than today.
 function viewOf(e: Employer): [number, number] {
@@ -249,8 +260,10 @@ export function Timeline({
   // After the clip: the view, and the entry zoomed into (null for the full view).
   const [cam, setCam] = useState<[number, number]>(FULL);
   const [focus, setFocus] = useState<Entry | null>(null);
-  // The frame's height in pixels, for placing the labels.
-  const [height, setHeight] = useState(560);
+  // The frame's height in pixels: set to fit the visible space, and read back
+  // for placing the labels.
+  const [fit, setFit] = useState(visibleSpace);
+  const [height, setHeight] = useState(fit.height);
   const camRef = useRef<[number, number]>(FULL);
   const stage = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLButtonElement>(null);
@@ -272,7 +285,12 @@ export function Timeline({
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => setHeight(entry.contentRect.height));
     ro.observe(el);
-    return () => ro.disconnect();
+    const onResize = () => setFit(visibleSpace());
+    addEventListener('resize', onResize);
+    return () => {
+      ro.disconnect();
+      removeEventListener('resize', onResize);
+    };
   }, []);
 
 // Plays from `from` ms. The page's pause switch jumps to the end rather than
@@ -307,6 +325,9 @@ export function Timeline({
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
+    // Starts once the frame is (nearly) all in view between the bar and the
+    // question box, not behind either.
+    const { bar, composer } = visibleSpace();
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -314,7 +335,7 @@ export function Timeline({
           play();
         }
       },
-      { threshold: 0.5 },
+      { threshold: 0.9, rootMargin: `-${Math.round(bar)}px 0px -${Math.round(composer)}px 0px` },
     );
     io.observe(el);
     return () => {
@@ -426,11 +447,13 @@ export function Timeline({
 
   return (
     <section className="timeline" aria-label="Career timeline">
+      <div className="tl-body">
+      <div className="tl-main">
       <div className="tl-top">
         <span className="label">{focus ? focus.e.org : 'Career'}</span>
         <span className="tl-year">{heading}</span>
       </div>
-      <div className="tl-stage" ref={stage}>
+      <div className="tl-stage" ref={stage} style={{ height: fit.height }}>
         <div aria-hidden="true">
           {years.map((yr) => (
             <span key={yr} className="tl-tick" style={{ top: y(yr * 12) }}>{yr}</span>
@@ -526,14 +549,18 @@ export function Timeline({
           </button>
         )}
 
+      </div>
+      </div>
         {/* Every caption is drawn for the whole clip, so its image or clip has
-            loaded by the time it shows. */}
+            loaded by the time it shows. Beside the frame on desktop, over its
+            top on phones. */}
+        <div className="tl-captions" aria-hidden="true">
         {!done &&
           MOMENTS.map((m, i) => {
             const on = f.moment === i;
             const media = m.project ? projectBySlug(m.project)?.images[0] : undefined;
             return (
-              <div key={m.at} className="tl-caption" style={{ opacity: on ? f.fade : 0 }} aria-hidden="true">
+              <div key={m.at} className="tl-caption" style={{ opacity: on ? f.fade : 0 }}>
                 {media && (
                   <span className="tl-media">
                     <Media src={media} />
@@ -545,8 +572,10 @@ export function Timeline({
               </div>
             );
           })}
-        <span className="tl-grain grain" aria-hidden="true" />
+        </div>
       </div>
+      {/* One line under the timeline, like the answer's Sources line. */}
+      <div className="tl-meta">
       {!done && (
         <div className="tl-controls">
           <button type="button" className="label" onClick={playing ? pauseClip : () => play(tRef.current)}>
@@ -557,8 +586,12 @@ export function Timeline({
           </button>
         </div>
       )}
-      {done && <p className="label tl-hint">{focus ? 'Tap a project to open it' : 'Tap a name to zoom in'}</p>}
-      <div className="tl-foot">
+      {done && <span className="label tl-hint">{focus ? 'Tap a project to open it' : 'Tap a name to zoom in'}</span>}
+        {done && !stillWanted(paused) && (
+          <button type="button" className="label tl-replay" onClick={replay}>
+            Replay ↺
+          </button>
+        )}
         <details>
           <summary className="label">See every role</summary>
           <Group list={CAREER} onOpenProject={onOpenProject} />
@@ -575,11 +608,6 @@ export function Timeline({
             </div>
           </div>
         </details>
-        {done && !stillWanted(paused) && (
-          <button type="button" className="label tl-replay" onClick={replay}>
-            Replay ↺
-          </button>
-        )}
       </div>
     </section>
   );

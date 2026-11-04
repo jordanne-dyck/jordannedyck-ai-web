@@ -120,21 +120,22 @@ export const SIDE_PROJECTS: { slug: string; start: string }[] = [{ slug: 'ai-res
 // shows that (decided 2026-11-04). `at` is
 // where the playhead pauses; `view` is the stretch of years zoomed into. The
 // captions are short enough to read in the pause, and come from exp-001,
-// exp-027, exp-028 and the project files. A number in {braces} counts up as
+// exp-027, exp-028 and the project files. Each `view` puts `at` about 60% down
+// the frame, clear of the caption at the top on phones. A number in {braces} counts up as
 // the caption appears. `project` shows that project's first image or clip.
 export type Moment = { at: string; view: [string, string]; when: string; head: string; text: string; project?: string };
 
 export const MOMENTS: Moment[] = [
   {
     at: '2016-02',
-    view: ['2014-06', '2018-06'],
+    view: ['2013-08', '2017-08'],
     when: '2016',
     head: 'Into digital',
     text: 'Growth and CRM across the Loblaw digital portfolio, {16}M+ loyalty customers',
   },
   {
     at: '2019-06',
-    view: ['2018-03', '2021-09'],
+    view: ['2017-04', '2020-10'],
     when: '2019',
     head: 'Building digital from near-zero',
     text: 'Head of Digital. DTC revenue grows to ${150}M+',
@@ -144,7 +145,7 @@ export const MOMENTS: Moment[] = [
     // Added 2026-11-04. A users-vs-non-users comparison, not an A/B test, as
     // the Regimen Builder card says.
     at: '2021-03',
-    view: ['2020-04', '2022-10'],
+    view: ['2019-10', '2022-02'],
     when: '2021',
     head: 'Regimen Builder',
     text: 'Personalized routines: users convert {35}% better than non-users and spend {40}% more',
@@ -152,7 +153,7 @@ export const MOMENTS: Moment[] = [
   },
   {
     at: '2024-06',
-    view: ['2023-01', '2026-03'],
+    view: ['2022-08', '2025-05'],
     when: '2024–25',
     head: 'AI in production',
     text: 'AI Personal Shopper at NRF 2025; service resolution {86}% faster',
