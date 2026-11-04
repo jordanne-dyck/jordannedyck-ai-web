@@ -10,6 +10,9 @@ import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
 import { FilmEffects } from '@/app/components/FilmEffects';
+import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
+import { projectBySlug, type Project } from '@/lib/projects';
+import { Timeline } from '@/app/components/Timeline';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -29,6 +32,30 @@ function rowIdOf(annotations: unknown[] | undefined): string | null {
   return null;
 }
 
+// The project to show under an answer, from the `project` annotation the chat
+// route sends when the answer cites one of her project files.
+function projectOf(annotations: unknown[] | undefined): Project | null {
+  for (const a of annotations ?? []) {
+    const p = a as { type?: unknown; slug?: unknown } | null;
+    if (p?.type === 'project' && typeof p.slug === 'string') return projectBySlug(p.slug);
+  }
+  return null;
+}
+
+// The `timeline` annotation: null when the answer has none, otherwise whether
+// the question asked for it.
+function timelineOf(annotations: unknown[] | undefined): { explicit: boolean } | null {
+  for (const a of annotations ?? []) {
+    const t = a as { type?: unknown; explicit?: unknown } | null;
+    if (t?.type === 'timeline') return { explicit: t.explicit === true };
+  }
+  return null;
+}
+
+// The answer that showed the timeline this visit, kept for the tab's life so a
+// reload doesn't show it again.
+const TIMELINE_KEY = 'jb_timeline_shown';
+
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
 const GITHUB = 'https://github.com/jordanne-dyck';
@@ -47,7 +74,7 @@ function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => voi
   );
 }
 const NAME_LINES = ['Jordanne Dyck'];
-const HIGHLIGHTS = ['Product & AI builder', '15+ years shipping', 'DECIEM', 'Loblaw Digital'];
+const HIGHLIGHTS = ['Sr. Product Manager', 'Human + digital at scale', 'DECIEM', 'Loblaw Digital'];
 
 // Sizes the name so its widest line fills the block. Measured on a still copy,
 // because the letters are mid-animation when this runs.
@@ -159,6 +186,15 @@ export default function Home() {
   // One switch stops all motion: the band, grain, dust (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [openProject, setOpenProject] = useState<Project | null>(null);
+  // The card that opened the panel, kept after closing so focus can go back to it.
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  // The answer that showed the timeline earlier in this tab, before a reload.
+  // Read once; only answers render the timeline, so the server's null is safe.
+  const [shownBefore] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(TIMELINE_KEY); } catch { return null; }
+  });
 
   // The first-screen button: take the visitor to the chat, cursor in the box.
   const askJordbot = () => {
@@ -239,6 +275,31 @@ export default function Home() {
     append({ role: 'user', content: prompt }, { body: { source: 'button', clientId: clientId() } });
   };
 
+  // The timeline shows under the first answer that carries it, once per visit.
+  // Later answers show it only when the question asked for it.
+  const timelineMsg =
+    shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m.annotations))?.id ?? null;
+  useEffect(() => {
+    if (!timelineMsg || shownBefore) return;
+    try { sessionStorage.setItem(TIMELINE_KEY, timelineMsg); } catch {}
+  }, [timelineMsg, shownBefore]);
+
+  const showProject = (project: Project, el: HTMLElement, from: 'card' | 'timeline' = 'card') => {
+    track({ name: 'project_opened', props: { slug: project.slug, from } });
+    setOpener(el);
+    setOpenProject(project);
+  };
+  // A question from the panel is a button question, like a suggested one.
+  const askAboutProject = (question: string, index: number) => {
+    const project = openProject;
+    setOpenProject(null);
+    if (!project || isLoading) return;
+    track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
+    track({ name: 'message_sent', props: { source: 'project' } });
+    sentAt.current = now();
+    append({ role: 'user', content: question }, { body: { source: 'button', clientId: clientId() } });
+  };
+
   // The cats stand in until the first words of the answer arrive.
   const waiting = isLoading && messages[messages.length - 1]?.role === 'user';
   const answered = !isLoading && !error && messages.some(m => m.role === 'assistant');
@@ -251,7 +312,7 @@ export default function Home() {
 
       <header className="name-block" ref={blockRef}>
         <div className="hero-top">
-          <p>Product &amp; AI builder. 15+ years shipping. Ask my AI anything about my work.</p>
+          <p>Sr. Product Manager. I build DTC products that bridge human and digital moments at scale. Ask my AI anything about my work.</p>
           <button type="button" className="ask" onClick={askJordbot}>Ask jordbot <span aria-hidden="true">↓</span></button>
         </div>
         <div className="name-photo" aria-hidden="true">
@@ -275,12 +336,12 @@ export default function Home() {
             <span key={`${copy}-${t}`} className="contents"><span className="t">{t}</span><i className="sep" /></span>
           )))}
         </div>
-        <p className="sr-only">Product and AI builder. 15+ years shipping. DECIEM, Loblaw Digital.</p>
+        <p className="sr-only">Sr. Product Manager. Human and digital at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
           <a href={`mailto:${EMAIL}`} onClick={() => contact('hero', 'email')}>Email</a>
           <Socials onClick={ch => contact('hero', ch)} />
-          <span className="label">Product &amp; AI builder</span>
+          <span className="label">Sr. Product Manager</span>
           <button type="button" className="label pause" aria-pressed={paused} onClick={() => setPaused(p => !p)}>
             {paused ? 'Play motion' : 'Pause motion'}
           </button>
@@ -338,6 +399,15 @@ export default function Home() {
                   {(() => {
                     const rowId = rowIdOf(message.annotations);
                     return rowId ? <Feedback rowId={rowId} /> : null;
+                  })()}
+                  {(() => {
+                    // The timeline takes the project card's place (decided 2026-11-04).
+                    const timeline = timelineOf(message.annotations);
+                    if (timeline && (timeline.explicit || timelineMsg === message.id)) {
+                      return <Timeline explicit={timeline.explicit} paused={paused} onOpenProject={(p, el) => showProject(p, el, 'timeline')} />;
+                    }
+                    const project = projectOf(message.annotations);
+                    return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
                   })()}
                 </div>
               )}
@@ -428,6 +498,7 @@ export default function Home() {
         </div>
       </footer>
 
+      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject} />
       <FilmEffects paused={paused} />
     </div>
   );

@@ -11,6 +11,8 @@ import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } fr
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
+import { pickProject } from '@/lib/projects';
+import { asksForTimeline, citesCareer } from '@/lib/timeline';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -283,11 +285,27 @@ export async function POST(req: NextRequest) {
             if (process.env.EMIT_RETRIEVAL || isSynthetic) {
               dataStream.writeMessageAnnotation({ type: 'citations', answer: cited.raw, segments });
             }
+            // The project card under the answer. Only the slug leaves the
+            // server, never the filename or chunk id it was picked from.
+            const project = pickProject(segments.flatMap((s) => s.ids), retrieval.chunks);
+            if (project) {
+              dataStream.writeMessageAnnotation({ type: 'project', slug: project });
+            }
+            // The career timeline. The page shows it once per visit unless the
+            // question asks for it (`explicit`), and in place of the project card.
+            const timelineExplicit = asksForTimeline(query);
+            const timeline = timelineExplicit || citesCareer(citedIds);
+            if (timeline) {
+              dataStream.writeMessageAnnotation({ type: 'timeline', explicit: timelineExplicit });
+            }
             const rowId = await logRedacted({
               ...baseEvent,
               flags: {
                 ...baseEvent.flags,
                 ...freeLabels(query, text),
+                ...(project ? { project_card: project } : {}),
+                // Sent, not necessarily shown: the page decides once per visit.
+                ...(timeline ? { timeline: timelineExplicit ? 'explicit' : 'cited' } : {}),
                 citations: {
                   ...citationLabels(segments, retrieval.chunks),
                   // Redacted like response_text, which holds the same answer
