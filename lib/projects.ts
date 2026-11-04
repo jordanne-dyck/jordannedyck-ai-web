@@ -53,7 +53,7 @@ export const PROJECTS: Project[] = [
       'An internal venture to rapidly validate ambiguous opportunities and scale only what proved value',
     results: [
       '50+ initiatives vetted in 2 years',
-      '10+ cross-functional workshops across 10+ departments',
+      '10+ cross-functional workshops, spanning 10+ departments',
     ],
     questions: ['Why did she start the lab?', 'What did the lab ship?'],
     images: [],
@@ -68,7 +68,7 @@ export const PROJECTS: Project[] = [
     problem:
       "Customers faced 100+ products across 15+ categories, unsure what to buy, in what order, or what can't be mixed.",
     built:
-      'A first-of-its-kind full-service digital commerce agent, unifying product discovery, order management and checkout in one conversational experience',
+      'A full-service digital commerce agent, designed to take a customer from product discovery through checkout and order management in one conversation.',
     results: ['Concept to production in 6 months', 'Featured by Salesforce at NRF 2025'],
     questions: ['How do the agents work together?', 'Where do people step in?'],
     images: [],
@@ -141,9 +141,9 @@ export const PROJECTS: Project[] = [
     role: 'Digital transformation lead & product strategist',
     tags: 'Platform migration, Commerce Cloud',
     problem:
-      "A custom-built e-commerce platform couldn't keep up with 80% yearly growth across 150+ countries",
+      "A custom-built e-commerce platform couldn't keep up with 80% yearly growth across 150+ countries.",
     built:
-      "The move from the in-house platform to an enterprise-grade DTC ecosystem",
+      'The move from a custom in-house platform to an enterprise-grade DTC ecosystem launched in 8 months.',
     results: [
       '99.95% uptime, 40% faster page loads, 18% higher conversion',
       'Engineering time on new work: 30% → 70%',
