@@ -285,8 +285,12 @@ html:has(.home) { scroll-behavior: smooth; }
 @media (min-width: 761px) {
   .home .tl-captions { position: relative; top: auto; align-self: stretch; margin-top: 48px; }
   .home .tl-caption { padding: 0 0 0 16px; border: 0; border-left: 2px solid var(--d1); border-radius: 0; background: none; }
-  .home .tl-caption .tl-media { height: 170px; }
 }
+/* The highlight's image or clip: a fixed-height crop above the text, never over it */
+.home .tl-media { display: block; height: 110px; overflow: hidden; border-radius: 6px; margin-bottom: 10px; background: var(--fill); }
+.home .tl-media img, .home .tl-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top;
+  filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+@media (min-width: 761px) { .home .tl-caption .tl-media { height: 170px; } }
 .home .tl-caption .label { color: var(--d1); }
 .home .tl-caption strong { font-weight: 500; font-size: 17px; }
 .home .tl-caption span:last-child { font-size: 14px; color: var(--soft); line-height: 1.4; }
