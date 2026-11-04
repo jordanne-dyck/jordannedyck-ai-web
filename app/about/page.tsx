@@ -10,9 +10,9 @@ import './about.css';
 // engines read, since the chat on the homepage is invisible to crawlers.
 // Keep it high level; the detail lives in the chatbot.
 
-const title = 'About Jordanne Dyck | Product and AI Builder';
+const title = 'About Jordanne Dyck | Sr. Product Manager';
 const description =
-  'Jordanne Dyck is a product and AI builder in Toronto. Six years at DECIEM (The Ordinary), most recently Director, Digital Product Management.';
+  'Jordanne Dyck is a Sr. Product Manager in Toronto who builds DTC products that bridge human and digital moments at scale. Six years at DECIEM (The Ordinary), most recently Director, Digital Product Management.';
 
 export const metadata: Metadata = {
   title,
@@ -38,7 +38,7 @@ const EXPERTISE = [
     text: "I built DECIEM's digital function from near zero, grew DTC sales to $150M+ annually, and took TikTok Shop from zero to $30M.",
   },
   {
-    name: 'Product growth as one system',
+    name: 'The DTC customer journey as one system',
     text: 'I treat acquisition, personalization, retention and loyalty as one system. Acquisition quality sets the retention ceiling, and retention economics set what acquisition can afford.',
   },
   {
@@ -77,11 +77,12 @@ export default function AboutPage() {
       <header className="hero">
         <div className="hero-inner">
           <h1>Jordanne Dyck</h1>
-          <span className="label">Product and AI builder &middot; Toronto</span>
+          <span className="label">Sr. Product Manager &middot; Toronto</span>
           <p className="lede">
-            I build AI products and lead digital product teams. I spent six years at DECIEM, the
-            company behind The Ordinary, most recently as Director, Digital Product Management.
-            Before that I was at Loblaw Digital and Shoppers Drug Mart.
+            I build DTC products that bridge human and digital moments at scale: I decide where people
+            guide and where technology does, then build both. I spent six years at DECIEM, the company
+            behind The Ordinary, most recently as Director, Digital Product Management. Before that I
+            was at Loblaw Digital and Shoppers Drug Mart.
           </p>
         </div>
       </header>
@@ -103,8 +104,8 @@ export default function AboutPage() {
         </section>
 
         <p className="open-to">
-          <strong>Open to:</strong> Director or Head of Product, Group or Staff Product Manager, and
-          digital consulting opportunities.
+          <strong>Open to:</strong> Senior, Group or Staff Product Manager, Director or Head of
+          Product, and digital consulting opportunities.
         </p>
 
         <div className="cta">
