@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { CAREER, EDUCATION, MOMENTS, SIDE_PROJECTS, type Employer } from '@/lib/timeline';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { CAREER, EDUCATION, END_ON, MOMENTS, SHORT_PROJECT, SIDE_PROJECTS, type Employer } from '@/lib/timeline';
 import { track } from '@/lib/analytics';
 import { projectBySlug, type Project } from '@/lib/projects';
 
@@ -42,6 +42,13 @@ const ENTRIES: Entry[] = [
 ];
 // Personal projects sit on the axis itself.
 const AXIS_DOT = 40;
+// The entries shown with this one (zoomWith): zooming into it takes them in.
+const withOf = (entry: Entry) => ENTRIES.filter((x) => x.e.zoomWith === entry.e.org);
+const zoomable = (e: Employer) => e.zoom !== false && !e.zoomWith;
+// The earliest start of an entry and the entries shown with it.
+const firstOf = (entry: Entry) => Math.min(...[entry, ...withOf(entry)].map((x) => startOf(x.e)));
+// The entry the clip ends zoomed into.
+const END_ENTRY = ENTRIES.find((x) => x.e.org === END_ON) ?? null;
 
 // Project moments: a job's projects at January of the year their `when`
 // starts (or the role's start, if later), and the personal projects.
@@ -68,11 +75,13 @@ const FIRST = Math.min(...ENTRIES.map((x) => startOf(x.e)));
 // A year above the first start, so its name sits clear of the frame's faded top
 // edge, and room under today for the last names, which the layout pushes down.
 const FULL: [number, number] = [FIRST - 12, NOW + 20];
+// Where the clip ends: zoomed into END_ON.
+const END_VIEW: [number, number] = END_ENTRY ? viewOf(END_ENTRY) : FULL;
 
 // The script: the playhead runs from the first start to today. The camera (the
 // stretch of months in view) starts close on the first years and follows it
-// down, zooms into each moment and holds while its caption shows, then pulls
-// back to the whole career. About 25 seconds, paced for reading: each caption
+// down, zooms into each moment and holds while its caption shows, then ends
+// zoomed into END_ON (DECIEM). About 25 seconds, paced for reading: each caption
 // holds for 300ms a word on top of 1.5 seconds to find it (4 to 6 seconds), plus
 // 1 second to take in its image. Camera moves take 0.9 seconds, slow enough to
 // follow. Pause and Skip to end are always offered while it plays (WCAG 2.2.2).
@@ -94,7 +103,7 @@ const SCRIPT: Segment[] = (() => {
     p = ats[i] + 6;
     cam = views[i];
   });
-  segs.push({ dur: 1500, p: [p, NOW], cam: [cam, FULL] });
+  segs.push({ dur: 1500, p: [p, NOW], cam: [cam, END_VIEW] });
   return segs;
 })();
 
@@ -128,7 +137,7 @@ function frame(t: number) {
     }
     start += s.dur;
   }
-  return { p: NOW, top: FULL[0], bottom: FULL[1], moment: undefined, fade: 0, held: 0 };
+  return { p: NOW, top: END_VIEW[0], bottom: END_VIEW[1], moment: undefined, fade: 0, held: 0 };
 }
 
 // A caption's text with each {number} counted up; `k` runs 0 to 1.
@@ -156,11 +165,11 @@ function visibleSpace() {
   return { height: Math.round(Math.min(Math.max(innerHeight - bar - composer - 72, 320), max)), bar, composer };
 }
 
-// Where to zoom for an entry: its whole span, at least 18 months, ending no
-// later than today.
-function viewOf(e: Employer): [number, number] {
-  const s = startOf(e);
-  const end = endOf(e);
+// Where to zoom for an entry: its whole span and that of the entries shown with
+// it, at least 18 months, ending no later than today.
+function viewOf(entry: Entry): [number, number] {
+  const s = firstOf(entry);
+  const end = Math.max(...[entry, ...withOf(entry)].map((x) => endOf(x.e)));
   const pad = Math.max(4, (18 - (end - s)) / 2);
   let top = s - pad;
   let bottom = end + pad + 4;
@@ -177,7 +186,6 @@ type Item = {
   height: number;
   entry: Entry | null;
   text: string;
-  sub?: string;
   dot?: number;
   marker?: Marker;
 };
@@ -240,13 +248,15 @@ function Group({
 // The career under an answer, as a short vertical clip: years run down the
 // frame, each job's and school's block grows as the playhead passes, its
 // moments (role changes and projects) appear on it, the view zooms into the
-// chosen moments, and it ends on the whole career. It starts when half of it
-// is on screen; with paused or reduced motion it shows the end straight away.
+// chosen moments, and it ends zoomed into DECIEM (END_ON), which may be the only
+// section a visitor opens (Jordanne, 2026-11-04). It starts when half of it is
+// on screen; with paused or reduced motion it shows the end straight away.
 //
 // Afterwards a name can be tapped to zoom into that job or school. Zoomed in,
 // its projects are buttons that open their panel, and the wheel (not a drag on
 // a phone) moves along the years at the same zoom. A name with zoom: false
-// (University of Toronto) is plain text. "Full career" in the header, the name again, an
+// (University of Toronto) or zoomWith (University of Guelph, shown with early
+// career) is plain text. "Full career" in the header, the name again, an
 // empty part of the frame or Esc zooms back out (decided 2026-11-04).
 // Personal projects open from any view.
 export function Timeline({
@@ -263,20 +273,21 @@ export function Timeline({
   const [t, setT] = useState(() => (stillWanted(paused) ? TOTAL : 0));
   const [playing, setPlaying] = useState(false);
   const tRef = useRef(t);
-  // After the clip: the view, and the entry zoomed into (null for the full view).
-  const [cam, setCam] = useState<[number, number]>(FULL);
-  const [focus, setFocus] = useState<Entry | null>(null);
+  // After the clip: the view, and the entry zoomed into (null for the full
+  // view). The clip ends zoomed into END_ON.
+  const [cam, setCam] = useState<[number, number]>(END_VIEW);
+  const [focus, setFocus] = useState<Entry | null>(END_ENTRY);
   // The frame's height in pixels, set to fit the visible space. It is also the
   // time scale: the camera's months span this many pixels. After the clip the
   // frame can grow below it to fit the rows, without changing the scale.
   const [fit, setFit] = useState(visibleSpace);
   const height = fit.height;
   const [tallest, setTallest] = useState(0);
-  const camRef = useRef<[number, number]>(FULL);
+  const camRef = useRef<[number, number]>(END_VIEW);
   const stage = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLButtonElement>(null);
   // The entry last zoomed into, so focus can go back to its name.
-  const zoomedFrom = useRef<Entry | null>(null);
+  const zoomedFrom = useRef<Entry | null>(END_ENTRY);
   // Where keyboard focus goes after the next zoom: set by a tap, not the wheel.
   const focusNext = useRef<'back' | 'name' | null>(null);
   const raf = useRef(0);
@@ -379,7 +390,7 @@ export function Timeline({
     zoomedFrom.current = entry;
     focusNext.current = 'back';
     setFocus(entry);
-    moveTo(viewOf(entry.e));
+    moveTo(viewOf(entry));
   };
   const zoomOut = () => {
     focusNext.current = 'name';
@@ -405,10 +416,10 @@ export function Timeline({
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
   const replay = () => {
-    camRef.current = FULL;
-    setCam(FULL);
-    setFocus(null);
-    zoomedFrom.current = null;
+    camRef.current = END_VIEW;
+    setCam(END_VIEW);
+    setFocus(END_ENTRY);
+    zoomedFrom.current = END_ENTRY;
     tRef.current = 0;
     setT(0);
     play();
@@ -437,8 +448,9 @@ export function Timeline({
   const px = (m: number) => ((m - top) / (bottom - top)) * height;
   const y = (m: number) => `${px(m)}px`;
   const h = (a: number, b: number) => `${(Math.max(b - a, 0.6) / (bottom - top)) * height}px`;
-  // Role titles and project names only fit when zoomed in.
-  const zoomed = bottom - top < 100;
+  // Role titles and project names only fit when zoomed in. 110 months takes in
+  // early career with Guelph.
+  const zoomed = bottom - top < 110;
   // After the clip, any view but the full one: zoomed into a name, or moved
   // along with the wheel since.
   const away = done && (focus !== null || cam[0] !== FULL[0] || cam[1] !== FULL[1]);
@@ -448,7 +460,7 @@ export function Timeline({
   const heading = !done
     ? String(Math.floor(p / 12))
     : focus
-      ? `${Math.floor(startOf(focus.e) / 12)} – ${focus.e.roles[0].end ? focus.e.roles[0].end.slice(0, 4) : 'today'}`
+      ? `${Math.floor(firstOf(focus) / 12)} – ${focus.e.roles[0].end ? focus.e.roles[0].end.slice(0, 4) : 'today'}`
       : away
         ? `${Math.max(Math.ceil(top / 12), firstYear)} – ${bottom >= NOW ? 'today' : Math.floor(bottom / 12)}`
         : `${firstYear} – today`;
@@ -476,21 +488,21 @@ export function Timeline({
   // The text on the frame. Zoomed out: names and personal projects, with
   // role changes and job projects as bare dots. Zoomed in: everything titled.
   // After the clip, what can be tapped is a row 44px tall with its gap (ask 3,
-  // 2026-11-04), and role titles become dividers, so the heights grow.
+  // 2026-11-04), and role titles become dividers, so the heights grow. The
+  // name is the employer alone; its first role is a divider like the others,
+  // so the button doesn't mix an employer with a title (Jordanne, 2026-11-04).
   const items: Item[] = ENTRIES.map((entry, i) => ({
     key: 'n' + i,
     kind: 'name',
     at: startOf(entry.e),
-    // Zoomed in, 4px more for the gap between the name and its title.
-    height: done ? (zoomed ? 52 : 36) : zoomed ? 38 : 18,
+    height: done ? 36 : 18,
     entry,
     text: entry.e.org,
-    sub: entry.e.roles.at(-1)!.title,
   }));
   if (zoomed) {
     ENTRIES.forEach((entry) =>
-      entry.e.roles.slice(0, -1).forEach((r) =>
-        items.push({ key: 'r' + r.title + r.start, kind: 'role', at: monthOf(r.start), height: done ? 28 : 20, entry, text: r.title, dot: entry.dot }),
+      entry.e.roles.forEach((r) =>
+        items.push({ key: 'r' + r.title + r.start, kind: 'role', at: monthOf(r.start), height: done ? 28 : 20, entry, text: r.short ?? r.title, dot: entry.dot }),
       ),
     );
   }
@@ -502,14 +514,16 @@ export function Timeline({
         at: m.at,
         height: done ? 44 : 24,
         entry: m.entry,
-        text: m.project.title,
+        text: SHORT_PROJECT[m.project.slug] ?? m.project.title,
         dot: m.entry ? m.entry.dot : AXIS_DOT,
         marker: m,
       });
     }
   });
   const placed = place(items, px);
-  const dimmed = (entry: Entry | null) => (focus !== null && entry !== focus) || undefined;
+  // Only after the clip: focus is already END_ON while it plays.
+  const dimmed = (entry: Entry | null) =>
+    (done && focus !== null && entry !== focus && entry?.e.zoomWith !== focus.e.org) || undefined;
   // After the clip, the frame grows to fit the rows dated in view: zoomed
   // into DECIEM, nine project rows need more than a phone's frame. Dimmed
   // rows don't count. The years carry on below at the same scale.
@@ -532,6 +546,12 @@ export function Timeline({
   const step = (bottom - top) / 12 > 10 ? 2 : 1;
   const years: number[] = [];
   for (let yr = Math.ceil(top / 12); yr * 12 < Math.min(shownBottom - 1, NOW + 1); yr++) if (yr % step === 0) years.push(yr);
+  // Projects that open: personal ones always; a job's when zoomed into it, or
+  // when moved along with the wheel, where nothing is dimmed.
+  const opens = (it: Item) => done && !!it.marker && (!it.entry || it.entry === focus || (zoomed && !focus));
+  // Zoomed in with no project to open in view (early career): no hint, as
+  // "Tap a project" would point at nothing (Jordanne, 2026-11-05).
+  const projectInView = placed.some((it) => opens(it) && it.top + it.height > 0 && it.top < frameHeight);
 
   return (
     <section
@@ -613,10 +633,7 @@ export function Timeline({
               {it.dot !== undefined && <i className="tl-dot" data-kind={it.kind} data-on style={{ left: it.dot }} />}
               <span className="tl-txt">
                 {it.kind === 'name' ? (
-                  <>
-                    <strong>{it.text}</strong>
-                    {zoomed && <em>{it.sub}</em>}
-                  </>
+                  <strong>{it.text}</strong>
                 ) : (
                   <span>{it.text}</span>
                 )}
@@ -629,9 +646,10 @@ export function Timeline({
             'data-edu': it.entry?.kind === 'edu' || undefined,
             'data-on': p >= it.at || undefined,
             'data-dim': dimmed(it.entry),
-            style: { top: it.top },
+            // The row's dot takes its band's colour.
+            style: { top: it.top, '--tone': it.entry?.tone ?? 'var(--soft)' } as CSSProperties,
           };
-          if (done && it.kind === 'name' && it.entry !== focus && it.entry!.e.zoom !== false) {
+          if (done && it.kind === 'name' && it.entry !== focus && zoomable(it.entry!.e)) {
             return (
               <button
                 key={it.key}
@@ -653,9 +671,7 @@ export function Timeline({
               </button>
             );
           }
-          // Projects: personal ones always; a job's when zoomed into it, or
-          // when moved along with the wheel, where nothing is dimmed.
-          if (done && it.marker && (!it.entry || it.entry === focus || (zoomed && !focus))) {
+          if (it.marker && opens(it)) {
             const project = it.marker.project;
             return (
               <button key={it.key} type="button" {...common} aria-haspopup="dialog" onClick={(ev) => onOpenProject(project, ev.currentTarget)}>
@@ -714,7 +730,7 @@ export function Timeline({
           ← Full career
         </button>
       )}
-      {done && (
+      {done && (!away || projectInView) && (
         <span className="label tl-hint">
           {away ? 'Tap a project to open it' : 'Tap a name to zoom in'}
           {away && wheel && ' · scroll to move along'}

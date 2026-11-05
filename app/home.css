@@ -259,7 +259,6 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .tl-item .tl-dot { top: 50%; }
 .home .tl-txt { display: block; margin-left: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home .tl-item[data-kind="name"] strong { display: block; font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
-.home .tl-item[data-kind="name"] em { display: block; margin-top: 4px; font-style: normal; font-size: 12px; color: var(--soft); overflow: hidden; text-overflow: ellipsis; }
 .home .tl-item[data-edu] strong { font-weight: 400; color: var(--soft); }
 .home .tl-item[data-kind="role"] { font-size: 12px; color: var(--soft); min-height: 20px; display: flex; align-items: center; }
 .home .tl-item[data-kind="project"] { font-size: 12px; min-height: 24px; display: flex; align-items: center; }
@@ -270,23 +269,24 @@ html:has(.home) { scroll-behavior: smooth; }
 .home button.tl-item { pointer-events: auto; cursor: pointer; border-radius: 4px; min-height: 24px; }
 .home button.tl-item[data-kind="name"] { cursor: zoom-in; }
 /* What can be tapped is a row, so it reads apart from the text around it (ask 3,
-   option C1 with the orange tint, 2026-11-04). The row is the text part only,
-   after the lanes, so it never covers the bands. Rounded rectangles, not the
-   pills of the suggested questions, so the two aren't mistaken for each other.
+   option C1, 2026-11-04). The row is the text part only, after the lanes, so it
+   never covers the bands. Rounded rectangles, not the pills of the suggested
+   questions, so the two aren't mistaken for each other. Quiet like the rest of
+   the page: the orange tint was too loud and didn't match DECIEM's cream band,
+   so the dot takes its band's colour instead (--tone, Jordanne, 2026-11-04).
    Heights match the layout pass in Timeline.tsx. */
 .home .tl-item .tl-txt > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .home button.tl-item[data-kind="name"] .tl-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center;
-  padding: 5px 12px; border: 1px solid var(--d1); border-radius: 12px; transition: background .2s; }
-.home button.tl-item[data-kind="name"] .tl-txt::after { content: "Zoom ⊕"; grid-column: 2; grid-row: 1 / span 2; color: var(--d1);
+  padding: 5px 12px; border: 1px solid var(--rule); border-radius: 12px; transition: background .2s, border-color .2s; }
+.home button.tl-item[data-kind="name"] .tl-txt::after { content: "Zoom ⊕"; grid-column: 2; color: var(--soft);
   font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-.home button.tl-item[data-kind="name"] .tl-txt:not(:has(em))::after { grid-row: 1; }
 .home button.tl-item[data-back] .tl-txt::after { content: "Zoom out ⊖"; }
 .home button.tl-item[data-kind="project"] .tl-txt { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 4px 12px; box-sizing: border-box;
-  white-space: normal; font-size: 13px; border: 1px solid rgba(201, 139, 94, .45); border-radius: 12px; background: rgba(201, 139, 94, .12); transition: background .2s; }
+  white-space: normal; font-size: 13px; border: 1px solid rgba(236, 227, 211, .16); border-radius: 12px; background: var(--fill); transition: background .2s, border-color .2s; }
 .home button.tl-item[data-kind="project"] .tl-txt > span { white-space: normal; }
-.home button.tl-item[data-kind="project"] .tl-txt::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--d1); flex: none; }
-.home button.tl-item[data-kind="project"] .tl-txt::after { content: "›"; margin-left: auto; color: var(--d1); font-size: 18px; line-height: 1; }
-.home button.tl-item[data-kind]:hover .tl-txt { background: rgba(201, 139, 94, .24); }
+.home button.tl-item[data-kind="project"] .tl-txt::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tone); flex: none; }
+.home button.tl-item[data-kind="project"] .tl-txt::after { content: "›"; margin-left: auto; color: var(--soft); font-size: 18px; line-height: 1; }
+.home button.tl-item[data-kind]:hover .tl-txt { background: #312c28; border-color: var(--rule); }
 /* Role titles, which aren't buttons, become dividers between the rows */
 .home .tl-stage[data-done] .tl-item[data-kind="role"] .tl-txt { display: flex; align-items: center; gap: 10px; font-size: 11px;
   text-transform: uppercase; letter-spacing: .08em; }
