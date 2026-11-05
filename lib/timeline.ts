@@ -218,6 +218,16 @@ export function asksForOverview(query: string): boolean {
   );
 }
 
+// A question about where she worked before, e.g. "Where did Jordanne work
+// before DECIEM?". The answer can cite only the career summary (exp-001), which
+// is not in CAREER_CHUNKS, so the question brings the timeline instead
+// (option B, 2026-11-05). The timeline only: not the fixed lead, which stays for
+// asksForOverview. Narrow on purpose: not "where did she study", not "what is
+// she doing now", not "what did she do at DECIEM".
+export function asksForCareerHistory(query: string): boolean {
+  return /\bwhere\s+(?:did|has|had)\s+(?:she|jordanne)\s+(?:work|worked)\b|\bwhat\s+did\s+(?:she|jordanne)\s+do\s+before\b|\b(?:previous|past|former|prior)\s+(?:employers?|roles?|jobs?|positions?|companies)\b|\b(?:what|which)\s+(?:companies|employers)\s+(?:has|did)\s+(?:she|jordanne)\s+work/i.test(query);
+}
+
 // Where the timeline goes in an answer: on its own line, the page plays the
 // timeline there (decided 2026-11-04). Braces, not square brackets, which the
 // citation code treats as chunk ids.
