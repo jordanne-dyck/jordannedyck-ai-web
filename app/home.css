@@ -202,6 +202,10 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .gallery img, .home .gallery video { width: 100%; height: 100%; min-height: 0; object-fit: cover; filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
 .home .gallery video { object-fit: contain; background: var(--fill); }
 .home .gallery[data-count="3"] > :first-child { grid-row: span 2; }
+/* Two or three: the gallery's shape keeps the first image (4:3 card art) whole,
+   so a title drawn near its edge (the AI resume's "One question") isn't cut. */
+.home .gallery[data-count="2"] { height: auto; aspect-ratio: 16 / 9; }
+.home .gallery[data-count="3"] { height: auto; aspect-ratio: 2 / 1; }
 .home .project h3 { font-weight: 500; font-size: 30px; letter-spacing: -0.025em; line-height: 1.15; margin: 22px 0 6px; }
 .home .project .rows { margin-top: 14px; }
 .home .sec { margin-top: 26px; display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
@@ -255,7 +259,7 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .tl-item .tl-dot { top: 50%; }
 .home .tl-txt { display: block; margin-left: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home .tl-item[data-kind="name"] strong { display: block; font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
-.home .tl-item[data-kind="name"] em { display: block; font-style: normal; font-size: 12px; color: var(--soft); overflow: hidden; text-overflow: ellipsis; }
+.home .tl-item[data-kind="name"] em { display: block; margin-top: 4px; font-style: normal; font-size: 12px; color: var(--soft); overflow: hidden; text-overflow: ellipsis; }
 .home .tl-item[data-edu] strong { font-weight: 400; color: var(--soft); }
 .home .tl-item[data-kind="role"] { font-size: 12px; color: var(--soft); min-height: 20px; display: flex; align-items: center; }
 .home .tl-item[data-kind="project"] { font-size: 12px; min-height: 24px; display: flex; align-items: center; }
@@ -314,6 +318,10 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .tl-media img, .home .tl-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center;
   filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
 @media (min-width: 761px) { .home .tl-caption .tl-media { height: 170px; } }
+/* A still (the growth chart) is drawn 4:3 with text near its edges: shown whole
+   at the same height instead of cropped. Clips keep the centred crop. */
+.home .tl-media[data-still] { height: auto; aspect-ratio: 4 / 3; width: min(100%, 147px); }
+@media (min-width: 761px) { .home .tl-caption .tl-media[data-still] { height: auto; width: min(100%, 227px); } }
 .home .tl-caption .label { color: var(--d1); }
 .home .tl-caption strong { font-weight: 500; font-size: 17px; }
 .home .tl-caption span:last-child { font-size: 14px; color: var(--soft); line-height: 1.4; }
