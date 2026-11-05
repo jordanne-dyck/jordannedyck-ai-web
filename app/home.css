@@ -264,7 +264,11 @@ html:has(.home) { scroll-behavior: smooth; }
 .home button.tl-item[data-kind="project"]:hover .tl-txt { text-decoration-color: currentColor; }
 .home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 /* Zoomed in: "Full career" leads the header row, beside the name */
-.home .tl-where { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+/* One line in every view, so the frame below never moves */
+.home .tl-top { flex-wrap: nowrap; gap: 12px; min-height: 43px; }
+.home .tl-where { display: flex; align-items: baseline; gap: 12px; flex: 1; min-width: 0; }
+.home .tl-where > span.label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .tl-year, .home .tl-back { flex-shrink: 0; white-space: nowrap; }
 .home .tl-back { padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px;
   background: var(--bg); color: var(--text); cursor: pointer; }
 .home .tl-back:hover { border-color: var(--text); }

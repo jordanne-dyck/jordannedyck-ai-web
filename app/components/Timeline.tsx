@@ -512,7 +512,8 @@ export function Timeline({
               ← Full career
             </button>
           )}
-          <span className="label">{focus ? focus.e.org : 'Career'}</span>
+          {/* Zoomed in, the frame names the job; the header has no room for both. */}
+          {!away && <span className="label">Career</span>}
         </span>
         <span className="tl-year">{heading}</span>
       </div>
