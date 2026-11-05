@@ -10,8 +10,8 @@ that jordannedyck-ai/release_gate.py writes:
 
 The file must say "status": "pass", and this script re-checks why rather than
 trusting it: a full single-turn, multi-turn and dev e2e run named, every failing
-check signed off, every QA item ticked, and for jordbot-web a tested commit that
-is on this branch.
+check signed off (a tier-1 one only as "checker miss: ..."), every QA item
+ticked, and for jordbot-web a tested commit that is on this branch.
 
 A rollback needs no evidence: a tag or FAISS_DIR that prod has run before is
 allowed through, so reverting a release PR is never blocked.
@@ -61,8 +61,13 @@ def problems_in(path, want):
         if not (ev.get("evals") or {}).get(kind, {}) or not ev["evals"][kind].get("run_id"):
             out.append(f"no full {kind} run named")
     for f in ev.get("failures", []):
-        if not str(f.get("signoff") or "").strip():
-            out.append(f"{f.get('kind')} {f.get('case')} {f.get('check')} failed and is not signed off")
+        signoff = str(f.get("signoff") or "").strip()
+        what = f"{f.get('kind')} {f.get('case')} {f.get('check')}"
+        if not signoff:
+            out.append(f"{what} failed and is not signed off")
+        elif str(f.get("check", "")).startswith("T1.") and not signoff.lower().startswith("checker miss"):
+            # A release needs every tier-1 check (jordannedyck-ai README).
+            out.append(f"{what} is tier 1: only a 'checker miss: ...' sign-off lets it through")
     if not ev.get("qa") or not all(q.get("done") is True for q in ev["qa"]):
         out.append("QA items not all ticked")
     if want.get("image") == "jordbot-web":
