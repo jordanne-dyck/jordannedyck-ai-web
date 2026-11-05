@@ -263,8 +263,14 @@ html:has(.home) { scroll-behavior: smooth; }
 .home button.tl-item[data-kind="project"] .tl-txt { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
 .home button.tl-item[data-kind="project"]:hover .tl-txt { text-decoration-color: currentColor; }
 .home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
-.home .tl-back { position: absolute; top: 8px; right: 8px; padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px;
+/* Zoomed in: "Full career" leads the header row, beside the name */
+.home .tl-where { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.home .tl-back { padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px;
   background: var(--bg); color: var(--text); cursor: pointer; }
+.home .tl-back:hover { border-color: var(--text); }
+/* Zoomed in, an empty part of the frame or the name zooms back out */
+.home .tl-stage[data-away] { cursor: zoom-out; }
+.home button.tl-item[data-back] { cursor: zoom-out; }
 /* The line under the timeline, styled like the answer's Sources line */
 .home .tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; margin-top: 14px; padding-top: 8px;
   border-top: 1px solid var(--rule); color: var(--soft); }

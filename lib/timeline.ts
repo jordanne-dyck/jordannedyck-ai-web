@@ -67,23 +67,17 @@ export const CAREER: Employer[] = [
       { title: 'Specialist, Demand Generation', start: '2016-02', end: '2018-07' },
     ],
   },
+  // Three employers as one entry, so their names don't crowd the full view
+  // (decided 2026-11-04). Each role names its employer instead.
   {
-    org: 'Loblaw Companies',
-    line: 'Consumer insights at Shoppers Drug Mart, then B2B marketing',
+    org: 'Early career',
+    line: 'Consumer insights, B2B marketing and bilingual customer support',
     roles: [
-      { title: 'Marketing Coordinator, National Wholesale', start: '2015-01', end: '2016-02' },
-      { title: 'Marketing Analyst, Shoppers Drug Mart', start: '2011-05', end: '2014-12' },
+      { title: 'Marketing Coordinator, National Wholesale · Loblaw Companies', start: '2015-01', end: '2016-02' },
+      { title: 'Marketing Analyst · Shoppers Drug Mart', start: '2011-05', end: '2014-12' },
+      { title: 'Bilingual Customer Programs Assistant · Kenna', start: '2010-05', end: '2010-12' },
+      { title: 'Bilingual Call Centre Representative · Shoppers Drug Mart', start: '2009-05', end: '2009-08' },
     ],
-  },
-  {
-    org: 'Kenna',
-    line: 'Bilingual customer programs',
-    roles: [{ title: 'Bilingual Customer Programs Assistant', start: '2010-05', end: '2010-12' }],
-  },
-  {
-    org: 'Shoppers Drug Mart',
-    line: 'Bilingual frontline support across pharmacy, stores, loyalty and pricing',
-    roles: [{ title: 'Bilingual Call Centre Representative', start: '2009-05', end: '2009-08' }],
   },
 ];
 

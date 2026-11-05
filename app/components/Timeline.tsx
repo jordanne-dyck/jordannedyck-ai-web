@@ -243,8 +243,10 @@ function Group({
 // is on screen; with paused or reduced motion it shows the end straight away.
 //
 // Afterwards a name can be tapped to zoom into that job or school. Zoomed in,
-// its projects are buttons that open their panel; "Full career" zooms back
-// out. Personal projects open from any view.
+// its projects are buttons that open their panel, and the wheel moves along
+// the years at the same zoom. "Full career" in the header, the name again, an
+// empty part of the frame or Esc zooms back out (decided 2026-11-04).
+// Personal projects open from any view.
 export function Timeline({
   explicit,
   paused,
@@ -269,6 +271,8 @@ export function Timeline({
   const back = useRef<HTMLButtonElement>(null);
   // The entry last zoomed into, so focus can go back to its name.
   const zoomedFrom = useRef<Entry | null>(null);
+  // Where keyboard focus goes after the next zoom: set by a tap, not the wheel.
+  const focusNext = useRef<'back' | 'name' | null>(null);
   const raf = useRef(0);
   const pausedRef = useRef(paused);
 
@@ -364,13 +368,27 @@ export function Timeline({
   const zoomInto = (entry: Entry) => {
     track({ name: 'timeline_zoomed', props: { org: entry.e.org } });
     zoomedFrom.current = entry;
+    focusNext.current = 'back';
     setFocus(entry);
     moveTo(viewOf(entry.e));
   };
   const zoomOut = () => {
+    focusNext.current = 'name';
     setFocus(null);
     moveTo(FULL);
   };
+
+  // The wheel, zoomed in: moves the view along the years. At either end of
+  // her career, or in the full view, the page scrolls as usual. A native
+  // listener, as React's wheel events can't stop the page scrolling.
+  const onWheel = useRef<(ev: WheelEvent) => void>(() => {});
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const handler = (ev: WheelEvent) => onWheel.current(ev);
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
   const replay = () => {
     camRef.current = FULL;
     setCam(FULL);
@@ -383,12 +401,15 @@ export function Timeline({
 
   // Keyboard focus follows the zoom: onto "Full career" going in, back to the
   // name going out. The name buttons are drawn again on the way out, so the
-  // button is found by its entry.
+  // button is found by its entry. Moving with the wheel leaves focus alone.
+  // preventScroll: moving focus must not scroll the page.
   useEffect(() => {
-    if (focus) back.current?.focus();
-    else if (zoomedFrom.current) {
+    const next = focusNext.current;
+    focusNext.current = null;
+    if (next === 'back') back.current?.focus({ preventScroll: true });
+    else if (next === 'name' && zoomedFrom.current) {
       const i = ENTRIES.indexOf(zoomedFrom.current);
-      stage.current?.querySelector<HTMLElement>('[data-entry="' + i + '"]')?.focus();
+      stage.current?.querySelector<HTMLElement>('[data-entry="' + i + '"]')?.focus({ preventScroll: true });
     }
   }, [focus]);
 
@@ -401,6 +422,11 @@ export function Timeline({
   const px = (m: number) => ((m - top) / (bottom - top)) * height;
   // Role titles and project names only fit when zoomed in.
   const zoomed = bottom - top < 100;
+  // After the clip, any view but the full one: zoomed into a name, or moved
+  // along with the wheel since.
+  const away = done && (focus !== null || cam[0] !== FULL[0] || cam[1] !== FULL[1]);
+  // A mouse or trackpad, where the wheel moves along the years.
+  const wheel = typeof window !== 'undefined' && matchMedia('(pointer: fine)').matches;
   const step = (bottom - top) / 12 > 10 ? 2 : 1;
   const years: number[] = [];
   for (let yr = Math.ceil(top / 12); yr * 12 < Math.min(bottom - 1, NOW + 1); yr++) if (yr % step === 0) years.push(yr);
@@ -409,7 +435,27 @@ export function Timeline({
     ? String(Math.floor(p / 12))
     : focus
       ? `${Math.floor(startOf(focus.e) / 12)} – ${focus.e.roles[0].end ? focus.e.roles[0].end.slice(0, 4) : 'today'}`
-      : `${firstYear} – today`;
+      : away
+        ? `${Math.max(Math.ceil(top / 12), firstYear)} – ${bottom >= NOW ? 'today' : Math.floor(bottom / 12)}`
+        : `${firstYear} – today`;
+
+  useEffect(() => {
+    onWheel.current = (ev) => {
+      const [from, to] = camRef.current;
+      if (!away) return;
+      const span = to - from;
+      const dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaMode === 2 ? ev.deltaY * height : ev.deltaY;
+      const next = Math.min(Math.max(from + (dy / height) * span, Math.min(FULL[0], from)), Math.max(FULL[1], to) - span);
+      if (next === from) return;
+      ev.preventDefault();
+      cancelAnimationFrame(raf.current);
+      const c: [number, number] = [next, next + span];
+      camRef.current = c;
+      setCam(c);
+      // Moved off the job zoomed into: the others are no longer dimmed.
+      if (focus && (endOf(focus.e) < c[0] || startOf(focus.e) > c[1])) setFocus(null);
+    };
+  });
 
   // The text on the frame. Zoomed out: names and personal projects, with
   // role changes and job projects as bare dots. Zoomed in: everything titled.
@@ -447,14 +493,40 @@ export function Timeline({
   const dimmed = (entry: Entry | null) => (focus !== null && entry !== focus) || undefined;
 
   return (
-    <section className="timeline" aria-label="Career timeline">
+    <section
+      className="timeline"
+      aria-label="Career timeline"
+      onKeyDown={(ev) => {
+        if (ev.key === 'Escape' && away) {
+          ev.stopPropagation();
+          zoomOut();
+        }
+      }}
+    >
       <div className="tl-body">
       <div className="tl-main">
       <div className="tl-top">
-        <span className="label">{focus ? focus.e.org : 'Career'}</span>
+        <span className="tl-where">
+          {away && (
+            <button type="button" ref={back} className="label tl-back" onClick={zoomOut}>
+              ← Full career
+            </button>
+          )}
+          <span className="label">{focus ? focus.e.org : 'Career'}</span>
+        </span>
         <span className="tl-year">{heading}</span>
       </div>
-      <div className="tl-stage" ref={stage} style={{ height: fit.height }}>
+      {/* Zoomed in, a click on an empty part of the frame zooms back out. Mouse
+          only: the header button and Esc do the same from the keyboard. */}
+      <div
+        className="tl-stage"
+        ref={stage}
+        style={{ height: fit.height }}
+        data-away={away || undefined}
+        onClick={(ev) => {
+          if (away && !(ev.target as HTMLElement).closest('button')) zoomOut();
+        }}
+      >
         <div aria-hidden="true">
           {years.map((yr) => (
             <span key={yr} className="tl-tick" style={{ top: y(yr * 12) }}>{yr}</span>
@@ -515,7 +587,7 @@ export function Timeline({
             'data-dim': dimmed(it.entry),
             style: { top: it.top },
           };
-          if (done && it.kind === 'name' && !focus) {
+          if (done && it.kind === 'name' && it.entry !== focus) {
             return (
               <button
                 key={it.key}
@@ -529,7 +601,17 @@ export function Timeline({
               </button>
             );
           }
-          if (done && it.marker && (!it.entry || it.entry === focus)) {
+          // Zoomed into a name, its name again zooms back out.
+          if (done && it.kind === 'name' && it.entry === focus) {
+            return (
+              <button key={it.key} type="button" {...common} data-entry={entryIndex} data-back aria-label="Back to the full career" onClick={zoomOut}>
+                {content}
+              </button>
+            );
+          }
+          // Projects: personal ones always; a job's when zoomed into it, or
+          // when moved along with the wheel, where nothing is dimmed.
+          if (done && it.marker && (!it.entry || it.entry === focus || (zoomed && !focus))) {
             const project = it.marker.project;
             return (
               <button key={it.key} type="button" {...common} aria-haspopup="dialog" onClick={(ev) => onOpenProject(project, ev.currentTarget)}>
@@ -543,12 +625,6 @@ export function Timeline({
             </span>
           );
         })}
-
-        {done && focus && (
-          <button type="button" ref={back} className="label tl-back" onClick={zoomOut}>
-            ← Full career
-          </button>
-        )}
 
       </div>
       </div>
@@ -587,7 +663,12 @@ export function Timeline({
           </button>
         </div>
       )}
-      {done && <span className="label tl-hint">{focus ? 'Tap a project to open it' : 'Tap a name to zoom in'}</span>}
+      {done && (
+        <span className="label tl-hint">
+          {focus ? 'Tap a project to open it' : 'Tap a name to zoom in'}
+          {away && wheel && ' · scroll to move along'}
+        </span>
+      )}
         {done && !stillWanted(paused) && (
           <button type="button" className="label tl-replay" onClick={replay}>
             Replay ↺
