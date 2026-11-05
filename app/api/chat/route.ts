@@ -7,12 +7,14 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest } from '@/lib/monitor';
-import { parseChatInput, parseSource, parseClientId, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import { parseChatInput, parseSource, parseClientId, parseTimelineShown, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
-import { asksForOverview, asksForTimeline, citesCareer, leadsWithCareer, TIMELINE_NOTE, withoutTimelineMarker } from '@/lib/timeline';
+import {
+  asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, TIMELINE_REPLAY, withoutTimelineMarker,
+} from '@/lib/timeline';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -189,11 +191,12 @@ export async function POST(req: NextRequest) {
   const source = parseSource(body);
   const clientId = parseClientId(body);
   const query = input.lastUserContent;
-  // An overview question gets the timeline as its answer, and a short written
-  // lead-in, every time it is asked, even if already shown this visit
-  // (decided 2026-11-04).
+  // An overview question gets the timeline as its answer, inside Jordanne's
+  // fixed lead, every time it is asked, even if already shown this visit
+  // (decided 2026-11-04). The model is not called for it.
   const timelineExplicit = asksForTimeline(query);
   const timelineLead = asksForOverview(query);
+  const timelineReplay = isTimelineReplay(query, parseTimelineShown(body));
   const elapsed = () => Date.now() - requestStart;
 
   // Shared by the two early exits, which never reach retrieval.
@@ -257,13 +260,7 @@ export async function POST(req: NextRequest) {
   const { context, retrieval, meta, failure } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
 
-  // The overview note goes after the answer rules, just before the context.
-  const basePrompt = buildSystemPrompt(context);
-  const systemPrompt = !timelineLead
-    ? basePrompt
-    : basePrompt.includes('# KNOWLEDGE BASE CONTEXT')
-      ? basePrompt.replace('# KNOWLEDGE BASE CONTEXT', `${TIMELINE_NOTE}\n\n# KNOWLEDGE BASE CONTEXT`)
-      : `${basePrompt}\n\n${TIMELINE_NOTE}`;
+  const systemPrompt = buildSystemPrompt(context);
   // Only the model sees the reminder; the rewrite, labels and log use `messages`.
   const reminded = withCiteReminder(messages);
 
@@ -326,6 +323,65 @@ export async function POST(req: NextRequest) {
       rateLimited: false,
     });
 
+  // An overview question: the fixed lead and the timeline, or the replay, with
+  // no model call. Retrieval still ran, so the row records what an answer
+  // would have had; a failed search doesn't matter here. model is null and
+  // flags.timeline_lead tells these rows apart from generated answers.
+  if (timelineLead) {
+    const answer = timelineReplay ? TIMELINE_REPLAY : FIXED_LEAD;
+    const text = withoutTimelineMarker(answer);
+    return createUIMessageStreamResponse({
+      stream: createUIMessageStream<ChatUIMessage>({
+        execute: async ({ writer }) => {
+          writer.write({ type: 'start' });
+          if (process.env.EMIT_RETRIEVAL || isSynthetic) {
+            writer.write({ type: 'data-retrieval', data: retrieval });
+          }
+          writer.write({ type: 'text-start', id: 'lead' });
+          writer.write({ type: 'text-delta', id: 'lead', delta: answer });
+          writer.write({ type: 'text-end', id: 'lead' });
+          firstTokenAt = Date.now();
+          // No citations, so no sources listed; the part is still sent, as on
+          // every answer.
+          writer.write({ type: 'data-sources', data: buildSources([], retrieval.chunks) });
+          writer.write({ type: 'data-timeline', data: { explicit: true } });
+          const rowId = await logRedacted({
+            ...baseEvent,
+            ...NO_RESPONSE,
+            model: null,
+            flags: {
+              ...baseEvent.flags,
+              ...freeLabels(query, text),
+              timeline: timelineExplicit ? 'explicit' : 'overview',
+              timeline_lead: timelineReplay ? 'replay' : 'fixed',
+            },
+            citedChunkIds: [],
+            responseText: text,
+            latencyMs: elapsed(),
+            timeToFirstTokenMs: firstTokenAt - requestStart,
+            error: null,
+            rateLimited: false,
+          });
+          if (rowId && !isSynthetic) {
+            writer.write({ type: 'data-event', data: { id: rowId } });
+            // Moderation and off-topic only: no chunks, so no grounding judge
+            // of text the model didn't write.
+            const userTurns = messages.filter((m) => m.role === 'user');
+            void paidLabels({
+              rowId,
+              query,
+              previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
+              answer: text,
+              segments: [],
+              chunks: [],
+            });
+          }
+          writer.write({ type: 'finish' });
+        },
+      }),
+    });
+  }
+
   // With no retrieved context the model answers from nothing and invents
   // facts (dev, 2026-11-01: a made-up Loblaw role, no sources, judge skipped).
   if (failure) {
@@ -381,7 +437,8 @@ export async function POST(req: NextRequest) {
           onEnd: async ({ text: streamed, usage }) => {
             firstChunk.clear();
             try {
-              // The timeline placeholder is for the page only.
+              // The timeline placeholder is for the page only. The model can
+              // still copy it from an earlier fixed lead in the history.
               const text = withoutTimelineMarker(streamed);
               const raw = withoutTimelineMarker(cited.raw);
               const promptTokens = usage.inputTokens ?? null;
@@ -403,14 +460,14 @@ export async function POST(req: NextRequest) {
               if (project) {
                 writer.write({ type: 'data-project', data: { slug: project } });
               }
-              // The career timeline. The page shows it once per visit unless the
-              // question asks for it (`explicit`: any overview question), and in
-              // place of the project card. An answer with no citations at all
-              // gets it when retrieval led with her role history.
-              const timelineRetrieved = !timelineLead && citedIds.length === 0 && leadsWithCareer(retrieval.chunks);
-              const timeline = timelineLead || citesCareer(citedIds) || timelineRetrieved;
+              // The career timeline. The page shows it once per visit, in place
+              // of the project card (overview questions, which always show it,
+              // never get here). An answer with no citations at all gets it
+              // when retrieval led with her role history.
+              const timelineRetrieved = citedIds.length === 0 && leadsWithCareer(retrieval.chunks);
+              const timeline = citesCareer(citedIds) || timelineRetrieved;
               if (timeline) {
-                writer.write({ type: 'data-timeline', data: { explicit: timelineLead } });
+                writer.write({ type: 'data-timeline', data: { explicit: false } });
               }
               const rowId = await logRedacted({
                 ...baseEvent,
@@ -420,9 +477,7 @@ export async function POST(req: NextRequest) {
                   ...(project ? { project_card: project } : {}),
                   ...(predicted ? { project_predicted: predicted } : {}),
                   // Sent, not necessarily shown: the page decides once per visit.
-                  ...(timeline ? { timeline: timelineExplicit ? 'explicit' : timelineLead ? 'overview' : timelineRetrieved ? 'retrieved' : 'cited' } : {}),
-                  // The system prompt had TIMELINE_NOTE added: not the eval prompt.
-                  ...(timelineLead ? { timeline_prompt: true } : {}),
+                  ...(timeline ? { timeline: timelineRetrieved ? 'retrieved' : 'cited' } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer

@@ -91,3 +91,10 @@ export function parseClientId(body: unknown): string | null {
   const id = (body as { clientId?: unknown })?.clientId;
   return typeof id === 'string' && /^[A-Za-z0-9._-]{1,100}$/.test(id) ? id : null;
 }
+
+// Whether the page has already shown the career timeline this visit, sent by
+// app/page.tsx. A timeline question then gets the replay, not the lead again.
+// Anything but true (Checkly, eval runners) counts as not shown. Added 2026-11-04.
+export function parseTimelineShown(body: unknown): boolean {
+  return (body as { timelineShown?: unknown })?.timelineShown === true;
+}

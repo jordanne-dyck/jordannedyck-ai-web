@@ -3,9 +3,9 @@
 // chunks, once per visit, and again whenever the question asks for it.
 //
 // The copy is hand-written from jordannedyck-ai/knowledge-base/experience/
-// professional-overview.md (exp-027 to exp-030) and checked by Jordanne. The
-// 2009 Shoppers Drug Mart role came from her directly and is not in the
-// knowledge base yet. Nothing keeps the two in sync.
+// professional-overview.md (exp-027 to exp-030, and exp-042, which holds the
+// whole timeline and arc) and checked by Jordanne. Nothing keeps the two in
+// sync.
 
 export type Role = {
   title: string;
@@ -160,8 +160,10 @@ export const MOMENTS: Moment[] = [
 // The chunks that hold her role history. An answer citing any of them gets the
 // timeline. By chunk id, not file: the same file holds the career summary and
 // competencies, which are cited for almost everything. If these ids are
-// renumbered in the knowledge base, change them here.
-const CAREER_CHUNKS = new Set(['exp-027', 'exp-028', 'exp-029', 'exp-030']);
+// renumbered in the knowledge base, change them here. Not exp-031, education:
+// an education answer would always bring the whole timeline (Jordanne,
+// 2026-11-04).
+const CAREER_CHUNKS = new Set(['exp-027', 'exp-028', 'exp-029', 'exp-030', 'exp-042']);
 
 export function citesCareer(citedIds: string[]): boolean {
   return citedIds.some((id) => CAREER_CHUNKS.has(id));
@@ -180,8 +182,8 @@ export function asksForTimeline(query: string): boolean {
   return /\btime ?line\b/i.test(query);
 }
 
-// A question asking for her career as a whole: the timeline is the answer, so
-// the written answer is kept short, and it shows even when it was already
+// A question asking for her career as a whole: the timeline is the answer,
+// inside a fixed lead (FIXED_LEAD), and it shows even when it was already
 // shown this visit (decided 2026-11-04). Includes every question that names
 // the timeline.
 export function asksForOverview(query: string): boolean {
@@ -191,32 +193,31 @@ export function asksForOverview(query: string): boolean {
   );
 }
 
-// Where the timeline goes in an overview answer: the model writes it on its own
-// line, the page plays the timeline there (decided 2026-11-04). Braces, not
-// square brackets, which the citation code treats as chunk ids.
+// Where the timeline goes in an answer: on its own line, the page plays the
+// timeline there (decided 2026-11-04). Braces, not square brackets, which the
+// citation code treats as chunk ids.
 export const TIMELINE_MARKER = '{{timeline}}';
 const MARKER_RE = /[ \t]*\{\{\s*timeline\s*\}\}[ \t]*/i;
 
-// Added to the system prompt for an overview question when the timeline will
-// show, just before the knowledge base context. Not in
-// jordannedyck-ai/run_eval.py's SYSTEM_PROMPT yet: these answers are flagged
-// timeline_prompt in chat_events so evals can tell them apart (gap accepted
-// 2026-11-04; add it to the backend before prod).
-export const TIMELINE_NOTE = `# THIS ANSWER
+// The answer to an overview question: Jordanne's own words, not the model's
+// (decided 2026-11-04, option D). Generated overviews broke the shape, walked
+// through her jobs and went uncited (backend results log R-20261104-17). The
+// model is not called for these. Text final with her OK, 2026-11-04; the 4M+ is
+// DTC customers, as exp-042 says.
+export const FIXED_LEAD = [
+  "Jordanne's career runs from the human side of helping customers to the digital side. She started in bilingual frontline support at the Shoppers Drug Mart call centre, and has since built the systems that decide where people help customers and where technology does: at DECIEM, Regimen Builder, the AI Personal Shopper and automated service that cut resolution time 86%, while annual DTC revenue grew to $150M+ with 4M+ DTC customers globally.",
+  TIMELINE_MARKER,
+  'Today she runs Warai Neko, her independent practice, bringing that work to small businesses while continuing to refine her AI building skills with this AI-powered resume and portfolio system among other hobby projects.',
+].join('\n\n');
 
-An animated timeline of her whole career, with every role, employer, date and school, plays inside this answer. Build the answer around it, in exactly this shape:
+// A question naming the timeline after it has shown this visit: the timeline
+// again, without repeating the lead. No suggested questions in the text; they
+// stay as buttons (decided 2026-10-20, kept 2026-11-04).
+export const TIMELINE_REPLAY = ["Here's her timeline again.", TIMELINE_MARKER].join('\n\n');
 
-1. One or two sentences on the arc of her career: where she started, what she moved toward, and the thread that connects it. Cite as usual.
-2. The line ${TIMELINE_MARKER} on its own, written exactly like that.
-3. One sentence on where she is now, or what the arc adds up to. Cite as usual.
-
-Do not list roles, employers, dates or schools, and do not walk through her jobs one by one: the timeline shows them. No headings or bullets.
-
-The shape, with placeholder content:
-
-She moved from A to B, and the thread through it is C. [chunk id]
-${TIMELINE_MARKER}
-Today she does D. [chunk id]`;
+export function isTimelineReplay(query: string, timelineShown: boolean): boolean {
+  return timelineShown && asksForTimeline(query);
+}
 
 // The answer without the placeholder: for the log, the labels and the
 // grounding judge, so it is never read as an uncited claim.

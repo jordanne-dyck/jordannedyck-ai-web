@@ -299,11 +299,12 @@ export default function Home() {
     sentAt.current = now();
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
-    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
   };
 
   // The timeline shows under the first answer that carries it, once per visit.
-  // Later answers show it only when the question asked for it.
+  // Later answers show it only when the question asked for it. Sent with each
+  // question as timelineShown, so asking for it again gets the short replay.
   const timelineMsg =
     shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
   useEffect(() => {
@@ -324,7 +325,7 @@ export default function Home() {
     track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
     track({ name: 'message_sent', props: { source: 'project' } });
     sentAt.current = now();
-    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
   };
 
   // The cats stand in until the first words of the answer arrive. The
@@ -542,7 +543,7 @@ export default function Home() {
               if (isLoading || !input.trim()) return;
               track({ name: 'message_sent', props: { source: 'typed' } });
               sentAt.current = now();
-              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId() } });
+              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId(), timelineShown: !!timelineMsg } });
               setInput('');
             }}
             aria-label="Chat with AI assistant"
