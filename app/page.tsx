@@ -409,7 +409,14 @@ export default function Home() {
             const timeline = message.role === 'user' ? null : timelineOf(message);
             const showTimeline = !!timeline && (timeline.explicit || timelineMsg === message.id);
             const timelineEl = timeline && showTimeline
-              ? <Timeline explicit={timeline.explicit} paused={paused} onOpenProject={(p, el) => showProject(p, el, 'timeline')} />
+              ? <Timeline
+                  explicit={timeline.explicit}
+                  paused={paused}
+                  // Still streaming: the text arriving above it would push
+                  // a clip that had started out of view.
+                  ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                  onOpenProject={(p, el) => showProject(p, el, 'timeline')}
+                />
               : null;
             const [before, after] = splitAtTimeline(sources ? placeMarkers(text, sources.segments).text : text);
             const markdown = (body: string) => (

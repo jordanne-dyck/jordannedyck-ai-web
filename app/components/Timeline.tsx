@@ -243,7 +243,7 @@ function Group({
 // is on screen; with paused or reduced motion it shows the end straight away.
 //
 // Afterwards a name can be tapped to zoom into that job or school. Zoomed in,
-// its projects are buttons that open their panel, and the wheel (or a drag on
+// its projects are buttons that open their panel, and the wheel (not a drag on
 // a phone) moves along the years at the same zoom. A name with zoom: false
 // (University of Toronto) is plain text. "Full career" in the header, the name again, an
 // empty part of the frame or Esc zooms back out (decided 2026-11-04).
@@ -251,10 +251,12 @@ function Group({
 export function Timeline({
   explicit,
   paused,
+  ready,
   onOpenProject,
 }: {
   explicit: boolean;
   paused: boolean;
+  ready: boolean;
   onOpenProject: (project: Project, opener: HTMLElement) => void;
 }) {
   const [t, setT] = useState(() => (stillWanted(paused) ? TOTAL : 0));
@@ -263,10 +265,12 @@ export function Timeline({
   // After the clip: the view, and the entry zoomed into (null for the full view).
   const [cam, setCam] = useState<[number, number]>(FULL);
   const [focus, setFocus] = useState<Entry | null>(null);
-  // The frame's height in pixels: set to fit the visible space, and read back
-  // for placing the labels.
+  // The frame's height in pixels, set to fit the visible space. It is also the
+  // time scale: the camera's months span this many pixels. After the clip the
+  // frame can grow below it to fit the rows, without changing the scale.
   const [fit, setFit] = useState(visibleSpace);
-  const [height, setHeight] = useState(fit.height);
+  const height = fit.height;
+  const [tallest, setTallest] = useState(0);
   const camRef = useRef<[number, number]>(FULL);
   const stage = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLButtonElement>(null);
@@ -286,16 +290,17 @@ export function Timeline({
   }, [explicit]);
 
   useEffect(() => {
-    const el = stage.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setHeight(entry.contentRect.height));
-    ro.observe(el);
-    const onResize = () => setFit(visibleSpace());
-    addEventListener('resize', onResize);
-    return () => {
-      ro.disconnect();
-      removeEventListener('resize', onResize);
+    // Only a change of width (a turned phone, a resized window) refits. A
+    // phone's address bar changes the height alone as the page scrolls, and
+    // refitting then re-spaced the whole frame mid-scroll.
+    let width = innerWidth;
+    const onResize = () => {
+      if (innerWidth === width) return;
+      width = innerWidth;
+      setFit(visibleSpace());
     };
+    addEventListener('resize', onResize);
+    return () => removeEventListener('resize', onResize);
   }, []);
 
 // Plays from `from` ms. The page's pause switch jumps to the end rather than
@@ -329,10 +334,12 @@ export function Timeline({
 
   useEffect(() => {
     const el = stage.current;
-    if (!el) return;
+    if (!el || !ready) return;
     // Starts once most of the frame (60%) is in view between the bar and the
-    // question box. Captions sit at its top or beside it, so a lower edge
-    // still behind the question box hides nothing that matters.
+    // question box, and only after the answer has finished arriving: the
+    // timeline can arrive before the text above it, which then pushes it down
+    // (seen on a phone, 2026-11-04). Captions sit at its top or beside it, so
+    // a lower edge still behind the question box hides nothing that matters.
     const { bar, composer } = visibleSpace();
     const io = new IntersectionObserver(
       ([entry]) => {
@@ -348,7 +355,7 @@ export function Timeline({
       io.disconnect();
       cancelAnimationFrame(raf.current);
     };
-  }, [play]);
+  }, [play, ready]);
 
   // The camera move for a tap: the clip's easing, 0.6 seconds.
   const moveTo = (target: [number, number]) => {
@@ -379,9 +386,11 @@ export function Timeline({
     moveTo(FULL);
   };
 
-  // The wheel, or a drag on a phone, zoomed in: moves the view along the
-  // years. At either end of her career, or in the full view, the page scrolls
-  // as usual. Native listeners, as React's can't stop the page scrolling.
+  // The wheel, zoomed in: moves the view along the years. At either end of
+  // her career, or in the full view, the page scrolls as usual. A native
+  // listener, as React's can't stop the page scrolling. A drag on a phone
+  // always scrolls the page: the frame fills most of the screen, so panning
+  // on a drag took over scrolling back up the page (decided 2026-11-04).
   const pan = useRef<(dy: number) => boolean>(() => false);
   useEffect(() => {
     const el = stage.current;
@@ -391,25 +400,8 @@ export function Timeline({
       const dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaMode === 2 ? ev.deltaY * h : ev.deltaY;
       if (pan.current(dy)) ev.preventDefault();
     };
-    let lastY: number | null = null;
-    const onTouchStart = (ev: TouchEvent) => {
-      lastY = ev.touches.length === 1 ? ev.touches[0].clientY : null;
-    };
-    // The finger moving up shows later years, as a page scrolls.
-    const onTouchMove = (ev: TouchEvent) => {
-      if (lastY === null || ev.touches.length !== 1) return;
-      const y = ev.touches[0].clientY;
-      if (pan.current(lastY - y)) ev.preventDefault();
-      lastY = y;
-    };
     el.addEventListener('wheel', onWheel, { passive: false });
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-    };
+    return () => el.removeEventListener('wheel', onWheel);
   }, []);
   const replay = () => {
     camRef.current = FULL;
@@ -439,9 +431,11 @@ export function Timeline({
   const f = frame(t);
   const p = done ? NOW : f.p;
   const [top, bottom] = done ? cam : [f.top, f.bottom];
-  const y = (m: number) => `${((m - top) / (bottom - top)) * 100}%`;
-  const h = (a: number, b: number) => `${(Math.max(b - a, 0.6) / (bottom - top)) * 100}%`;
+  // In pixels, not percentages, so a frame grown to fit its rows shows later
+  // months below rather than stretching the years.
   const px = (m: number) => ((m - top) / (bottom - top)) * height;
+  const y = (m: number) => `${px(m)}px`;
+  const h = (a: number, b: number) => `${(Math.max(b - a, 0.6) / (bottom - top)) * height}px`;
   // Role titles and project names only fit when zoomed in.
   const zoomed = bottom - top < 100;
   // After the clip, any view but the full one: zoomed into a name, or moved
@@ -449,9 +443,6 @@ export function Timeline({
   const away = done && (focus !== null || cam[0] !== FULL[0] || cam[1] !== FULL[1]);
   // A mouse or trackpad, where the wheel moves along the years.
   const wheel = typeof window !== 'undefined' && matchMedia('(pointer: fine)').matches;
-  const step = (bottom - top) / 12 > 10 ? 2 : 1;
-  const years: number[] = [];
-  for (let yr = Math.ceil(top / 12); yr * 12 < Math.min(bottom - 1, NOW + 1); yr++) if (yr % step === 0) years.push(yr);
   const firstYear = Math.floor(FIRST / 12);
   const heading = !done
     ? String(Math.floor(p / 12))
@@ -483,11 +474,13 @@ export function Timeline({
 
   // The text on the frame. Zoomed out: names and personal projects, with
   // role changes and job projects as bare dots. Zoomed in: everything titled.
+  // After the clip, what can be tapped is a row 44px tall with its gap (ask 3,
+  // 2026-11-04), and role titles become dividers, so the heights grow.
   const items: Item[] = ENTRIES.map((entry, i) => ({
     key: 'n' + i,
     kind: 'name',
     at: startOf(entry.e),
-    height: zoomed ? 34 : 18,
+    height: done ? (zoomed ? 48 : 36) : zoomed ? 34 : 18,
     entry,
     text: entry.e.org,
     sub: entry.e.roles.at(-1)!.title,
@@ -495,7 +488,7 @@ export function Timeline({
   if (zoomed) {
     ENTRIES.forEach((entry) =>
       entry.e.roles.slice(0, -1).forEach((r) =>
-        items.push({ key: 'r' + r.title + r.start, kind: 'role', at: monthOf(r.start), height: 20, entry, text: r.title, dot: entry.dot }),
+        items.push({ key: 'r' + r.title + r.start, kind: 'role', at: monthOf(r.start), height: done ? 28 : 20, entry, text: r.title, dot: entry.dot }),
       ),
     );
   }
@@ -505,7 +498,7 @@ export function Timeline({
         key: 'p' + m.project.slug,
         kind: 'project',
         at: m.at,
-        height: 24,
+        height: done ? 44 : 24,
         entry: m.entry,
         text: m.project.title,
         dot: m.entry ? m.entry.dot : AXIS_DOT,
@@ -515,6 +508,28 @@ export function Timeline({
   });
   const placed = place(items, px);
   const dimmed = (entry: Entry | null) => (focus !== null && entry !== focus) || undefined;
+  // After the clip, the frame grows to fit the rows dated in view: zoomed
+  // into DECIEM, nine project rows need more than a phone's frame. Dimmed
+  // rows don't count. The years carry on below at the same scale.
+  // While moving along with the wheel it only grows, so the page below doesn't
+  // jump on every step; zooming back out resets it.
+  const fits = done
+    ? Math.max(
+        height,
+        ...placed
+          .filter((it) => !dimmed(it.entry) && px(it.at) >= 0 && px(it.at) < height)
+          .map((it) => Math.ceil(it.top + it.height + 8)),
+      )
+    : height;
+  // Kept in state, adjusted while rendering (React's pattern for state that
+  // follows a render's own values), not in an effect.
+  const keep = away ? Math.max(tallest, fits) : 0;
+  if (keep !== tallest) setTallest(keep);
+  const frameHeight = Math.max(fits, keep);
+  const shownBottom = top + (frameHeight / height) * (bottom - top);
+  const step = (bottom - top) / 12 > 10 ? 2 : 1;
+  const years: number[] = [];
+  for (let yr = Math.ceil(top / 12); yr * 12 < Math.min(shownBottom - 1, NOW + 1); yr++) if (yr % step === 0) years.push(yr);
 
   return (
     <section
@@ -547,8 +562,9 @@ export function Timeline({
       <div
         className="tl-stage"
         ref={stage}
-        style={{ height: fit.height }}
+        style={{ height: frameHeight }}
         data-away={away || undefined}
+        data-done={done || undefined}
         onClick={(ev) => {
           if (away && !(ev.target as HTMLElement).closest('button')) zoomOut();
         }}
@@ -600,7 +616,7 @@ export function Timeline({
                     {zoomed && <em>{it.sub}</em>}
                   </>
                 ) : (
-                  it.text
+                  <span>{it.text}</span>
                 )}
               </span>
             </>
@@ -699,7 +715,7 @@ export function Timeline({
       {done && (
         <span className="label tl-hint">
           {away ? 'Tap a project to open it' : 'Tap a name to zoom in'}
-          {away && (wheel ? ' · scroll to move along' : ' · drag to move along')}
+          {away && wheel && ' · scroll to move along'}
         </span>
       )}
         {done && !stillWanted(paused) && (

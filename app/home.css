@@ -265,12 +265,28 @@ html:has(.home) { scroll-behavior: smooth; }
 /* After the clip: names zoom in, projects open their panel */
 .home button.tl-item { pointer-events: auto; cursor: pointer; border-radius: 4px; min-height: 24px; }
 .home button.tl-item[data-kind="name"] { cursor: zoom-in; }
-/* Hover underlines the name only. A box behind the whole line overlapped the
-   lanes and took in the first role title, which isn't a button. */
-.home button.tl-item[data-kind="name"] strong { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .2s; }
-.home button.tl-item[data-kind="name"]:hover strong { text-decoration-color: currentColor; }
-.home button.tl-item[data-kind="project"] .tl-txt { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
-.home button.tl-item[data-kind="project"]:hover .tl-txt { text-decoration-color: currentColor; }
+/* What can be tapped is a row, so it reads apart from the text around it (ask 3,
+   option C1 with the orange tint, 2026-11-04). The row is the text part only,
+   after the lanes, so it never covers the bands. Rounded rectangles, not the
+   pills of the suggested questions, so the two aren't mistaken for each other.
+   Heights match the layout pass in Timeline.tsx. */
+.home .tl-item .tl-txt > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.home button.tl-item[data-kind="name"] .tl-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center;
+  padding: 5px 12px; border: 1px solid var(--d1); border-radius: 12px; transition: background .2s; }
+.home button.tl-item[data-kind="name"] .tl-txt::after { content: "Zoom ⊕"; grid-column: 2; grid-row: 1 / span 2; color: var(--d1);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.home button.tl-item[data-kind="name"] .tl-txt:not(:has(em))::after { grid-row: 1; }
+.home button.tl-item[data-back] .tl-txt::after { content: "Zoom out ⊖"; }
+.home button.tl-item[data-kind="project"] .tl-txt { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 4px 12px; box-sizing: border-box;
+  white-space: normal; font-size: 13px; border: 1px solid rgba(201, 139, 94, .45); border-radius: 12px; background: rgba(201, 139, 94, .12); transition: background .2s; }
+.home button.tl-item[data-kind="project"] .tl-txt > span { white-space: normal; }
+.home button.tl-item[data-kind="project"] .tl-txt::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--d1); flex: none; }
+.home button.tl-item[data-kind="project"] .tl-txt::after { content: "›"; margin-left: auto; color: var(--d1); font-size: 18px; line-height: 1; }
+.home button.tl-item[data-kind]:hover .tl-txt { background: rgba(201, 139, 94, .24); }
+/* Role titles, which aren't buttons, become dividers between the rows */
+.home .tl-stage[data-done] .tl-item[data-kind="role"] .tl-txt { display: flex; align-items: center; gap: 10px; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .08em; }
+.home .tl-stage[data-done] .tl-item[data-kind="role"] .tl-txt::after { content: ""; flex: 1 0 12px; border-top: 1px solid var(--rule); }
 .home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 /* Zoomed in: "Full career" leads the header row, beside the name */
 /* One line in every view, so the frame below never moves */
@@ -364,5 +380,8 @@ html:has(.home) { scroll-behavior: smooth; }
   .home .gallery { height: 240px; }
   .home .gallery[data-count="1"] { height: auto; }
   .home .sec { grid-template-columns: 1fr; gap: 4px; }
+  /* The timeline's header row scrolls with the frame: stuck, it hid the frame's
+     top as the frame slid under it. "Full career" under the frame is the way back. */
+  .home .tl-top { position: static; }
 }
 @keyframes project-up { from { transform: translateY(102%); } }
