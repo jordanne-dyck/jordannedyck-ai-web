@@ -9,7 +9,8 @@ export type ChatEvent = {
   promptTokens: number | null;
   completionTokens: number | null;
   costUsd: number | null;
-  model: string;
+  // null when no model wrote the answer: the fixed career lead (2026-11-04).
+  model: string | null;
   latencyMs: number | null;
   timeToFirstTokenMs: number | null;
   error: string | null;

@@ -37,7 +37,12 @@ export type AnalyticsEvent =
   | { name: 'chip_clicked'; props: { index: number; text: string } }
   | { name: 'message_sent'; props: { source: 'chip' | 'typed' | 'project' } }
   // Project cards: opening one, and asking one of its panel questions.
-  | { name: 'project_opened'; props: { slug: string } }
+  | { name: 'project_opened'; props: { slug: string; from: 'card' | 'timeline' } }
+  // The career timeline appearing under an answer; `explicit` when asked for.
+  | { name: 'timeline_shown'; props: { explicit: boolean } }
+  | { name: 'timeline_zoomed'; props: { org: string } }
+  // Pause or Skip to end during the clip, and how far in (ms).
+  | { name: 'timeline_control'; props: { action: 'pause' | 'skip'; ms: number } }
   | { name: 'project_question_clicked'; props: { slug: string; index: number } }
   | { name: 'stream_completed'; props: { ms_elapsed: number } }
   | { name: 'stream_abandoned'; props: { ms_elapsed: number } }

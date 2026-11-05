@@ -20,9 +20,13 @@ export type Project = {
   results: string[];
   // Follow-up questions in the panel; each is sent as a chat message.
   questions: [string, string];
-  // Paths under public/. Empty until the real images exist; the release waits
-  // for them (decided 2026-10-27).
+  // Paths under public/. A path ending in .mp4 plays as a muted loop. The
+  // release waits for every card to have one (decided 2026-10-27).
   images: string[];
+  // The initiative this ran under, by slug. The parent's panel lists it.
+  parent?: string;
+  // Public pages about the project, shown in the panel.
+  links?: { label: string; href: string }[];
 };
 
 export const PROJECTS: Project[] = [
@@ -35,10 +39,36 @@ export const PROJECTS: Project[] = [
     tags: 'AI, MCP, RAG, vector search',
     problem: 'Static resumes describe skills instead of showing them.',
     built:
-      'Her career as an interactive web-based chat. Production RAG, custom MCP server, UI, eval harness, monitoring.',
+      'my career as an interactive web-based chat. Production RAG, custom MCP server, UI, eval harness, monitoring',
     results: ['Working prototype in 5 days', 'Used in real recruiter and networking conversations, then refined'],
     questions: ['How did she build it?', 'What would she change?'],
-    images: [],
+    images: ['/projects/ai-resume/architecture.webp', '/projects/ai-resume/frontend.mp4', '/projects/ai-resume/dashboard.webp'],
+    links: [
+      { label: 'Live dashboard', href: 'https://jordannedyck.com/dashboard' },
+      { label: 'Backend code', href: 'https://github.com/jordanne-dyck/jordannedyck-ai' },
+      { label: 'Frontend code', href: 'https://github.com/jordanne-dyck/jordannedyck-ai-web' },
+    ],
+  },
+  {
+    // From experience/independent-practice.md, not projects/: shown for the
+    // consulting chunks only (see CHUNK_PROJECTS). Also on the timeline, as
+    // her independent practice (decided 2026-11-04).
+    slug: 'warai-neko',
+    title: 'Warai Neko',
+    when: '2026 – present',
+    org: 'Freelance',
+    role: 'Digital Strategist',
+    tags: 'Consulting, Google Ads, SEO, brand',
+    problem:
+      'A counsellor opening a therapy practice in BC presented under three business names across five surfaces, and the agency proposal she had was priced above her budget.',
+    built:
+      'The digital side of the practice: one brand used word for word everywhere, a Google Ads account with GA4 and booking-system conversion tracking, and a runbook so she can manage it herself.',
+    results: [
+      'Three business names consolidated to one',
+      'Agency proposal replaced with a four-ad-group plan she runs without a retainer',
+    ],
+    questions: ['Why no agency retainer?', 'How did she fix the brand?'],
+    images: ['/projects/warai-neko/logo.webp'],
   },
   {
     slug: 'abnormal-innovation',
@@ -56,13 +86,14 @@ export const PROJECTS: Project[] = [
       '10+ cross-functional workshops, spanning 10+ departments',
     ],
     questions: ['Why did she start the lab?', 'What did the lab ship?'],
-    images: [],
+    images: ['/projects/abnormal-innovation/lab.webp'],
   },
   {
     slug: 'agentic-personal-shopper',
     title: 'Agentic Personal Shopper',
     when: '2024 – 2025',
-    org: 'DECIEM',
+    org: 'DECIEM · Abnormal Innovation',
+    parent: 'abnormal-innovation',
     role: 'Product lead & AI architect',
     tags: 'Agentic AI, conversational commerce, Agentforce',
     problem:
@@ -71,13 +102,14 @@ export const PROJECTS: Project[] = [
       'A full-service digital commerce agent, designed to take a customer from product discovery through checkout and order management in one conversation.',
     results: ['Concept to production in 6 months', 'Featured by Salesforce at NRF 2025'],
     questions: ['How do the agents work together?', 'Where do people step in?'],
-    images: [],
+    images: ['/projects/agentic-personal-shopper/nrf-demo.mp4', '/projects/agentic-personal-shopper/operations-bot.webp', '/projects/agentic-personal-shopper/product-recos.webp'],
   },
   {
     slug: 'ai-customer-service-optimization',
     title: 'AI Customer Service Optimization',
     when: '2024 – 2025',
-    org: 'DECIEM',
+    org: 'DECIEM · Abnormal Innovation',
+    parent: 'abnormal-innovation',
     role: 'Product lead & process architect',
     tags: 'AI, service automation, workflow',
     problem:
@@ -86,13 +118,14 @@ export const PROJECTS: Project[] = [
       'Automation for repetitive CX work balancing human and digital moments at scale.',
     results: ['86% faster resolution time', 'Fewer seasonal hires needed at peak'],
     questions: ['How did she decide what to automate?', 'How was quality measured?'],
-    images: [],
+    images: ['/projects/ai-customer-service-optimization/service-replies-card.webp'],
   },
   {
     slug: 'brand-incubator-ecosystem',
     title: 'Brand Incubator Ecosystem',
     when: '2023 – 2025',
-    org: 'DECIEM',
+    org: 'DECIEM · Abnormal Innovation',
+    parent: 'abnormal-innovation',
     role: 'Product lead',
     tags: 'Incubator, tech architecture, e-commerce',
     problem:
@@ -101,13 +134,14 @@ export const PROJECTS: Project[] = [
       'A tiered tech ecosystem: new brands start simple and independent, then move onto the enterprise platform as they grow.',
     results: ['Validated with pilot brand launches', 'In operation when she left DECIEM'],
     questions: ['How does a brand move to the enterprise platform?', 'What did the pilots show?'],
-    images: [],
+    images: ['/projects/brand-incubator-ecosystem/architecture.webp'],
   },
   {
     slug: 'google-gemini-enterprise-deployment',
     title: 'Google Gemini Enterprise Deployment',
     when: '2024 – 2025',
-    org: 'DECIEM',
+    org: 'DECIEM · Abnormal Innovation',
+    parent: 'abnormal-innovation',
     role: 'AI strategy lead & change manager',
     tags: 'Enterprise AI, change management, governance',
     problem:
@@ -116,22 +150,48 @@ export const PROJECTS: Project[] = [
       "The rollout of Gemini to DECIEM's 200+ office staff, with rules on who can reach which data and change management for every comfort level.",
     results: ['~60% adoption across eligible staff', 'The highest adoption of any internal tool launch at DECIEM'],
     questions: ['How did she handle resistance?', 'What governance did she set up?'],
-    images: [],
+    images: ['/projects/google-gemini-enterprise-deployment/workspace-docs.mp4'],
+    links: [{ label: 'Demo clip: Gemini in Google Workspace (Google)', href: 'https://workspace.google.com/solutions/ai/' }],
   },
   {
-    slug: 'virtual-shelf',
-    title: 'Virtual Shelf',
+    slug: 'personalization-roadmap-and-measurement',
+    title: 'Personalization Roadmap & Measurement',
     when: '2025',
-    org: 'DECIEM',
-    role: 'Product design & definition',
-    tags: 'Loyalty, retention, agentic AI',
+    org: 'DECIEM · Abnormal Innovation',
+    parent: 'abnormal-innovation',
+    role: 'Roadmap owner',
+    tags: 'Personalization, email, retention analytics',
     problem:
-      'Retention was poor and the brand needed a method to keep customers engaged and using the products so they could see the value thus leading them to continue with the brand',
+      'The Ordinary and NIOD treated every customer the same across web, email and SMS, and the tracking underneath could not say where growth came from.',
     built:
-      "A personal skincare shelf where customers track their real routine, other brands' products included, with a skin journal, badges tied to loyalty, and AI recommendations based on what they actually use.",
-    results: ['Complete wireframe set', 'Working interactive mobile demo'],
-    questions: ['Why track competitor products?', 'Why badges instead of points?'],
-    images: [],
+      'A multi-year roadmap to one-to-one personalization across every channel, built on the Salesforce stack already in place, with the measurement to back it: rebuilt GA4 and Tag Manager tracking and retention segmentation she wrote in Python.',
+    results: [
+      'Targets set up front: 40% higher customer lifetime value, 25% higher conversion',
+      'Found the gap: mobile was 76% of users but 67% of revenue',
+    ],
+    questions: ['Why build on the existing stack?', 'How did she segment for retention?'],
+    images: ['/projects/personalization-roadmap-and-measurement/results-card.webp', '/projects/personalization-roadmap-and-measurement/regimen-email.webp', '/projects/personalization-roadmap-and-measurement/loyalty-account.webp'],
+  },
+  {
+    // From experience/growth-and-acquisition.md, not projects/: shown for chunk
+    // growth-001 only (see CHUNK_PROJECTS).
+    slug: 'growth-and-acquisition',
+    title: 'Growth & Customer Acquisition',
+    when: '2019 – 2025',
+    org: 'DECIEM',
+    role: 'Head of Digital, then Digital Director',
+    tags: 'Growth marketing, search, paid social, attribution',
+    problem:
+      'The Ordinary grew through community and word of mouth, and a large share of revenue landed in "unassigned" traffic, so attribution could not say where growth came from.',
+    built:
+      'The analytics, CRM, MarTech and operations first, then growth marketing on top: paid social as the main paid channel, search owned end to end (paid, SEO and onsite), and rebuilt GA4 and Tag Manager tracking.',
+    results: [
+      '5:1 ROI on growth marketing, recognised at Google Marketing Live 2022',
+      "The Ordinary became the world's #1 Googled skincare brand",
+      '$150M+ DTC business with 4M+ customer accounts',
+    ],
+    questions: ['How did she make it #1 on Google?', 'Why was paid social the main channel?'],
+    images: ['/projects/growth-and-acquisition/search-trends.webp'],
   },
   {
     slug: 'digital-transformation-salesforce',
@@ -151,7 +211,14 @@ export const PROJECTS: Project[] = [
       '100+ new features launched',
     ],
     questions: ['Why buy instead of build?', 'How was the migration run?'],
-    images: [],
+    images: ['/projects/digital-transformation-salesforce/pdp-card.webp', '/projects/digital-transformation-salesforce/plp.webp', '/projects/digital-transformation-salesforce/homepage.webp'],
+    links: [
+      { label: 'The Ordinary', href: 'https://theordinary.com' },
+      { label: 'NIOD', href: 'https://niod.com' },
+      { label: 'Loopha', href: 'https://loopha.com' },
+      { label: 'The Chemistry Brand', href: 'https://thechemistrybrand.com' },
+      { label: 'DECIEM', href: 'https://deciem.com' },
+    ],
   },
   {
     slug: 'regimen-builder',
@@ -169,7 +236,10 @@ export const PROJECTS: Project[] = [
       'Measured by comparing users with non-users, not an A/B test',
     ],
     questions: ['How was it measured?', 'How did it lead to the personal shopper?'],
-    images: [],
+    images: ['/projects/regimen-builder/flow.mp4', '/projects/regimen-builder/results.webp', '/projects/regimen-builder/results-account.webp'],
+    links: [
+      { label: 'Regimen Builder', href: 'https://theordinary.com/en-us/regimen-builder.html' },
+    ],
   },
   {
     slug: 'tiktok-shop-integration',
@@ -184,11 +254,19 @@ export const PROJECTS: Project[] = [
       'A full integration, not a catalogue upload: real-time inventory, order routing, and price and promotion sync. She worked with Salesforce and TikTok to get their beta integration ready for production.',
     results: ['First fully integrated brand on TikTok Shop, live in 6 months', '$30M+ annual revenue channel'],
     questions: ['What made the integration hard?', 'Who were the new customers?'],
-    images: [],
+    images: ['/projects/tiktok-shop-integration/shop-card.webp', '/projects/tiktok-shop-integration/shop.webp'],
+    links: [
+      { label: 'The Ordinary on TikTok Shop', href: 'https://shop.tiktok.com/us/k/the-ordinary-official' },
+    ],
   },
 ];
 
 const BY_SLUG = new Map(PROJECTS.map((p) => [p.slug, p]));
+
+// Projects that ran under an initiative, in card order.
+export function childProjects(slug: string): Project[] {
+  return PROJECTS.filter((p) => p.parent === slug);
+}
 
 export function projectBySlug(slug: string): Project | null {
   return BY_SLUG.get(slug) ?? null;
@@ -204,6 +282,17 @@ function slugOfFile(filename: string | null): string | null {
   return m && BY_SLUG.has(m[1]) ? m[1] : null;
 }
 
+// Cards for chunks outside projects/, by exact chunk id. growth-002 (referral,
+// mostly Loblaw) is left out on purpose: the card is about DECIEM. indie-001
+// (overview) and indie-003/004 (her own AI systems) are left out: they are not
+// client work.
+const CHUNK_PROJECTS = new Map([
+  ['growth-001', 'growth-and-acquisition'],
+  ['indie-002', 'warai-neko'],
+  ['indie-005', 'warai-neko'],
+  ['indie-006', 'warai-neko'],
+]);
+
 // The project to show for an answer: the one cited most, ties going to the one
 // cited first. Null when the answer cites no project file. One card per answer
 // (decided 2026-10-27).
@@ -214,7 +303,7 @@ export function pickProject(
   const fileOf = new Map(chunks.map((c) => [c.chunk_id, c.filename]));
   const counts = new Map<string, number>();
   for (const id of citedIds) {
-    const slug = slugOfFile(fileOf.get(id) ?? null);
+    const slug = slugOfFile(fileOf.get(id) ?? null) ?? CHUNK_PROJECTS.get(id) ?? null;
     if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1);
   }
   let best: string | null = null;

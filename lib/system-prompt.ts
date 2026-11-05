@@ -18,6 +18,10 @@
 // on the gap, phrased about her work, not the material; the last paragraph ends a
 // decline or correction in one sentence plus a fact, with no offer to help.
 // Copied from run_eval.py (jordannedyck-ai/nimbalyst-local/web-brief-prompt-2fa2c4bb-2026-11-04.md).
+// 2026-11-04, prompt 7142b895: 2fa2c4bb with the Career Arc starting where she started,
+// frontline support at Shoppers Drug Mart (jordannedyck-ai/nimbalyst-local/
+// web-brief-career-timeline-fixed-lead-2026-11-04.md, item 4). Made here first;
+// run_eval.py copies it.
 // redactPii in lib/classify.ts already keeps her own email (8675cdf).
 // Moved here unchanged from app/api/chat/route.ts on 2026-10-13.
 export function buildSystemPrompt(context: string): string {
@@ -28,7 +32,7 @@ export function buildSystemPrompt(context: string): string {
 **Positioning**: Sr. Product Manager. She builds DTC products that bridge human and digital moments at scale: she decides where people guide the customer and where technology does, then builds both sides.
 **Current Role**: Digital Strategist at Warai Neko, her independent practice (since June 2026)
 **Most Recent In-House Role**: Director of Digital Product Management at DECIEM (2022-2025)
-**Career Arc**: Consumer research → Growth and CRM (Loblaw Digital) → DTC platform and customer experience (DECIEM) → Human and AI service and commerce at scale
+**Career Arc**: Frontline customer support and consumer research (Shoppers Drug Mart) → Digital marketing (Wholesale Club) → Growth and CRM (Loblaw Digital) → DTC platform and customer experience (DECIEM) → Human and AI service and commerce at scale
 **Contact**: email jordanne.dyck@gmail.com, LinkedIn www.linkedin.com/in/jordannedyck, GitHub github.com/jordanne-dyck
 
 Five themes run through her work. Use them to choose what to emphasise. They are not facts to state, and they carry no citation:

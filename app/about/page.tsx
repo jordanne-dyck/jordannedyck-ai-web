@@ -38,8 +38,8 @@ const EXPERTISE = [
     text: "I built DECIEM's digital function from near zero, grew DTC sales to $150M+ annually, and took TikTok Shop from zero to $30M.",
   },
   {
-    name: 'The DTC customer journey as one system',
-    text: 'I treat acquisition, personalization, retention and loyalty as one system. Acquisition quality sets the retention ceiling, and retention economics set what acquisition can afford.',
+    name: 'Human and digital balance',
+    text: 'At DECIEM I made that call three times: Regimen Builder, the AI Personal Shopper built on it, and service automation that cut resolution time 86% while human agents kept the cases that needed them.',
   },
   {
     name: 'AI fluency',
@@ -122,14 +122,16 @@ export default function AboutPage() {
         <div className="big"><a href={`mailto:${EMAIL}`}>Talk to the human →</a></div>
         <div className="rule" />
         <nav className="frow" aria-label="Contact links">
-          <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
-          <a href="tel:6474542244">647-454-2244</a>
-          <a className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-            <Linkedin aria-hidden="true" />
-          </a>
-          <a className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-            <Github aria-hidden="true" />
-          </a>
+          <span className="fcontact">
+            <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+            <a href="tel:6474542244">647-454-2244</a>
+            <a className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+              <Linkedin aria-hidden="true" />
+            </a>
+            <a className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <Github aria-hidden="true" />
+            </a>
+          </span>
           <Link href="/">Home</Link>
         </nav>
         <div className="frow small label">
