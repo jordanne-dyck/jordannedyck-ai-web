@@ -5,15 +5,19 @@ import { APICallError, DefaultChatTransport } from 'ai';
 import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { Github, Linkedin } from 'lucide-react';
+import { Github, Linkedin, Mail, Phone } from 'lucide-react';
 import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
 import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
 import { Feedback } from '@/app/components/Feedback';
 import type { ChatUIMessage } from '@/lib/chat-message';
-import type { SourcesData } from '@/lib/citations';
+import { sourceLabel, type SourcesData } from '@/lib/citations';
 import { placeMarkers, SOURCE_HREF, SOURCE_NEXT_HREF } from '@/lib/citation-markers';
 import { FilmEffects } from '@/app/components/FilmEffects';
+import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
+import { projectBySlug, type Project } from '@/lib/projects';
+import { Timeline } from '@/app/components/Timeline';
+import { splitAtTimeline } from '@/lib/timeline';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -37,6 +41,15 @@ function rowIdOf(message: ChatUIMessage): string | null {
 function sourcesOf(message: ChatUIMessage): SourcesData | null {
   for (const p of message.parts) {
     if (p.type === 'data-sources') return p.data;
+  }
+  return null;
+}
+
+// The project card to show under an answer, from the data-project part the
+// chat route sends when the answer cites one of her project files.
+function projectOf(message: ChatUIMessage): Project | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-project') return projectBySlug(p.data.slug);
   }
   return null;
 }
@@ -66,9 +79,23 @@ const transport = new DefaultChatTransport<ChatUIMessage>({
   }),
 });
 
+// The timeline part: null when the answer has none, otherwise whether the
+// question asked for it.
+function timelineOf(message: ChatUIMessage): { explicit: boolean } | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-timeline') return { explicit: p.data.explicit };
+  }
+  return null;
+}
+
+// The answer that showed the timeline this visit, kept for the tab's life so a
+// reload doesn't show it again.
+const TIMELINE_KEY = 'jb_timeline_shown';
+
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
 const GITHUB = 'https://github.com/jordanne-dyck';
+const PHONE = '647-454-2244';
 
 // LinkedIn and GitHub as icons. The aria-label is the link's name for screen readers.
 function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => void }) {
@@ -84,7 +111,7 @@ function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => voi
   );
 }
 const NAME_LINES = ['Jordanne Dyck'];
-const HIGHLIGHTS = ['Product & AI builder', '15+ years shipping', 'DECIEM', 'Loblaw Digital'];
+const HIGHLIGHTS = ['Sr. Product Manager', 'Human + digital, at scale', 'DECIEM', 'Loblaw Digital'];
 
 // Sizes the name so its widest line fills the block. Measured on a still copy,
 // because the letters are mid-animation when this runs.
@@ -199,6 +226,15 @@ export default function Home() {
   // One switch stops all motion: the band, grain, dust (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [openProject, setOpenProject] = useState<Project | null>(null);
+  // The card that opened the panel, kept after closing so focus can go back to it.
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  // The answer that showed the timeline earlier in this tab, before a reload.
+  // Read once; only answers render the timeline, so the server's null is safe.
+  const [shownBefore] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(TIMELINE_KEY); } catch { return null; }
+  });
 
   // The first-screen button: take the visitor to the chat, cursor in the box.
   const askJordbot = () => {
@@ -276,7 +312,33 @@ export default function Home() {
     sentAt.current = now();
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
-    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId() } });
+    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
+  };
+
+  // The timeline shows under the first answer that carries it, once per visit.
+  // Later answers show it only when the question asked for it. Sent with each
+  // question as timelineShown, so asking for it again gets the short replay.
+  const timelineMsg =
+    shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
+  useEffect(() => {
+    if (!timelineMsg || shownBefore) return;
+    try { sessionStorage.setItem(TIMELINE_KEY, timelineMsg); } catch {}
+  }, [timelineMsg, shownBefore]);
+
+  const showProject = (project: Project, el: HTMLElement, from: 'card' | 'timeline' = 'card') => {
+    track({ name: 'project_opened', props: { slug: project.slug, from } });
+    setOpener(el);
+    setOpenProject(project);
+  };
+  // A question from the panel is a button question, like a suggested one.
+  const askAboutProject = (question: string, index: number) => {
+    const project = openProject;
+    setOpenProject(null);
+    if (!project || isLoading) return;
+    track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
+    track({ name: 'message_sent', props: { source: 'project' } });
+    sentAt.current = now();
+    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
   };
 
   // The cats stand in until the first words of the answer arrive. The
@@ -293,7 +355,7 @@ export default function Home() {
 
       <header className="name-block" ref={blockRef}>
         <div className="hero-top">
-          <p>Product &amp; AI builder. 15+ years shipping. Ask my AI anything about my work.</p>
+          <p>I build DTC products that bridge human and digital moments at scale. Ask my AI anything about my work.</p>
           <button type="button" className="ask" onClick={askJordbot}>Ask jordbot <span aria-hidden="true">↓</span></button>
         </div>
         <div className="name-photo" aria-hidden="true">
@@ -317,12 +379,18 @@ export default function Home() {
             <span key={`${copy}-${t}`} className="contents"><span className="t">{t}</span><i className="sep" /></span>
           )))}
         </div>
-        <p className="sr-only">Product and AI builder. 15+ years shipping. DECIEM, Loblaw Digital.</p>
+        <p className="sr-only">Sr. Product Manager. DTC products that bridge human and digital moments at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
-          <a href={`mailto:${EMAIL}`} onClick={() => contact('hero', 'email')}>Email</a>
+          {/* Email and phone as icons, in line with LinkedIn and GitHub */}
+          <a className="icon" href={`mailto:${EMAIL}`} aria-label="Email" onClick={() => contact('hero', 'email')}>
+            <Mail aria-hidden="true" />
+          </a>
+          <a className="icon" href={`tel:${PHONE.replace(/-/g, '')}`} aria-label={`Call ${PHONE}`} onClick={() => contact('hero', 'phone')}>
+            <Phone aria-hidden="true" />
+          </a>
           <Socials onClick={ch => contact('hero', ch)} />
-          <span className="label">Product &amp; AI builder</span>
+          <span className="label">Sr. Product Manager</span>
           <button type="button" className="label pause" aria-pressed={paused} onClick={() => setPaused(p => !p)}>
             {paused ? 'Play motion' : 'Pause motion'}
           </button>
@@ -334,8 +402,8 @@ export default function Home() {
           <div className="intro">
             <h2>Ask me anything<br />about Jordanne&apos;s work.</h2>
             <p>
-              I answer from her resume and project notes. Try the digital ecosystem she owned at DECIEM, the production AI she
-              shipped, or why she builds for companies pushing what&apos;s possible.
+              I answer from her resume and project notes. Try how she decided where people guide and where technology does at
+              DECIEM, the AI she shipped to production, or Regimen Builder.
             </p>
           </div>
         )}
@@ -347,18 +415,24 @@ export default function Home() {
             // An answer that has not started, or failed before any text.
             if (message.role !== 'user' && !text) return null;
             const sources = message.role === 'user' ? null : sourcesOf(message);
-            const titleOf = new Map(sources?.sources.map(s => [s.n, s.title]));
+            const titleOf = new Map(sources?.sources.map(s => [s.n, sourceLabel(s)]));
             const sourceId = (n: number) => `${message.id}-source-${n}`;
-            return (
-              <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
-                <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
-                {message.role === 'user' ? (
-                  text
-                ) : (
-                  <div
-                    className="ai-message"
-                    onCopy={() => track({ name: 'answer_copied', props: {} })}
-                  >
+            // The timeline takes the project card's place (decided 2026-11-04),
+            // inside the answer where it marks the spot, otherwise after it.
+            const timeline = message.role === 'user' ? null : timelineOf(message);
+            const showTimeline = !!timeline && (timeline.explicit || timelineMsg === message.id);
+            const timelineEl = timeline && showTimeline
+              ? <Timeline
+                  explicit={timeline.explicit}
+                  paused={paused}
+                  // Still streaming: the text arriving above it would push
+                  // a clip that had started out of view.
+                  ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                  onOpenProject={(p, el) => showProject(p, el, 'timeline')}
+                />
+              : null;
+            const [before, after] = splitAtTimeline(sources ? placeMarkers(text, sources.segments).text : text);
+            const markdown = (body: string) => (
                     <ReactMarkdown
                       // Model output never loads images: an image URL is
                       // the markdown exfiltration path.
@@ -398,14 +472,32 @@ export default function Home() {
                         ),
                       }}
                     >
-                      {sources ? placeMarkers(text, sources.segments).text : text}
+                      {body}
                     </ReactMarkdown>
+            );
+            return (
+              <div key={message.id} className={`msg ${message.role === 'user' ? 'user' : 'ai'}`}>
+                <span className="label">{message.role === 'user' ? 'You' : 'jordbot'}</span>
+                {message.role === 'user' ? (
+                  text
+                ) : (
+                  <div
+                    className="ai-message"
+                    onCopy={() => track({ name: 'answer_copied', props: {} })}
+                  >
+                    {markdown(before)}
+                    {after !== null && (
+                      <>
+                        {timelineEl}
+                        {markdown(after)}
+                      </>
+                    )}
                     {sources && sources.sources.length > 0 && (
                       <div className="sources">
                         <span className="label">Sources</span>
                         <ol>
                           {sources.sources.map(s => (
-                            <li key={s.n} id={sourceId(s.n)} value={s.n}>{s.title}</li>
+                            <li key={s.n} id={sourceId(s.n)} value={s.n}>{sourceLabel(s)}</li>
                           ))}
                         </ol>
                       </div>
@@ -413,6 +505,11 @@ export default function Home() {
                     {(() => {
                       const rowId = rowIdOf(message);
                       return rowId ? <Feedback rowId={rowId} /> : null;
+                    })()}
+                    {(() => {
+                      if (showTimeline) return after === null ? timelineEl : null;
+                      const project = projectOf(message);
+                      return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
                     })()}
                   </div>
                 )}
@@ -466,7 +563,7 @@ export default function Home() {
               if (isLoading || !input.trim()) return;
               track({ name: 'message_sent', props: { source: 'typed' } });
               sentAt.current = now();
-              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId() } });
+              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId(), timelineShown: !!timelineMsg } });
               setInput('');
             }}
             aria-label="Chat with AI assistant"
@@ -495,10 +592,13 @@ export default function Home() {
         <div className="big"><a href={`mailto:${EMAIL}`} onClick={emailAndCopy}>Talk to the human →</a></div>
         <p className="copied label" aria-live="polite">{copied ? `Address copied: ${EMAIL}` : ''}</p>
         <div className="rule" />
+        {/* Contact links stay on one line on phones; the page link goes under them */}
         <nav className="frow" aria-label="Contact links">
-          <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
-          <a href="tel:6474542244" onClick={() => contact('footer', 'phone')}>647-454-2244</a>
-          <Socials onClick={ch => contact('footer', ch)} />
+          <span className="fcontact">
+            <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
+            <a href={`tel:${PHONE.replace(/-/g, '')}`} onClick={() => contact('footer', 'phone')}>{PHONE}</a>
+            <Socials onClick={ch => contact('footer', ch)} />
+          </span>
           <Link href="/about">About</Link>
         </nav>
         <div className="frow small label">
@@ -506,6 +606,7 @@ export default function Home() {
         </div>
       </footer>
 
+      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject} />
       <FilmEffects paused={paused} />
     </div>
   );

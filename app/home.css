@@ -146,6 +146,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home footer .rule { height: 1px; background: currentColor; opacity: .55; margin: 5vh 0 12px; }
 .home footer .frow { display: flex; flex-wrap: wrap; gap: 10px 48px; font-size: 15px; }
 .home footer .frow.small { margin-top: 18px; justify-content: space-between; }
+/* The contact links: part of the row on desktop, their own line on phones */
+.home footer .fcontact { display: contents; }
 
 /* Halation: red/cyan fringe and glow of 80s video on the big type */
 .home .name, .home .row .t, .home footer .big {
@@ -167,8 +169,197 @@ html:has(.home) { scroll-behavior: smooth; }
 /* Dust and scratches: drawn on a canvas a few frames a second */
 .home .dust { inset: 0; z-index: 16; width: 100%; height: 100%; }
 
+/* Project card under an answer, and the panel it opens (v11 mockup) */
+/* 460px: the card art is drawn for this width (nimbalyst-local/card-art) */
+.home .project-card { display: block; width: min(460px, 100%); margin-top: 18px; text-align: left; color: var(--text); cursor: pointer; }
+.home .card-img { display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--fill); border-radius: 10px; }
+.home .card-img img, .home .card-img video { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease;
+  filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+.home .project-card:hover .card-img img, .home .project-card:hover .card-img video { transform: scale(1.04); }
+.home .project-card:focus-visible { outline: 2px solid var(--d1); outline-offset: 4px; border-radius: 4px; }
+.home .rows { display: block; margin-top: 8px; }
+.home .rows > * { padding: 7px 0; border-bottom: 1px solid var(--rule); display: flex; gap: 8px; align-items: center; }
+.home .rows > :first-child { color: var(--text); font-weight: 500; }
+.home .rows > :last-child { border-bottom: 0; color: var(--soft); }
+.home .rows i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+.home .project-card:hover .rows > :first-child { color: var(--d1); }
+
+/* A modal <dialog>: sits in the top layer, above the film effects */
+.home .project { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(620px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh;
+  padding: 0; border: 0; background: var(--fill); color: var(--text); }
+.home .project::backdrop { background: rgba(0, 0, 0, .55); }
+.home .project[open] { animation: project-in .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes project-in { from { transform: translateX(102%); } }
+.home .project-inner { display: flex; flex-direction: column; height: 100%; }
+.home .project-top { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; }
+.home .project-top button { color: var(--text); cursor: pointer; padding: 10px 0; }
+.home .project-body { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
+.home .gallery { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; height: 340px; overflow: hidden; border-radius: 10px; }
+/* One image: its own 4:3 shape, so drawn card art is not cropped */
+.home .gallery[data-count="1"] { grid-template-columns: 1fr; grid-template-rows: 1fr; height: auto; aspect-ratio: 4 / 3; }
+/* Two: a 4:3 first image (the card's) and a narrow second */
+.home .gallery[data-count="2"] { grid-template-columns: 3fr 1fr; grid-template-rows: 1fr; }
+.home .gallery img, .home .gallery video { width: 100%; height: 100%; min-height: 0; object-fit: cover; filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+.home .gallery video { object-fit: contain; background: var(--fill); }
+.home .gallery[data-count="3"] > :first-child { grid-row: span 2; }
+/* Two or three: the gallery's shape keeps the first image (4:3 card art) whole,
+   so a title drawn near its edge (the AI resume's "One question") isn't cut. */
+.home .gallery[data-count="2"] { height: auto; aspect-ratio: 16 / 9; }
+.home .gallery[data-count="3"] { height: auto; aspect-ratio: 2 / 1; }
+.home .project h3 { font-weight: 500; font-size: 30px; letter-spacing: -0.025em; line-height: 1.15; margin: 22px 0 6px; }
+.home .project .rows { margin-top: 14px; }
+.home .sec { margin-top: 26px; display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
+.home .sec .label { color: var(--soft); padding-top: 4px; }
+.home .sec p, .home .sec li { font-size: 16px; line-height: 1.65; }
+.home .sec ul { padding-left: 18px; list-style: disc; }
+.home .sec ul.links { padding-left: 0; list-style: none; }
+.home .sec .links a, .home .sec .links button { color: var(--text); text-decoration: underline; text-underline-offset: 3px;  font: inherit; text-align: left; cursor: pointer; }
+.home .project-foot { padding: 16px 24px 20px; background: var(--input); }
+.home .project-foot .label { color: var(--soft); margin-bottom: 10px; display: block; }
+.home .project-foot .chips { margin: 0; }
+
+/* Career timeline under an answer: a short vertical clip. Years run down the
+   frame; JS moves the playhead and camera, CSS only fades the labels. */
+.home .timeline { margin: 22px 0 4px; }
+/* Desktop: the frame on the left of the answer column, captions beside it */
+.home .tl-body { position: relative; }
+@media (min-width: 761px) {
+  .home .tl-body { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 32px; }
+}
+.home .tl-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; color: var(--soft); }
+.home .tl-year { font-family: var(--serif); font-size: 26px; color: var(--text); font-variant-numeric: tabular-nums; }
+/* No card: the frame sits on the page like the answer's text. Its top and
+   bottom fade out instead of ending at a box edge. Height set in Timeline.tsx
+   to fit between the page bar and the question box. */
+.home .tl-stage { position: relative; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+/* Film look, as on the rest of the page: the home grain inside the frame, and a
+   faint flicker on the year counter. Both stop with pause or reduced motion. */
+.home .tl-year { animation: tl-flicker 2.4s steps(1) infinite; }
+@keyframes tl-flicker { 0%, 100% { opacity: 1; } 31% { opacity: .82; } 33% { opacity: 1; } 71% { opacity: .9; } 72% { opacity: 1; } }
+.home[data-paused] .tl-year { animation: none; }
+.home .tl-tick { position: absolute; left: 0; transform: translateY(-50%); font-size: 11px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.home .tl-axis { position: absolute; left: 44px; top: 0; bottom: 0; border-left: 1px solid var(--rule); }
+.home .tl-band { position: absolute; left: 50px; width: 10px; border-radius: 3px; transition: opacity .3s; }
+/* Education: the narrow lane beside the work blocks */
+.home .tl-band[data-kind="edu"] { left: 64px; width: 5px; opacity: .75; }
+.home .tl-band[data-dim] { opacity: .25; }
+/* Moment dots: a role change is solid, a project ringed */
+.home .tl-dot { position: absolute; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; box-sizing: border-box;
+  opacity: 0; transition: opacity .3s; }
+.home .tl-dot[data-kind="role"] { background: var(--text); border: 2px solid var(--bg); }
+.home .tl-dot[data-kind="project"] { background: var(--bg); border: 2px solid var(--text); }
+.home .tl-dot[data-on] { opacity: 1; }
+.home .tl-dot[data-on][data-dim] { opacity: .25; }
+/* One line of text, placed by the layout pass in Timeline.tsx. Its dot sits in
+   its lane; the text starts after the lanes. */
+.home .tl-item { position: absolute; left: 0; right: 8px; display: block; padding: 0; border: 0; background: none; color: var(--text);
+  text-align: left; font: inherit; line-height: 1.2; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.home .tl-item .tl-dot { top: 50%; }
+.home .tl-txt { display: block; margin-left: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .tl-item[data-kind="name"] strong { display: block; font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.home .tl-item[data-edu] strong { font-weight: 400; color: var(--soft); }
+.home .tl-item[data-kind="role"] { font-size: 12px; color: var(--soft); min-height: 20px; display: flex; align-items: center; }
+.home .tl-item[data-kind="project"] { font-size: 12px; min-height: 24px; display: flex; align-items: center; }
+.home .tl-item[data-kind] .tl-txt { flex: 1; min-width: 0; }
+.home .tl-item[data-on] { opacity: 1; }
+.home .tl-item[data-on][data-dim] { opacity: .25; }
+/* After the clip: names zoom in, projects open their panel */
+.home button.tl-item { pointer-events: auto; cursor: pointer; border-radius: 4px; min-height: 24px; }
+.home button.tl-item[data-kind="name"] { cursor: zoom-in; }
+/* What can be tapped is a row, so it reads apart from the text around it (ask 3,
+   option C1, 2026-11-04). The row is the text part only, after the lanes, so it
+   never covers the bands. Rounded rectangles, not the pills of the suggested
+   questions, so the two aren't mistaken for each other. Quiet like the rest of
+   the page: the orange tint was too loud and didn't match DECIEM's cream band,
+   so the dot takes its band's colour instead (--tone, Jordanne, 2026-11-04).
+   Heights match the layout pass in Timeline.tsx. */
+.home .tl-item .tl-txt > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.home button.tl-item[data-kind="name"] .tl-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center;
+  padding: 5px 12px; border: 1px solid var(--rule); border-radius: 12px; transition: background .2s, border-color .2s; }
+.home button.tl-item[data-kind="name"] .tl-txt::after { content: "Zoom ⊕"; grid-column: 2; color: var(--soft);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.home button.tl-item[data-back] .tl-txt::after { content: "Zoom out ⊖"; }
+.home button.tl-item[data-kind="project"] .tl-txt { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 4px 12px; box-sizing: border-box;
+  white-space: normal; font-size: 13px; border: 1px solid rgba(236, 227, 211, .16); border-radius: 12px; background: var(--fill); transition: background .2s, border-color .2s; }
+.home button.tl-item[data-kind="project"] .tl-txt > span { white-space: normal; }
+.home button.tl-item[data-kind="project"] .tl-txt::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tone); flex: none; }
+.home button.tl-item[data-kind="project"] .tl-txt::after { content: "›"; margin-left: auto; color: var(--soft); font-size: 18px; line-height: 1; }
+.home button.tl-item[data-kind]:hover .tl-txt { background: #312c28; border-color: var(--rule); }
+/* Role titles, which aren't buttons, become dividers between the rows */
+.home .tl-stage[data-done] .tl-item[data-kind="role"] .tl-txt { display: flex; align-items: center; gap: 10px; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .08em; }
+.home .tl-stage[data-done] .tl-item[data-kind="role"] .tl-txt::after { content: ""; flex: 1 0 12px; border-top: 1px solid var(--rule); }
+.home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
+/* Zoomed in: "Full career" leads the header row, beside the name */
+/* One line in every view, so the frame below never moves */
+.home .tl-top { flex-wrap: nowrap; align-items: center; gap: 12px; min-height: 46px; position: sticky; z-index: 4; background: var(--bg); }
+.home .tl-where { display: flex; align-items: baseline; gap: 12px; flex: 1; min-width: 0; }
+.home .tl-where > span.label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .tl-year, .home .tl-back { flex-shrink: 0; white-space: nowrap; }
+/* Filled, so the way back reads as a button on phones */
+.home .tl-back { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 1px solid var(--text); border-radius: 999px;
+  background: var(--text); color: var(--bg); cursor: pointer; font-variation-settings: "wght" 600, "ital" 0; }
+.home .tl-back:hover { background: var(--band); border-color: var(--band); }
+@media (pointer: coarse) { .home .tl-back { min-height: 44px; } }
+/* Zoomed in, an empty part of the frame or the name zooms back out */
+.home .tl-stage[data-away] { cursor: zoom-out; }
+.home button.tl-item[data-back] { cursor: zoom-out; }
+/* The line under the timeline, styled like the answer's Sources line */
+.home .tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; margin-top: 14px; padding-top: 8px;
+  border-top: 1px solid var(--rule); color: var(--soft); }
+.home .tl-meta button, .home .tl-meta summary { color: var(--soft); cursor: pointer; padding: 8px 0; min-height: 24px; }
+.home .tl-meta button:hover, .home .tl-meta summary:hover { color: var(--text); }
+.home .tl-meta details { order: 3; }
+.home .tl-meta details[open] { flex-basis: 100%; }
+.home .tl-hint { color: var(--soft); }
+.home .tl-meta button.tl-out { color: var(--d1); }
+/* Pause and Skip to end while the clip plays */
+.home .tl-controls { display: flex; gap: 20px; }
+.home .tl-controls button:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
+.home .tl-playhead { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--d1); }
+/* Captions: beside the frame on desktop, over its top on phones (the moment
+   sits lower in the frame, see MOMENTS). All are drawn; one is visible. */
+.home .tl-captions { position: absolute; top: 48px; left: 0; right: 0; z-index: 3; pointer-events: none; }
+.home .tl-caption { position: absolute; top: 0; left: 0; right: 0; display: grid; gap: 3px;
+  padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--rule); }
+@media (min-width: 761px) {
+  .home .tl-captions { position: relative; top: auto; align-self: stretch; margin-top: 48px; }
+  .home .tl-caption { padding: 0 0 0 16px; border: 0; border-left: 2px solid var(--d1); border-radius: 0; background: none; }
+}
+/* The highlight's image or clip: a fixed-height crop above the text, never over it.
+   Centred, like the project cards: the top of a screen recording is browser chrome. */
+.home .tl-media { display: block; height: 110px; overflow: hidden; border-radius: 6px; margin-bottom: 10px; background: var(--fill); }
+.home .tl-media img, .home .tl-media video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center;
+  filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
+@media (min-width: 761px) { .home .tl-caption .tl-media { height: 170px; } }
+/* A still (the growth chart) is drawn 4:3 with text near its edges: shown whole
+   at the same height instead of cropped. Clips keep the centred crop. */
+.home .tl-media[data-still] { height: auto; aspect-ratio: 4 / 3; width: min(100%, 147px); }
+@media (min-width: 761px) { .home .tl-caption .tl-media[data-still] { height: auto; width: min(100%, 227px); } }
+.home .tl-caption .label { color: var(--d1); }
+.home .tl-caption strong { font-weight: 500; font-size: 17px; }
+.home .tl-caption span:last-child { font-size: 14px; color: var(--soft); line-height: 1.4; }
+.home .tl-replay { white-space: nowrap; }
+.home .tl-edu-head { display: block; color: var(--soft); margin-top: 18px; }
+.home .tl-list > li { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.home .tl-list > li:last-child { border-bottom: 0; }
+.home .tl-org { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; }
+.home .tl-org strong { font-weight: 500; font-size: 16px; }
+.home .tl-org span { color: var(--soft); font-size: 13px; }
+.home .tl-list ol li { display: grid; gap: 2px; margin-top: 8px; font-size: 14px; }
+.home .tl-list ol .label { color: var(--soft); }
+.home .tl-list .chips { margin: 6px 0 0; gap: 8px; }
+.home .tl-list .chips button { font-size: 13px; gap: 7px; padding: 4px 12px 4px 10px; box-shadow: none; }
+.home .tl-list .chips button::before { width: 6px; height: 6px; }
+/* Smaller buttons for a mouse; touch keeps the 44px target */
+@media (pointer: fine) { .home .tl-list .chips button { min-height: 30px; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .home .row, .home .grain { animation: none; }
+  .home .project[open] { animation: none !important; }
+  .home .card-img img, .home .card-img video { transition: none; }
+  .home .row, .home .grain, .home .tl-year { animation: none; }
   .home .name .ch { animation: none; transform: none; }
   .home .name-photo img { transform: none !important; }
   .home .bar { transition: none; }
@@ -188,5 +379,17 @@ html:has(.home) { scroll-behavior: smooth; }
   .home .cat-stack { width: 160px; height: 200px; }
   .home .chips button { font-size: 14px; }
   .home .composer form button { padding: 0 18px; }
-  .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 10px 24px; }
+  .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 0 24px; }
+  .home footer .fcontact { display: flex; flex-wrap: wrap; flex-basis: 100%; align-items: center; gap: 0 16px; white-space: nowrap; font-size: 14px; }
+  /* The panel becomes a bottom sheet (mobile-ui-refresh mockup) */
+  .home .project { inset: auto 0 0 0; width: 100%; height: 90dvh; border-radius: 16px 16px 0 0; }
+  .home .project[open] { animation-name: project-up; }
+  .home .project-top { padding: 12px 16px; } .home .project-body { padding: 0 16px 20px; } .home .project-foot { padding: 14px 16px 18px; }
+  .home .gallery { height: 240px; }
+  .home .gallery[data-count="1"] { height: auto; }
+  .home .sec { grid-template-columns: 1fr; gap: 4px; }
+  /* The timeline's header row scrolls with the frame: stuck, it hid the frame's
+     top as the frame slid under it. "Full career" under the frame is the way back. */
+  .home .tl-top { position: static; }
 }
+@keyframes project-up { from { transform: translateY(102%); } }

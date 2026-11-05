@@ -161,3 +161,40 @@ test('the text page.tsx sends back is the text route.ts signed', async () => {
   assert.equal(r.unsigned, 0);
   assert.deepEqual(r.messages.map((m) => m.role), ['user', 'assistant', 'user']);
 });
+
+// Merge with master, 2026-11-05: answers can carry the {{timeline}}
+// placeholder, which page.tsx keeps in the text it sends back. route.ts must
+// sign that text, not the copy withoutTimelineMarker makes for the log, or
+// every answer with a timeline is dropped from the next turn.
+const { FIXED_LEAD, TIMELINE_REPLAY, TIMELINE_MARKER, withoutTimelineMarker } = await import('../lib/timeline.ts');
+
+test('a fixed lead or replay with the timeline placeholder is kept on the next turn', async () => {
+  for (const [name, answer] of Object.entries({ FIXED_LEAD, TIMELINE_REPLAY })) {
+    assert.ok(answer.includes(TIMELINE_MARKER), `${name} has the placeholder`);
+    // As route.ts's timelineLead branch: the text as one delta, then the signature.
+    const stream = createUIMessageStream({
+      execute: ({ writer }) => {
+        writer.write({ type: 'start' });
+        writer.write({ type: 'text-start', id: 'lead' });
+        writer.write({ type: 'text-delta', id: 'lead', delta: answer });
+        writer.write({ type: 'text-end', id: 'lead' });
+        writer.write({ type: 'data-turn-sig', data: { sig: signTurn(SID, answer) } });
+        writer.write({ type: 'finish' });
+      },
+    });
+    let message = null;
+    for await (const m of readUIMessageStream({ stream })) message = m;
+    const content = message.parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+    const sig = message.parts.find((p) => p.type === 'data-turn-sig')?.data.sig;
+    console.log(name, 'received:', JSON.stringify(content.slice(0, 80)));
+    assert.equal(content, answer, name);
+    const input = parseChatInput({ messages: [Q1, { role: 'assistant', content, sig }, Q2] });
+    const r = keepSignedTurns(input.messages, SID);
+    assert.equal(r.unsigned, 0, name);
+
+    // The bug this guards: signing the logged copy, placeholder removed.
+    const wrong = signTurn(SID, withoutTimelineMarker(answer));
+    const w = keepSignedTurns([Q1, { role: 'assistant', content, sig: wrong }, Q2], SID);
+    assert.equal(w.unsigned, 1, `${name}: the stripped copy must not verify`);
+  }
+});
