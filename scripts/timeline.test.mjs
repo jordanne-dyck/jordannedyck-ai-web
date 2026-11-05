@@ -2,10 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { asksForOverview, asksForTimeline, leadsWithCareer } from '../lib/timeline.ts';
+import { SUGGESTED_QUESTIONS } from '../lib/suggested-questions.ts';
 
-test('the first suggested question names the timeline', () => {
-  assert.equal(asksForTimeline("Walk me through Jordanne's career timeline"), true);
-  assert.equal(asksForOverview("Walk me through Jordanne's career timeline"), true);
+test('the first suggested question gets the timeline', () => {
+  assert.equal(asksForOverview(SUGGESTED_QUESTIONS[0]), true);
+  assert.equal(asksForTimeline('Show the timeline again'), true);
 });
 
 test('overview questions without the word timeline', () => {

@@ -243,8 +243,9 @@ function Group({
 // is on screen; with paused or reduced motion it shows the end straight away.
 //
 // Afterwards a name can be tapped to zoom into that job or school. Zoomed in,
-// its projects are buttons that open their panel, and the wheel moves along
-// the years at the same zoom. "Full career" in the header, the name again, an
+// its projects are buttons that open their panel, and the wheel (or a drag on
+// a phone) moves along the years at the same zoom. A name with zoom: false
+// (University of Toronto) is plain text. "Full career" in the header, the name again, an
 // empty part of the frame or Esc zooms back out (decided 2026-11-04).
 // Personal projects open from any view.
 export function Timeline({
@@ -378,16 +379,37 @@ export function Timeline({
     moveTo(FULL);
   };
 
-  // The wheel, zoomed in: moves the view along the years. At either end of
-  // her career, or in the full view, the page scrolls as usual. A native
-  // listener, as React's wheel events can't stop the page scrolling.
-  const onWheel = useRef<(ev: WheelEvent) => void>(() => {});
+  // The wheel, or a drag on a phone, zoomed in: moves the view along the
+  // years. At either end of her career, or in the full view, the page scrolls
+  // as usual. Native listeners, as React's can't stop the page scrolling.
+  const pan = useRef<(dy: number) => boolean>(() => false);
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
-    const handler = (ev: WheelEvent) => onWheel.current(ev);
-    el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
+    const onWheel = (ev: WheelEvent) => {
+      const h = el.clientHeight;
+      const dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaMode === 2 ? ev.deltaY * h : ev.deltaY;
+      if (pan.current(dy)) ev.preventDefault();
+    };
+    let lastY: number | null = null;
+    const onTouchStart = (ev: TouchEvent) => {
+      lastY = ev.touches.length === 1 ? ev.touches[0].clientY : null;
+    };
+    // The finger moving up shows later years, as a page scrolls.
+    const onTouchMove = (ev: TouchEvent) => {
+      if (lastY === null || ev.touches.length !== 1) return;
+      const y = ev.touches[0].clientY;
+      if (pan.current(lastY - y)) ev.preventDefault();
+      lastY = y;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
   }, []);
   const replay = () => {
     camRef.current = FULL;
@@ -440,20 +462,22 @@ export function Timeline({
         : `${firstYear} – today`;
 
   useEffect(() => {
-    onWheel.current = (ev) => {
+    // Moves the view by `dy` pixels; false when it can't move (the page
+    // scrolls instead).
+    pan.current = (dy) => {
       const [from, to] = camRef.current;
-      if (!away) return;
+      if (!away) return false;
       const span = to - from;
-      const dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaMode === 2 ? ev.deltaY * height : ev.deltaY;
       const next = Math.min(Math.max(from + (dy / height) * span, Math.min(FULL[0], from)), Math.max(FULL[1], to) - span);
-      if (next === from) return;
-      ev.preventDefault();
+      if (next === from) return false;
       cancelAnimationFrame(raf.current);
       const c: [number, number] = [next, next + span];
       camRef.current = c;
       setCam(c);
-      // Moved off the job zoomed into: the others are no longer dimmed.
-      if (focus && (endOf(focus.e) < c[0] || startOf(focus.e) > c[1])) setFocus(null);
+      // Moving along leaves the job zoomed into: nothing is dimmed, every
+      // project in view opens, and the header shows the years in view.
+      if (focus) setFocus(null);
+      return true;
     };
   });
 
@@ -505,7 +529,8 @@ export function Timeline({
     >
       <div className="tl-body">
       <div className="tl-main">
-      <div className="tl-top">
+      {/* Sticks just under the page's fixed bar, so the way back stays in view */}
+      <div className="tl-top" style={{ top: fit.bar }}>
         <span className="tl-where">
           {away && (
             <button type="button" ref={back} className="label tl-back" onClick={zoomOut}>
@@ -588,7 +613,7 @@ export function Timeline({
             'data-dim': dimmed(it.entry),
             style: { top: it.top },
           };
-          if (done && it.kind === 'name' && it.entry !== focus) {
+          if (done && it.kind === 'name' && it.entry !== focus && it.entry!.e.zoom !== false) {
             return (
               <button
                 key={it.key}
@@ -664,10 +689,17 @@ export function Timeline({
           </button>
         </div>
       )}
+      {/* A second way back under the frame, near the thumb: on a phone the
+          header row can sit under the page's fixed bar. */}
+      {away && (
+        <button type="button" className="label tl-out" onClick={zoomOut}>
+          ← Full career
+        </button>
+      )}
       {done && (
         <span className="label tl-hint">
-          {focus ? 'Tap a project to open it' : 'Tap a name to zoom in'}
-          {away && wheel && ' · scroll to move along'}
+          {away ? 'Tap a project to open it' : 'Tap a name to zoom in'}
+          {away && (wheel ? ' · scroll to move along' : ' · drag to move along')}
         </span>
       )}
         {done && !stillWanted(paused) && (

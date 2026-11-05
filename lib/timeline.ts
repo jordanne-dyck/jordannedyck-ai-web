@@ -21,17 +21,14 @@ export type Employer = {
   org: string;
   line?: string;
   roles: Role[];
+  // false: the name can't be tapped to zoom in, like a role title.
+  zoom?: false;
 };
 
 // Newest first, as the card lists them. Roles newest first within an employer.
-// Warai Neko is on the timeline as well as having a project card (decided
-// 2026-11-04, reversing the same day's formal-roles-only).
+// Warai Neko is a personal project marker for now, not a section (Jordanne,
+// 2026-11-04, reversing the same day's employer entry).
 export const CAREER: Employer[] = [
-  {
-    org: 'Warai Neko',
-    line: 'Her independent practice: digital strategy for small businesses',
-    roles: [{ title: 'Digital Strategist', start: '2026-06', end: null, projects: ['warai-neko'] }],
-  },
   {
     org: 'DECIEM',
     line: 'Annual DTC revenue from near-zero to $150M+',
@@ -92,6 +89,8 @@ export const EDUCATION: Employer[] = [
   },
   {
     org: 'University of Toronto',
+    // A certificate course: not worth zooming into (Jordanne, 2026-11-04).
+    zoom: false,
     roles: [{ title: 'Certificate in Digital Marketing', start: '2015', end: '2016-02' }],
   },
   {
@@ -107,7 +106,10 @@ export const EDUCATION: Employer[] = [
 // Personal projects, not done for any employer: on the timeline by themselves
 // (decided 2026-11-04). `start` is a year where the month is not known; the AI
 // resume's month is Jordanne's.
-export const SIDE_PROJECTS: { slug: string; start: string }[] = [{ slug: 'ai-resume', start: '2025-10' }];
+export const SIDE_PROJECTS: { slug: string; start: string }[] = [
+  { slug: 'ai-resume', start: '2025-10' },
+  { slug: 'warai-neko', start: '2026-06' },
+];
 
 // The moments the animation stops at, oldest first (chosen 2026-11-04). Each
 // title names the project or theme, never the employer: the timeline already

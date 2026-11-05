@@ -122,14 +122,16 @@ export default function AboutPage() {
         <div className="big"><a href={`mailto:${EMAIL}`}>Talk to the human →</a></div>
         <div className="rule" />
         <nav className="frow" aria-label="Contact links">
-          <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
-          <a href="tel:6474542244">647-454-2244</a>
-          <a className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-            <Linkedin aria-hidden="true" />
-          </a>
-          <a className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-            <Github aria-hidden="true" />
-          </a>
+          <span className="fcontact">
+            <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+            <a href="tel:6474542244">647-454-2244</a>
+            <a className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+              <Linkedin aria-hidden="true" />
+            </a>
+            <a className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <Github aria-hidden="true" />
+            </a>
+          </span>
           <Link href="/">Home</Link>
         </nav>
         <div className="frow small label">

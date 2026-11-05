@@ -118,7 +118,7 @@ export const PROJECTS: Project[] = [
       'Automation for repetitive CX work balancing human and digital moments at scale.',
     results: ['86% faster resolution time', 'Fewer seasonal hires needed at peak'],
     questions: ['How did she decide what to automate?', 'How was quality measured?'],
-    images: ['/projects/ai-customer-service-optimization/service-replies.webp'],
+    images: ['/projects/ai-customer-service-optimization/service-replies-card.webp'],
   },
   {
     slug: 'brand-incubator-ecosystem',
@@ -170,7 +170,7 @@ export const PROJECTS: Project[] = [
       'Found the gap: mobile was 76% of users but 67% of revenue',
     ],
     questions: ['Why build on the existing stack?', 'How did she segment for retention?'],
-    images: ['/projects/regimen-builder/results-account.webp', '/projects/personalization-roadmap-and-measurement/regimen-email.webp', '/projects/personalization-roadmap-and-measurement/loyalty-account.webp'],
+    images: ['/projects/personalization-roadmap-and-measurement/results-card.webp', '/projects/personalization-roadmap-and-measurement/regimen-email.webp', '/projects/personalization-roadmap-and-measurement/loyalty-account.webp'],
   },
   {
     // From experience/growth-and-acquisition.md, not projects/: shown for chunk
@@ -211,7 +211,7 @@ export const PROJECTS: Project[] = [
       '100+ new features launched',
     ],
     questions: ['Why buy instead of build?', 'How was the migration run?'],
-    images: ['/projects/digital-transformation-salesforce/pdp.webp', '/projects/digital-transformation-salesforce/plp.webp', '/projects/digital-transformation-salesforce/homepage.webp'],
+    images: ['/projects/digital-transformation-salesforce/pdp-card.webp', '/projects/digital-transformation-salesforce/plp.webp', '/projects/digital-transformation-salesforce/homepage.webp'],
     links: [
       { label: 'The Ordinary', href: 'https://theordinary.com' },
       { label: 'NIOD', href: 'https://niod.com' },
@@ -254,7 +254,7 @@ export const PROJECTS: Project[] = [
       'A full integration, not a catalogue upload: real-time inventory, order routing, and price and promotion sync. She worked with Salesforce and TikTok to get their beta integration ready for production.',
     results: ['First fully integrated brand on TikTok Shop, live in 6 months', '$30M+ annual revenue channel'],
     questions: ['What made the integration hard?', 'Who were the new customers?'],
-    images: ['/projects/tiktok-shop-integration/shop.webp'],
+    images: ['/projects/tiktok-shop-integration/shop-card.webp', '/projects/tiktok-shop-integration/shop.webp'],
     links: [
       { label: 'The Ordinary on TikTok Shop', href: 'https://shop.tiktok.com/us/k/the-ordinary-official' },
     ],

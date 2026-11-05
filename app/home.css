@@ -146,6 +146,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home footer .rule { height: 1px; background: currentColor; opacity: .55; margin: 5vh 0 12px; }
 .home footer .frow { display: flex; flex-wrap: wrap; gap: 10px 48px; font-size: 15px; }
 .home footer .frow.small { margin-top: 18px; justify-content: space-between; }
+/* The contact links: part of the row on desktop, their own line on phones */
+.home footer .fcontact { display: contents; }
 
 /* Halation: red/cyan fringe and glow of 80s video on the big type */
 .home .name, .home .row .t, .home footer .big {
@@ -168,7 +170,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .dust { inset: 0; z-index: 16; width: 100%; height: 100%; }
 
 /* Project card under an answer, and the panel it opens (v11 mockup) */
-.home .project-card { display: block; width: min(380px, 100%); margin-top: 18px; text-align: left; color: var(--text); cursor: pointer; }
+/* 460px: the card art is drawn for this width (nimbalyst-local/card-art) */
+.home .project-card { display: block; width: min(460px, 100%); margin-top: 18px; text-align: left; color: var(--text); cursor: pointer; }
 .home .card-img { display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--fill); border-radius: 10px; }
 .home .card-img img, .home .card-img video { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease;
   filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
@@ -192,10 +195,13 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .project-top button { color: var(--text); cursor: pointer; padding: 10px 0; }
 .home .project-body { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
 .home .gallery { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; height: 340px; overflow: hidden; border-radius: 10px; }
-.home .gallery[data-count="1"] { grid-template-columns: 1fr; }
+/* One image: its own 4:3 shape, so drawn card art is not cropped */
+.home .gallery[data-count="1"] { grid-template-columns: 1fr; grid-template-rows: 1fr; height: auto; aspect-ratio: 4 / 3; }
+/* Two: a 4:3 first image (the card's) and a narrow second */
+.home .gallery[data-count="2"] { grid-template-columns: 3fr 1fr; grid-template-rows: 1fr; }
 .home .gallery img, .home .gallery video { width: 100%; height: 100%; min-height: 0; object-fit: cover; filter: sepia(.28) saturate(.78) contrast(1.06) brightness(.96); }
 .home .gallery video { object-fit: contain; background: var(--fill); }
-.home .gallery > :first-child { grid-row: span 2; }
+.home .gallery[data-count="3"] > :first-child { grid-row: span 2; }
 .home .project h3 { font-weight: 500; font-size: 30px; letter-spacing: -0.025em; line-height: 1.15; margin: 22px 0 6px; }
 .home .project .rows { margin-top: 14px; }
 .home .sec { margin-top: 26px; display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
@@ -259,19 +265,24 @@ html:has(.home) { scroll-behavior: smooth; }
 /* After the clip: names zoom in, projects open their panel */
 .home button.tl-item { pointer-events: auto; cursor: pointer; border-radius: 4px; min-height: 24px; }
 .home button.tl-item[data-kind="name"] { cursor: zoom-in; }
-.home button.tl-item:hover { background: rgba(236, 227, 211, .06); }
+/* Hover underlines the name only. A box behind the whole line overlapped the
+   lanes and took in the first role title, which isn't a button. */
+.home button.tl-item[data-kind="name"] strong { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .2s; }
+.home button.tl-item[data-kind="name"]:hover strong { text-decoration-color: currentColor; }
 .home button.tl-item[data-kind="project"] .tl-txt { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
 .home button.tl-item[data-kind="project"]:hover .tl-txt { text-decoration-color: currentColor; }
 .home button.tl-item:focus-visible, .home .tl-back:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 /* Zoomed in: "Full career" leads the header row, beside the name */
 /* One line in every view, so the frame below never moves */
-.home .tl-top { flex-wrap: nowrap; gap: 12px; min-height: 43px; }
+.home .tl-top { flex-wrap: nowrap; align-items: center; gap: 12px; min-height: 46px; position: sticky; z-index: 4; background: var(--bg); }
 .home .tl-where { display: flex; align-items: baseline; gap: 12px; flex: 1; min-width: 0; }
 .home .tl-where > span.label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home .tl-year, .home .tl-back { flex-shrink: 0; white-space: nowrap; }
-.home .tl-back { padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px;
-  background: var(--bg); color: var(--text); cursor: pointer; }
-.home .tl-back:hover { border-color: var(--text); }
+/* Filled, so the way back reads as a button on phones */
+.home .tl-back { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 1px solid var(--text); border-radius: 999px;
+  background: var(--text); color: var(--bg); cursor: pointer; font-variation-settings: "wght" 600, "ital" 0; }
+.home .tl-back:hover { background: var(--band); border-color: var(--band); }
+@media (pointer: coarse) { .home .tl-back { min-height: 44px; } }
 /* Zoomed in, an empty part of the frame or the name zooms back out */
 .home .tl-stage[data-away] { cursor: zoom-out; }
 .home button.tl-item[data-back] { cursor: zoom-out; }
@@ -283,6 +294,7 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .tl-meta details { order: 3; }
 .home .tl-meta details[open] { flex-basis: 100%; }
 .home .tl-hint { color: var(--soft); }
+.home .tl-meta button.tl-out { color: var(--d1); }
 /* Pause and Skip to end while the clip plays */
 .home .tl-controls { display: flex; gap: 20px; }
 .home .tl-controls button:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
@@ -343,12 +355,14 @@ html:has(.home) { scroll-behavior: smooth; }
   .home .cat-stack { width: 160px; height: 200px; }
   .home .chips button { font-size: 14px; }
   .home .composer form button { padding: 0 18px; }
-  .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 10px 24px; }
+  .home footer { padding: 7vh 16px 18px; } .home footer .frow { gap: 0 24px; }
+  .home footer .fcontact { display: flex; flex-wrap: wrap; flex-basis: 100%; align-items: center; gap: 0 16px; white-space: nowrap; font-size: 14px; }
   /* The panel becomes a bottom sheet (mobile-ui-refresh mockup) */
   .home .project { inset: auto 0 0 0; width: 100%; height: 90dvh; border-radius: 16px 16px 0 0; }
   .home .project[open] { animation-name: project-up; }
   .home .project-top { padding: 12px 16px; } .home .project-body { padding: 0 16px 20px; } .home .project-foot { padding: 14px 16px 18px; }
   .home .gallery { height: 240px; }
+  .home .gallery[data-count="1"] { height: auto; }
   .home .sec { grid-template-columns: 1fr; gap: 4px; }
 }
 @keyframes project-up { from { transform: translateY(102%); } }

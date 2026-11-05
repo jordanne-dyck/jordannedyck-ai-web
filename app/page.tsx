@@ -5,7 +5,7 @@ import { APICallError, DefaultChatTransport } from 'ai';
 import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { Github, Linkedin } from 'lucide-react';
+import { Github, Linkedin, Mail, Phone } from 'lucide-react';
 import { SUGGESTED_QUESTIONS } from '@/lib/suggested-questions';
 import { CATS } from '@/lib/cats';
 import { initAnalytics, track, clientId } from '@/lib/analytics';
@@ -82,6 +82,7 @@ const TIMELINE_KEY = 'jb_timeline_shown';
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
 const GITHUB = 'https://github.com/jordanne-dyck';
+const PHONE = '647-454-2244';
 
 // LinkedIn and GitHub as icons. The aria-label is the link's name for screen readers.
 function Socials({ onClick }: { onClick: (channel: 'linkedin' | 'github') => void }) {
@@ -367,7 +368,13 @@ export default function Home() {
         <p className="sr-only">Sr. Product Manager. DTC products that bridge human and digital moments at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
-          <a href={`mailto:${EMAIL}`} onClick={() => contact('hero', 'email')}>Email</a>
+          {/* Email and phone as icons, in line with LinkedIn and GitHub */}
+          <a className="icon" href={`mailto:${EMAIL}`} aria-label="Email" onClick={() => contact('hero', 'email')}>
+            <Mail aria-hidden="true" />
+          </a>
+          <a className="icon" href={`tel:${PHONE.replace(/-/g, '')}`} aria-label={`Call ${PHONE}`} onClick={() => contact('hero', 'phone')}>
+            <Phone aria-hidden="true" />
+          </a>
           <Socials onClick={ch => contact('hero', ch)} />
           <span className="label">Sr. Product Manager</span>
           <button type="button" className="label pause" aria-pressed={paused} onClick={() => setPaused(p => !p)}>
@@ -564,10 +571,13 @@ export default function Home() {
         <div className="big"><a href={`mailto:${EMAIL}`} onClick={emailAndCopy}>Talk to the human →</a></div>
         <p className="copied label" aria-live="polite">{copied ? `Address copied: ${EMAIL}` : ''}</p>
         <div className="rule" />
+        {/* Contact links stay on one line on phones; the page link goes under them */}
         <nav className="frow" aria-label="Contact links">
-          <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
-          <a href="tel:6474542244" onClick={() => contact('footer', 'phone')}>647-454-2244</a>
-          <Socials onClick={ch => contact('footer', ch)} />
+          <span className="fcontact">
+            <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
+            <a href={`tel:${PHONE.replace(/-/g, '')}`} onClick={() => contact('footer', 'phone')}>{PHONE}</a>
+            <Socials onClick={ch => contact('footer', ch)} />
+          </span>
           <Link href="/about">About</Link>
         </nav>
         <div className="frow small label">
