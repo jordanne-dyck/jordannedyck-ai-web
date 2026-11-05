@@ -15,6 +15,9 @@ export type Role = {
   end: string | null;
   // Project slugs from lib/projects.ts, shown as buttons under the role.
   projects?: string[];
+  // The title on the timeline frame, where the full one is cut off. "See
+  // every role" keeps the full title (Jordanne, 2026-11-04).
+  short?: string;
 };
 
 export type Employer = {
@@ -23,6 +26,9 @@ export type Employer = {
   roles: Role[];
   // false: the name can't be tapped to zoom in, like a role title.
   zoom?: false;
+  // Shown with that entry instead of on its own: no button, and zooming into
+  // that entry takes this one in too, undimmed (Jordanne, 2026-11-04).
+  zoomWith?: string;
 };
 
 // Newest first, as the card lists them. Roles newest first within an employer.
@@ -35,6 +41,7 @@ export const CAREER: Employer[] = [
     roles: [
       {
         title: 'Director, Digital Product Management – Global',
+        short: 'Director, Digital Product',
         start: '2022-01',
         end: '2025-10',
         projects: [
@@ -49,11 +56,12 @@ export const CAREER: Employer[] = [
       },
       {
         title: 'Digital Director – Global',
+        short: 'Digital Director',
         start: '2020-06',
         end: '2021-12',
         projects: ['digital-transformation-salesforce', 'regimen-builder'],
       },
-      { title: 'Head of Digital – Global', start: '2019-06', end: '2020-05' },
+      { title: 'Head of Digital – Global', short: 'Head of Digital', start: '2019-06', end: '2020-05' },
     ],
   },
   {
@@ -61,7 +69,7 @@ export const CAREER: Employer[] = [
     line: 'Growth and CRM across the Loblaw digital portfolio, 16M+ loyalty customers',
     roles: [
       { title: 'Growth Marketing Manager', start: '2018-08', end: '2019-05' },
-      { title: 'Specialist, Demand Generation', start: '2016-02', end: '2018-07' },
+      { title: 'Specialist, Demand Generation', short: 'Demand Generation', start: '2016-02', end: '2018-07' },
     ],
   },
   // Three employers as one entry, so their names don't crowd the full view
@@ -70,10 +78,10 @@ export const CAREER: Employer[] = [
     org: 'Early career',
     line: 'Consumer insights, B2B marketing and bilingual customer support',
     roles: [
-      { title: 'Marketing Coordinator, National Wholesale · Loblaw Companies', start: '2015-01', end: '2016-02' },
-      { title: 'Marketing Analyst · Shoppers Drug Mart', start: '2011-05', end: '2014-12' },
-      { title: 'Bilingual Customer Programs Assistant · Kenna', start: '2010-05', end: '2010-12' },
-      { title: 'Bilingual Call Centre Representative · Shoppers Drug Mart', start: '2009-05', end: '2009-08' },
+      { title: 'Marketing Coordinator, National Wholesale · Loblaw Companies', short: 'Marketing Coordinator · Loblaw', start: '2015-01', end: '2016-02' },
+      { title: 'Marketing Analyst · Shoppers Drug Mart', short: 'Marketing Analyst · Shoppers', start: '2011-05', end: '2014-12' },
+      { title: 'Bilingual Customer Programs Assistant · Kenna', short: 'Customer Programs · Kenna', start: '2010-05', end: '2010-12' },
+      { title: 'Bilingual Call Centre Representative · Shoppers Drug Mart', short: 'Call Centre · Shoppers', start: '2009-05', end: '2009-08' },
     ],
   },
 ];
@@ -85,7 +93,7 @@ export const EDUCATION: Employer[] = [
   {
     org: 'Product Faculty',
     line: 'Delivered through Maven',
-    roles: [{ title: 'AI Product Management Certification, Cohort 6', start: '2026-03', end: '2026-03' }],
+    roles: [{ title: 'AI Product Management Certification, Cohort 6', short: 'AI PM Certification', start: '2026-03', end: '2026-03' }],
   },
   {
     org: 'University of Toronto',
@@ -96,12 +104,29 @@ export const EDUCATION: Employer[] = [
   {
     org: 'University of Guelph',
     line: 'Co-op',
+    // Part of the early career view, not a button of its own (Jordanne,
+    // 2026-11-04).
+    zoomWith: 'Early career',
     roles: [
-      { title: 'Certificate in Leadership', start: '2013-05', end: '2013-05' },
-      { title: 'Bachelor of Commerce, Marketing Management', start: '2008-09', end: '2013-05' },
+      { title: 'Certificate in Leadership', short: 'Leadership Certificate', start: '2013-05', end: '2013-05' },
+      { title: 'Bachelor of Commerce, Marketing Management', short: 'BComm, Marketing', start: '2008-09', end: '2013-05' },
     ],
   },
 ];
+
+// Where the clip ends: zoomed into this employer, the section a visitor may
+// only ever see (Jordanne, 2026-11-04). "Full career" zooms out from there.
+export const END_ON = 'DECIEM';
+
+// Project titles on the timeline frame, where the full one is cut off. The
+// panel and "See every role" keep the full title.
+export const SHORT_PROJECT: Record<string, string> = {
+  'personalization-roadmap-and-measurement': 'Personalization Roadmap',
+  'digital-transformation-salesforce': 'Salesforce Transformation',
+  'ai-resume': 'AI Resume & Portfolio',
+  'google-gemini-enterprise-deployment': 'Gemini Enterprise',
+  'ai-customer-service-optimization': 'AI Customer Service',
+};
 
 // Personal projects, not done for any employer: on the timeline by themselves
 // (decided 2026-11-04). `start` is a year where the month is not known; the AI
