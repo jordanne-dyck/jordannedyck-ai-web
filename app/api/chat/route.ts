@@ -13,8 +13,9 @@ import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
 import {
-  asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, TIMELINE_REPLAY, withoutTimelineMarker,
+  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, TIMELINE_REPLAY, withoutTimelineMarker,
 } from '@/lib/timeline';
+import { asksForInstructions, FIXED_REFUSAL } from '@/lib/prompt-request';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
@@ -198,6 +199,9 @@ export async function POST(req: NextRequest) {
   const timelineExplicit = asksForTimeline(query);
   const timelineLead = asksForOverview(query);
   const timelineReplay = isTimelineReplay(query, parseTimelineShown(body));
+  // A request to see the bot's own instructions gets a fixed refusal, with no
+  // model call (decided 2026-11-05).
+  const instructionsAsked = asksForInstructions(query);
   const elapsed = () => Date.now() - requestStart;
 
   // Shared by the two early exits, which never reach retrieval.
@@ -329,12 +333,29 @@ export async function POST(req: NextRequest) {
       rateLimited: false,
     });
 
-  // An overview question: the fixed lead and the timeline, or the replay, with
-  // no model call. Retrieval still ran, so the row records what an answer
-  // would have had; a failed search doesn't matter here. model is null and
-  // flags.timeline_lead tells these rows apart from generated answers.
-  if (timelineLead) {
-    const answer = timelineReplay ? TIMELINE_REPLAY : FIXED_LEAD;
+  // A fixed answer, with no model call: the refusal for a request to see the
+  // instructions (which wins over an overview), or for an overview question
+  // the fixed lead and the timeline, or the replay. Retrieval still ran, so the
+  // row records what an answer would have had; a failed search doesn't matter
+  // here. Skipping it would leave retrieval_status null, which drops the row
+  // from the dashboard's answered counts. model is null, and
+  // flags.fixed_refusal or flags.timeline_lead tells these rows apart from
+  // generated answers.
+  const fixed = instructionsAsked
+    ? { id: 'refusal', answer: FIXED_REFUSAL, timeline: false, flags: { fixed_refusal: true } }
+    : timelineLead
+      ? {
+          id: 'lead',
+          answer: timelineReplay ? TIMELINE_REPLAY : FIXED_LEAD,
+          timeline: true,
+          flags: {
+            timeline: timelineExplicit ? 'explicit' : 'overview',
+            timeline_lead: timelineReplay ? 'replay' : 'fixed',
+          },
+        }
+      : null;
+  if (fixed) {
+    const { answer } = fixed;
     const text = withoutTimelineMarker(answer);
     return createUIMessageStreamResponse({
       stream: createUIMessageStream<ChatUIMessage>({
@@ -343,9 +364,9 @@ export async function POST(req: NextRequest) {
           if (process.env.EMIT_RETRIEVAL || isSynthetic) {
             writer.write({ type: 'data-retrieval', data: retrieval });
           }
-          writer.write({ type: 'text-start', id: 'lead' });
-          writer.write({ type: 'text-delta', id: 'lead', delta: answer });
-          writer.write({ type: 'text-end', id: 'lead' });
+          writer.write({ type: 'text-start', id: fixed.id });
+          writer.write({ type: 'text-delta', id: fixed.id, delta: answer });
+          writer.write({ type: 'text-end', id: fixed.id });
           // Signed as sent, placeholder included, so a follow-up keeps it.
           const sig = signTurn(sessionId, answer);
           if (sig) writer.write({ type: 'data-turn-sig', data: { sig } });
@@ -353,7 +374,9 @@ export async function POST(req: NextRequest) {
           // No citations, so no sources listed; the part is still sent, as on
           // every answer.
           writer.write({ type: 'data-sources', data: buildSources([], retrieval.chunks) });
-          writer.write({ type: 'data-timeline', data: { explicit: true } });
+          if (fixed.timeline) {
+            writer.write({ type: 'data-timeline', data: { explicit: true } });
+          }
           const rowId = await logRedacted({
             ...baseEvent,
             ...NO_RESPONSE,
@@ -361,8 +384,7 @@ export async function POST(req: NextRequest) {
             flags: {
               ...baseEvent.flags,
               ...freeLabels(query, text),
-              timeline: timelineExplicit ? 'explicit' : 'overview',
-              timeline_lead: timelineReplay ? 'replay' : 'fixed',
+              ...fixed.flags,
             },
             citedChunkIds: [],
             responseText: text,
@@ -478,9 +500,12 @@ export async function POST(req: NextRequest) {
               // The career timeline. The page shows it once per visit, in place
               // of the project card (overview questions, which always show it,
               // never get here). An answer with no citations at all gets it
-              // when retrieval led with her role history.
+              // when retrieval led with her role history. A question about
+              // where she worked before gets it whatever was cited.
+              const timelineCited = citesCareer(citedIds);
               const timelineRetrieved = citedIds.length === 0 && leadsWithCareer(retrieval.chunks);
-              const timeline = citesCareer(citedIds) || timelineRetrieved;
+              const timelineAsked = !timelineCited && !timelineRetrieved && asksForCareerHistory(query);
+              const timeline = timelineCited || timelineRetrieved || timelineAsked;
               if (timeline) {
                 writer.write({ type: 'data-timeline', data: { explicit: false } });
               }
@@ -492,7 +517,7 @@ export async function POST(req: NextRequest) {
                   ...(project ? { project_card: project } : {}),
                   ...(predicted ? { project_predicted: predicted } : {}),
                   // Sent, not necessarily shown: the page decides once per visit.
-                  ...(timeline ? { timeline: timelineRetrieved ? 'retrieved' : 'cited' } : {}),
+                  ...(timeline ? { timeline: timelineRetrieved ? 'retrieved' : timelineAsked ? 'asked' : 'cited' } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer
