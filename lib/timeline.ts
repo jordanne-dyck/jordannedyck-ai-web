@@ -205,7 +205,7 @@ const MARKER_RE = /[ \t]*\{\{\s*timeline\s*\}\}[ \t]*/i;
 // model is not called for these. Text final with her OK, 2026-11-04; the 4M+ is
 // DTC customers, as exp-042 says.
 export const FIXED_LEAD = [
-  "Jordanne's career runs from the human side of helping customers to the digital side. She started in bilingual frontline support at the Shoppers Drug Mart call centre, and has since built the systems that decide where people help customers and where technology does: at DECIEM, Regimen Builder, the AI Personal Shopper and automated service that cut resolution time 86%, while annual DTC revenue grew to $150M+ with 4M+ DTC customers globally.",
+  "Jordanne's career runs from the human side of helping customers to the digital side. She started in bilingual frontline support at Shoppers Drug Mart's call center, and has since built the systems that decide where people help customers and where technology does: at DECIEM, Regimen Builder, the AI Personal Shopper and automated service that cut resolution time 86%, while annual DTC revenue grew to $150M+ with 4M+ DTC customers globally.",
   TIMELINE_MARKER,
   'Today she runs Warai Neko, her independent practice, bringing that work to small businesses while continuing to refine her AI building skills with this AI-powered resume and portfolio system among other hobby projects.',
 ].join('\n\n');
