@@ -17,7 +17,9 @@ import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
-import { splitAtTimeline } from '@/lib/timeline';
+import { splitAtTimeline, withoutTimelineMarker } from '@/lib/timeline';
+import { ConciergePanel } from '@/app/components/Concierge';
+import { conciergeTrigger } from '@/lib/concierge';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -216,6 +218,12 @@ export default function Home() {
   const [openProject, setOpenProject] = useState<Project | null>(null);
   // The card that opened the panel, kept after closing so focus can go back to it.
   const [opener, setOpener] = useState<HTMLElement | null>(null);
+  // The concierge panel, and the button that opened it. `conciergeKey`
+  // starts each opening fresh, so a note drafted earlier isn't reused for a
+  // longer conversation.
+  const [conciergeOpen, setConciergeOpen] = useState(false);
+  const [conciergeOpener, setConciergeOpener] = useState<HTMLElement | null>(null);
+  const [conciergeKey, setConciergeKey] = useState(0);
   // The answer that showed the timeline earlier in this tab, before a reload.
   // Read once; only answers render the timeline, so the server's null is safe.
   const [shownBefore] = useState<string | null>(() => {
@@ -333,6 +341,27 @@ export default function Home() {
   const last = messages[messages.length - 1];
   const waiting = isLoading && (last?.role === 'user' || (last !== undefined && !textOf(last)));
   const answered = !isLoading && !error && messages.some(m => m.role === 'assistant');
+  // Whether the last answer offers Jordanne more prominently: a question for
+  // her herself, or one jordbot answered without a source (lib/concierge.ts).
+  const lastAnswer = answered ? messages.findLast(m => m.role === 'assistant') : undefined;
+  const lastQuestion = messages.findLast(m => m.role === 'user');
+  const trigger = lastAnswer && lastQuestion
+    ? conciergeTrigger({
+        query: textOf(lastQuestion),
+        citedCount: sourcesOf(lastAnswer)?.sources.length ?? null,
+        timeline: !!timelineOf(lastAnswer),
+      })
+    : null;
+  const openConcierge = (el: HTMLElement) => {
+    track({ name: 'concierge_opened', props: { trigger: trigger ?? 'none' } });
+    setConciergeOpener(el);
+    setConciergeKey(k => k + 1);
+    setConciergeOpen(true);
+  };
+  // The conversation as the note's source: plain turns, without the timeline's placeholder.
+  const turns = messages
+    .map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: withoutTimelineMarker(textOf(m)) }))
+    .filter(t => t.content.trim());
   return (
     <div className="home" ref={rootRef} data-chatting={messages.length > 0 || undefined} data-paused={paused || undefined}>
       <div className="bar" ref={barRef}>
@@ -517,9 +546,15 @@ export default function Home() {
             </div>
           )}
           {answered && (
-            <p className="after-answer">
-              Want to talk to Jordanne?{' '}
-              <a href={`mailto:${EMAIL}`} onClick={() => contact('after_answer', 'email')}>Email</a>
+            <p className={trigger ? 'after-answer prompt' : 'after-answer'}>
+              {trigger === 'intent'
+                ? 'That one is for Jordanne herself.'
+                : trigger === 'uncited'
+                  ? "jordbot couldn't find that in her sources."
+                  : 'Want to talk to Jordanne?'}{' '}
+              <button type="button" className="talk" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget)}>
+                Talk to Jordanne →
+              </button>
               <Socials onClick={ch => contact('after_answer', ch)} />
             </p>
           )}
@@ -594,6 +629,14 @@ export default function Home() {
       </footer>
 
       <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject} />
+      <ConciergePanel
+        key={conciergeKey}
+        open={conciergeOpen}
+        opener={conciergeOpener}
+        trigger={trigger}
+        turns={turns}
+        onClose={() => setConciergeOpen(false)}
+      />
       <FilmEffects paused={paused} />
     </div>
   );

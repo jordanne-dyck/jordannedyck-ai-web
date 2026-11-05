@@ -51,7 +51,12 @@ export type AnalyticsEvent =
   // Home page acquisition: the first-screen button, and every route to contact her.
   | { name: 'hero_ask_clicked'; props: Record<string, never> }
   | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer'; channel: 'email' | 'linkedin' | 'github' | 'phone' } }
-  | { name: 'answer_retried'; props: Record<string, never> };
+  | { name: 'answer_retried'; props: Record<string, never> }
+  // The concierge pilot (lib/concierge.ts): opening the panel, and why it was
+  // offered; the note, and who drafted it; sending it. Never the note's text.
+  | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none' } }
+  | { name: 'brief_drafted'; props: { by: 'ai' | 'template'; purpose: string | null } }
+  | { name: 'brief_sent'; props: { channel: 'email' | 'copy'; edited: boolean } };
 
 // `beacon` for events sent while the page is closing, when a normal request
 // would be cancelled.
