@@ -10,7 +10,8 @@ export function QualitySection({ data }: { data: PublicQuality }) {
   const judged = quality.judged.grounded + quality.judged.partial + quality.judged.notGrounded;
   const l = quality.labels;
   const votes = l.thumbs_up + l.thumbs_down;
-  const abuse = l.injection + l.prompt_leak + l.off_topic + l.moderation;
+  // Off-topic questions are not attacks, so they sit under the headline, not in it.
+  const abuse = l.injection + l.prompt_leak + l.moderation;
 
   return (
     <>
@@ -36,7 +37,7 @@ export function QualitySection({ data }: { data: PublicQuality }) {
         <StatCard
           label="Abuse attempts caught"
           value={String(abuse)}
-          hint={`${l.injection} injection · ${l.prompt_leak} prompt leak · ${l.off_topic} off-topic · ${l.moderation} moderation`}
+          hint={`${l.injection} injection · ${l.prompt_leak} prompt leak · ${l.moderation} moderation · plus ${l.off_topic} off-topic questions declined`}
         />
       </section>
 
@@ -49,7 +50,6 @@ export function QualitySection({ data }: { data: PublicQuality }) {
               { label: 'Started with a button', value: shapes.startedWithButton },
               { label: '…then typed a follow-up', value: shapes.buttonThenTyped },
               { label: 'Started typed', value: shapes.startedTyped },
-              { label: 'One question, then left', value: shapes.singleQuestion },
             ]}
           />
         </div>
