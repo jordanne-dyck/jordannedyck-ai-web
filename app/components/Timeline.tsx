@@ -65,8 +65,9 @@ const MARKERS: Marker[] = [
 
 // The earliest start: the top of the full view.
 const FIRST = Math.min(...ENTRIES.map((x) => startOf(x.e)));
-// Room under today for the last names, which the layout pushes down.
-const FULL: [number, number] = [FIRST - 5, NOW + 20];
+// A year above the first start, so its name sits clear of the frame's faded top
+// edge, and room under today for the last names, which the layout pushes down.
+const FULL: [number, number] = [FIRST - 12, NOW + 20];
 
 // The script: the playhead runs from the first start to today. The camera (the
 // stretch of months in view) starts close on the first years and follows it
@@ -480,7 +481,8 @@ export function Timeline({
     key: 'n' + i,
     kind: 'name',
     at: startOf(entry.e),
-    height: done ? (zoomed ? 48 : 36) : zoomed ? 34 : 18,
+    // Zoomed in, 4px more for the gap between the name and its title.
+    height: done ? (zoomed ? 52 : 36) : zoomed ? 38 : 18,
     entry,
     text: entry.e.org,
     sub: entry.e.roles.at(-1)!.title,
@@ -681,7 +683,7 @@ export function Timeline({
             return (
               <div key={m.at} className="tl-caption" style={{ opacity: on ? f.fade : 0 }}>
                 {media && (
-                  <span className="tl-media">
+                  <span className="tl-media" data-still={!media.endsWith('.mp4') || undefined}>
                     <Media src={media} />
                   </span>
                 )}

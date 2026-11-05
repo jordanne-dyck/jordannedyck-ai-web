@@ -14,6 +14,9 @@ import { DailyCostChart } from './components/DailyCostChart';
 import { HealthPanel } from './components/HealthPanel';
 import { BarList } from './components/BarList';
 import { TopicsChart } from './components/TopicsChart';
+import { QualitySection } from './components/QualitySection';
+import { SampleAdmin } from './components/SampleAdmin';
+import { getPublicQuality } from '@/lib/public-quality';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +28,7 @@ const fmtS = (ms: number | null) =>
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '—');
 
 export default async function DashboardPage() {
-  const [stats, hourly, daily, retrieval, timing, buttons, topics, health] = await Promise.all([
+  const [stats, hourly, daily, retrieval, timing, buttons, topics, health, quality] = await Promise.all([
     getDashboardStats(),
     getHourlyHistogram(),
     getDailyTrend(30),
@@ -34,6 +37,7 @@ export default async function DashboardPage() {
     getButtonUsage(30),
     getTopicsByWeek(8),
     checkHealth(),
+    getPublicQuality(),
   ]);
   const checkedAt = new Date().toISOString().slice(11, 19);
   // Width of the "search" part of the time-to-first-word bar.
@@ -167,6 +171,10 @@ export default async function DashboardPage() {
           </div>
         </section>
 
+        <QualitySection data={quality} />
+
+        <SampleAdmin />
+
         <footer className="mt-10 text-xs text-zinc-500">
           Built as a portfolio piece. Source:
           {' '}
@@ -177,8 +185,8 @@ export default async function DashboardPage() {
             jordannedyck-ai-web
           </a>
           . Questions and answers are stored with emails and phone numbers removed.
-          IP addresses are stored only as a one-way hash. Questions are shown only
-          in the private admin view.
+          IP addresses are stored only as a one-way hash. Real questions are shown only
+          in the private admin view; the rows under &ldquo;Inside the admin view&rdquo; are made up.
         </footer>
       </div>
     </main>
