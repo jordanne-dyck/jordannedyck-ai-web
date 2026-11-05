@@ -1,9 +1,10 @@
 import { openai } from '@ai-sdk/openai';
-import { APICallError, generateText } from 'ai';
+import { APICallError, generateText, Output } from 'ai';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { BRIEF_SYSTEM_PROMPT, briefPrompt, cleanBrief, parseBriefInput } from '@/lib/concierge';
+import { BRIEF_SYSTEM_PROMPT, briefPrompt, composeBrief, parseBriefInput } from '@/lib/concierge';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,16 @@ export const dynamic = 'force-dynamic';
 
 const MODEL = 'gpt-4o-mini';
 const TIMEOUT_MS = 12_000;
+
+// What the model extracts; lib/concierge.ts composeBrief writes the note.
+const FIELDS = z.object({
+  name: z.string().nullable(),
+  role: z.string().nullable(),
+  company: z.string().nullable(),
+  topics: z.array(z.string()),
+  unanswered: z.array(z.string()),
+  wants: z.string().nullable(),
+});
 
 // Per pod, on top of the chat limit: a few drafts an hour per visitor. A
 // restart forgets it, which is fine for a pilot.
@@ -48,18 +59,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { text } = await generateText({
+    const { output } = await generateText({
       model: openai.chat(MODEL),
-      temperature: 0.3,
+      temperature: 0,
       maxOutputTokens: 300,
+      output: Output.object({ schema: FIELDS }),
       maxRetries: 0,
       system: BRIEF_SYSTEM_PROMPT,
-      prompt: briefPrompt(input.turns, input.purpose),
+      prompt: briefPrompt(input.turns),
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    const brief = cleanBrief(text);
-    if (!brief) return NextResponse.json({ error: 'no usable draft' }, { status: 502 });
-    return NextResponse.json({ brief });
+    return NextResponse.json({ brief: composeBrief(output, input.turns, input.purpose) });
   } catch (error) {
     // The error's name and status only: the request holds the visitor's
     // conversation, and the provider's message can echo it.

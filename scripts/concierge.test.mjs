@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  asksForJordanne, conciergeTrigger, templateBrief, parseBriefInput, cleanBrief, mailtoHref, BRIEF_MAX_TURNS, EMAIL,
+  asksForJordanne, conciergeTrigger, templateBrief, parseBriefInput, composeBrief, mailtoHref, BRIEF_MAX_TURNS, EMAIL,
 } from '../lib/concierge.ts';
 import { SUGGESTED_QUESTIONS } from '../lib/suggested-questions.ts';
 
@@ -91,11 +91,39 @@ test('parseBriefInput: bounds and purpose', () => {
   assert.equal(long.purpose, 'project');
 });
 
-test('cleanBrief strips markdown and a subject line, rejects junk', () => {
-  assert.equal(cleanBrief('Subject: Hello\n\nHi Jordanne, **I am** [your name] and I asked about X.'), 'Hi Jordanne, I am [your name] and I asked about X.');
-  assert.equal(cleanBrief('ok'), null);
-  assert.equal(cleanBrief('x'.repeat(2000)), null);
+const EMPTY = { name: null, role: null, company: null, topics: [], unanswered: [], wants: null };
+const visitor = (content) => [{ role: 'user', content }, { role: 'assistant', content: 'An answer.' }];
+
+test('composeBrief: blanks for everything not stated', () => {
+  const t = composeBrief({ ...EMPTY, topics: ['how you designed escalation'] }, visitor('How did she design escalation?'), null);
+  console.log(t.split('\n').map((l) => `  | ${l}`).join('\n'));
+  assert.equal(t, "Hi Jordanne,\n\nI'm [your name], [your role] at [company].\n\nI asked jordbot about how you designed escalation.\n\nI'd like to talk about [what you'd like to talk about].\n\n[your name]");
 });
+
+test('composeBrief: stated details are used, invented ones dropped', () => {
+  const turns = visitor("I'm a recruiter at Hays. Has she led teams?");
+  const t = composeBrief({ ...EMPTY, name: 'Sam', role: 'a recruiter', company: 'Hays', topics: ['your experience leading teams'] }, turns, 'recruiting');
+  assert.match(t, /I'm \[your name\], a recruiter at Hays\./);
+  assert.match(t, /a role I'm recruiting for/);
+  assert.doesNotMatch(t, /Sam/);
+  // A company the model read from jordbot's answer, not the visitor, is dropped.
+  const d = composeBrief({ ...EMPTY, company: 'DECIEM' }, [{ role: 'user', content: 'Where did she work?' }, { role: 'assistant', content: 'DECIEM' }], null);
+  assert.match(d, /at \[company\]/);
+  const p = composeBrief({ ...EMPTY, name: 'Priya', role: 'Head of Product', company: 'Acme' }, visitor("I'm Priya, Head of Product at Acme."), null);
+  assert.match(p, /I'm Priya, Head of Product at Acme\./);
+  assert.match(p, /\n\nPriya$/);
+});
+
+test('composeBrief: unanswered questions, wants, and the purpose winning over wants', () => {
+  const one = composeBrief({ ...EMPTY, unanswered: ['What are your consulting rates?'] }, visitor('Her rates?'), null);
+  assert.match(one, /jordbot couldn't answer one thing: What are your consulting rates\?/);
+  const two = composeBrief({ ...EMPTY, unanswered: ['A?', 'B?'], topics: ['x', 'y', 'z'] }, visitor('q'), null);
+  assert.match(two, /about x, y and z\./);
+  assert.match(two, /- A\?\n- B\?/);
+  assert.match(composeBrief({ ...EMPTY, wants: 'a fractional role' }, visitor('q'), null), /talk about a fractional role\./);
+  assert.match(composeBrief({ ...EMPTY, wants: 'a fractional role' }, visitor('q'), 'project'), /talk about working together on a project\./);
+});
+
 
 test('mailto carries subject and body, encoded', () => {
   const href = mailtoHref('Hi Jordanne,\n\n[your name] & co');
