@@ -11,11 +11,15 @@ export const MAX_USER_MESSAGE_CHARS = 2000;
 export const MAX_ASSISTANT_MESSAGE_CHARS = 4 * MAX_USER_MESSAGE_CHARS;
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+// An assistant turn as received, with the signature the server sent when it
+// served the answer (lib/turn-signature.ts). Unverified until route.ts checks
+// it against the session.
+export type IncomingMessage = ChatMessage & { sig?: string };
 
 export type ParsedChatInput =
   | {
       ok: true;
-      messages: ChatMessage[];
+      messages: IncomingMessage[];
       lastUserContent: string;
       turnIndex: number;
       droppedRoles: string[];
@@ -37,13 +41,16 @@ export function parseChatInput(body: unknown): ParsedChatInput {
 
   // Only user and assistant turns are accepted from the client. Anything else
   // (system, tool, data) is dropped, and the dropped roles are recorded in flags.
-  const messages: ChatMessage[] = [];
+  const messages: IncomingMessage[] = [];
   const droppedRoles: string[] = [];
   for (const m of raw) {
     const role = (m as { role?: unknown })?.role;
     const content = (m as { content?: unknown })?.content;
-    if ((role === 'user' || role === 'assistant') && typeof content === 'string') {
+    const sig = (m as { sig?: unknown })?.sig;
+    if (role === 'user' && typeof content === 'string') {
       messages.push({ role, content });
+    } else if (role === 'assistant' && typeof content === 'string') {
+      messages.push({ role, content, ...(typeof sig === 'string' ? { sig } : {}) });
     } else {
       droppedRoles.push(typeof role === 'string' ? role : 'invalid');
     }
