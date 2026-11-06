@@ -236,7 +236,7 @@ The dev checks above prove the site responds. They are not the gate. The gate ne
 3. **Generate the evidence.** In `jordannedyck-ai`:
    `uv run python release_gate.py --image jordbot-web --tag vX.Y --sha $SHA --prompt <prompt_version> --index <index id>`
    For an index promotion, use `--faiss-dir /faiss/kb-<commit>` instead of `--image/--tag/--sha`. The script writes into `releases/` here and prints every failing check by case.
-4. **Read every failure and get Jordanne's ruling.** Open the answers themselves, not the pass rate. Write her ruling into that failure's `signoff` in her words: a checker miss, a known defect she accepts for this release, or a blocker. A blocker stops the release. A tier-1 failure (`T1.*`) can only be signed off as `checker miss: <why>`, and CI rejects any other ruling. Don't write a sign-off for her.
+4. **Read every failure and get Jordanne's ruling.** Open the answers themselves, not the pass rate. Write her ruling into that failure's `signoff` in her words: a checker miss, a known defect she accepts for this release, or a blocker. A blocker stops the release. A tier-1 failure (`T1.*`) can only be signed off as `checker miss: <why>`, or as `not served: <why>` when the site never sends that text and the dev e2e run passed the same case (A01: the site's fixed reply replaces the model's refusal). CI rejects any other ruling. Don't write a sign-off for her.
 5. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
 6. **Re-run the gate.** It keeps sign-offs and ticks. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
 
