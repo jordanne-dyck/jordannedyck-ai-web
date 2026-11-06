@@ -54,15 +54,28 @@ function projectOf(message: ChatUIMessage): Project | null {
   return null;
 }
 
+// The answer's signature, from the data-turn-sig part. Sent back with the
+// answer so the server keeps it in the conversation (lib/turn-signature.ts).
+function sigOf(message: ChatUIMessage): string | undefined {
+  for (const p of message.parts) {
+    if (p.type === 'data-turn-sig') return p.data.sig;
+  }
+  return undefined;
+}
+
 const textOf = (message: ChatUIMessage) =>
   message.parts.map(p => (p.type === 'text' ? p.text : '')).join('');
 
 // /api/chat takes plain { role, content } turns (lib/chat-input.ts), the same
-// body Checkly and the eval runners send, plus source and clientId.
+// body Checkly and the eval runners send, plus source and clientId. Answers
+// also carry their signature; `content` must stay the exact text it signs.
 const transport = new DefaultChatTransport<ChatUIMessage>({
   api: '/api/chat',
   prepareSendMessagesRequest: ({ messages, body }) => ({
-    body: { ...body, messages: messages.map(m => ({ role: m.role, content: textOf(m) })) },
+    body: {
+      ...body,
+      messages: messages.map(m => ({ role: m.role, content: textOf(m), sig: sigOf(m) })),
+    },
   }),
 });
 

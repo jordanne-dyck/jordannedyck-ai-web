@@ -26,6 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+        with:
+          # The evidence check reads prod's tag and FAISS_DIR history (rollbacks)
+          # and checks the tested commit is on the branch.
+          fetch-depth: 0
 
       - name: Install kustomize and kubeconform
         run: |
@@ -41,6 +45,11 @@ jobs:
 
       - name: Release file only sets image tags
         run: python3 .github/scripts/check-release-file.py
+
+      # A new prod tag or FAISS_DIR needs releases/<name>.json from
+      # jordannedyck-ai/release_gate.py: full evals, sign-offs, QA. Rollbacks pass.
+      - name: Prod change has release evidence
+        run: python3 .github/scripts/check-release-evidence.py
 
       - name: kustomize build + kubeconform (prod, dev)
         run: |
