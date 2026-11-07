@@ -54,7 +54,7 @@ export type AnalyticsEvent =
   | { name: 'answer_retried'; props: Record<string, never> }
   // The concierge pilot (lib/concierge.ts): opening the panel, and why it was
   // offered; the note, and who drafted it; sending it. Never the note's text.
-  | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none' } }
+  | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none'; from: 'after_answer' | 'footer' | 'link' | 'bar' | 'error' | 'project' } }
   | { name: 'brief_drafted'; props: { by: 'ai' | 'template'; purpose: string | null } }
   | { name: 'brief_sent'; props: { channel: 'email' | 'copy'; edited: boolean } };
 

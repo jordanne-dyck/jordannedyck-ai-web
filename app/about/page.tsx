@@ -119,7 +119,8 @@ export default function AboutPage() {
       </main>
 
       <footer id="contact">
-        <div className="big"><a href={`mailto:${EMAIL}`}>Talk to the human →</a></div>
+        {/* Opens the concierge panel on the home page (app/page.tsx, ?talk). */}
+        <div className="big"><Link href="/?talk">Talk to the human →</Link></div>
         <div className="rule" />
         <nav className="frow" aria-label="Contact links">
           <span className="fcontact">

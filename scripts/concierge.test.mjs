@@ -153,3 +153,12 @@ test('mailto carries subject and body, encoded', () => {
   assert.ok(href.startsWith(`mailto:${EMAIL}?subject=`));
   assert.match(href, /body=Hi%20Jordanne%2C%0A%0A%5Byour%20name%5D%20%26%20co$/);
 });
+
+test('a project named in the note fills the ask, after the visitor’s own reason', () => {
+  assert.match(templateBrief([], null, 'Regimen Builder'), /I'd like to talk about your work on Regimen Builder\./);
+  assert.match(templateBrief([], 'hiring', 'Regimen Builder'), /a role I'm hiring for\./);
+  const turns = [{ role: 'user', content: "I'd like to talk about a fractional role." }, { role: 'assistant', content: 'OK.' }];
+  const f = { name: null, role: null, company: null, topics: [], unanswered: [], wants: 'a fractional role' };
+  assert.match(composeBrief(f, turns, null, 'Regimen Builder'), /talk about a fractional role\./);
+  assert.match(composeBrief({ ...f, wants: null }, turns, null, 'Regimen Builder'), /your work on Regimen Builder\./);
+});

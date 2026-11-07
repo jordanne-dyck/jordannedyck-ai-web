@@ -74,14 +74,18 @@ export type Turn = { role: 'user' | 'assistant'; content: string };
 
 // The note when the AI draft is unavailable. Blanks for everything the
 // visitor hasn't said; their own questions, quoted, for what they asked.
-export function templateBrief(turns: Turn[], purpose: PurposeId | null): string {
+// `about` is a project's title when the panel was opened from that project:
+// it fills "I'd like to talk about" when the visitor gave no reason.
+const aboutAsk = (about: string | null | undefined) => (about ? `your work on ${about}` : null);
+
+export function templateBrief(turns: Turn[], purpose: PurposeId | null, about: string | null = null): string {
   const asked = turns
     .filter((t) => t.role === 'user')
     .map((t) => t.content.trim().replace(/\s+/g, ' '))
     .filter(Boolean)
     .slice(-3)
     .map((q) => `- ${q.length > 100 ? `${q.slice(0, 99)}…` : q}`);
-  const ask = purposeOf(purpose)?.ask ?? "[what you'd like to talk about]";
+  const ask = purposeOf(purpose)?.ask ?? aboutAsk(about) ?? "[what you'd like to talk about]";
   return [
     'Hi Jordanne,',
     "I'm [your name], [your role] at [company].",
@@ -151,7 +155,7 @@ const listOf = (items: string[]) =>
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-export function composeBrief(f: BriefFields, turns: Turn[], purpose: PurposeId | null): string {
+export function composeBrief(f: BriefFields, turns: Turn[], purpose: PurposeId | null, about: string | null = null): string {
   const visitorText = turns.filter((t) => t.role === 'user').map((t) => t.content).join('\n').toLowerCase();
   const role = stated(f.role, visitorText);
   // A name is capitalised and isn't the job title ("a recruiter").
@@ -168,7 +172,7 @@ export function composeBrief(f: BriefFields, turns: Turn[], purpose: PurposeId |
     : [];
   const w = f.wants?.trim().replace(/^(?:to\s+)?(?:talk|speak|chat)\s+(?:(?:to|with)\s+you\s+)?about\s+/i, '').replace(/[.]$/, '');
   const wants = w && grounded(w, visitorText) ? clip(toYou(w), 160) : null;
-  const ask = purposeOf(purpose)?.ask ?? wants ?? "[what you'd like to talk about]";
+  const ask = purposeOf(purpose)?.ask ?? wants ?? aboutAsk(about) ?? "[what you'd like to talk about]";
   return [
     'Hi Jordanne,',
     `I'm ${name ?? '[your name]'}, ${role ?? '[your role]'} at ${company ?? '[company]'}.`,

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { BRIEF_SYSTEM_PROMPT, briefPrompt, composeBrief, parseBriefInput } from '@/lib/concierge';
+import { projectBySlug } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,11 @@ export async function POST(req: NextRequest) {
       prompt: briefPrompt(input.turns),
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    return NextResponse.json({ brief: composeBrief(output, input.turns, input.purpose) });
+    // Opened from a project panel: its title, looked up here so the client
+    // can't put arbitrary text in the note.
+    const slug = (body as { project?: unknown })?.project;
+    const about = typeof slug === 'string' ? (projectBySlug(slug)?.title ?? null) : null;
+    return NextResponse.json({ brief: composeBrief(output, input.turns, input.purpose, about) });
   } catch (error) {
     // The error's name and status only: the request holds the visitor's
     // conversation, and the provider's message can echo it.

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { track } from '@/lib/analytics';
+import type { Project } from '@/lib/projects';
 import {
   EMAIL, HANDLES, MAILTO_MAX, PURPOSES, REPLY_TIME, mailtoHref, templateBrief, type PurposeId, type Trigger, type Turn,
 } from '@/lib/concierge';
@@ -15,19 +16,27 @@ export function ConciergePanel({
   opener,
   trigger,
   turns,
+  project,
   onClose,
 }: {
   open: boolean;
   opener: HTMLElement | null;
   trigger: Trigger | null;
   turns: Turn[];
+  // Opened from a project panel: named in the note.
+  project: Project | null;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Opened before asking jordbot anything (the footer, the About page): no
+  // conversation to draft from, so the note starts as the blank template and
+  // no AI is called.
+  const hasChat = turns.some((t) => t.role === 'user');
   const [purpose, setPurpose] = useState<PurposeId | null>(null);
-  const [brief, setBrief] = useState('');
+  const about = project?.title ?? null;
+  const [brief, setBrief] = useState(() => (hasChat ? '' : templateBrief([], null, about)));
   // The note as drafted, to tell whether the visitor edited it.
-  const [drafted, setDrafted] = useState<string | null>(null);
+  const [drafted, setDrafted] = useState<string | null>(() => (hasChat ? null : templateBrief([], null, about)));
   const [drafting, setDrafting] = useState(false);
   const [by, setBy] = useState<'ai' | 'template'>('ai');
   const [copied, setCopied] = useState(false);
@@ -50,14 +59,14 @@ export function ConciergePanel({
       const res = await fetch('/api/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: turns, purpose }),
+        body: JSON.stringify({ messages: turns, purpose, project: project?.slug }),
       });
       if (res.ok) text = ((await res.json()) as { brief?: string }).brief ?? null;
     } catch {
       // The template below stands in.
     }
     const by = text ? 'ai' : 'template';
-    const note = text ?? templateBrief(turns, purpose);
+    const note = text ?? templateBrief(turns, purpose, about);
     track({ name: 'brief_drafted', props: { by, purpose } });
     setBy(by);
     setBrief(note);
@@ -120,7 +129,16 @@ export function ConciergePanel({
                       key={p.id}
                       role="radio"
                       aria-checked={purpose === p.id}
-                      onClick={() => setPurpose(purpose === p.id ? null : p.id)}
+                      onClick={() => {
+                        const next = purpose === p.id ? null : p.id;
+                        setPurpose(next);
+                        // The blank template follows the purpose until the visitor edits it.
+                        if (!hasChat && !edited) {
+                          const note = templateBrief([], next, about);
+                          setBrief(note);
+                          setDrafted(note);
+                        }
+                      }}
                     >
                       {p.label}
                     </button>
@@ -147,16 +165,18 @@ export function ConciergePanel({
                       aria-busy={drafting}
                     />
                     <p className="hint">
-                      {by === 'ai'
+                      {!hasChat
+                        ? 'Fill in the [brackets] and change anything before you send it.'
+                        : by === 'ai'
                         ? 'Drafted by AI from your conversation. Fill in the [brackets] and change anything before you send it.'
                         : "The AI draft isn't available right now, so this is a template with your questions. Fill in the [brackets]."}{' '}
-                      <button type="button" onClick={draft} disabled={drafting}>{drafting ? 'Rewriting…' : 'Rewrite it'}</button>
+                      {hasChat && <button type="button" onClick={draft} disabled={drafting}>{drafting ? 'Rewriting…' : 'Rewrite it'}</button>}
                     </p>
                   </>
                 )}
                 <p className="hint">
-                  To write it, your conversation goes to OpenAI, as your questions already do. The note isn&apos;t saved
-                  anywhere. It only reaches Jordanne if you send it.
+                  {hasChat && <>To write it, your conversation goes to OpenAI, as your questions already do. </>}
+                  The note isn&apos;t saved anywhere. It only reaches Jordanne if you send it.
                 </p>
               </div>
             </div>

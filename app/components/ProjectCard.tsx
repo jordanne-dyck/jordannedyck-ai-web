@@ -60,6 +60,7 @@ export function ProjectPanel({
   onClose,
   onAsk,
   onOpenProject,
+  onTalk,
 }: {
   project: Project | null;
   opener: HTMLElement | null;
@@ -67,6 +68,8 @@ export function ProjectPanel({
   onAsk: (question: string, index: number) => void;
   // Swaps the open panel to another project, for the lab's project list.
   onOpenProject: (project: Project) => void;
+  // "Talk to Jordanne about this project": the concierge panel, with the project named.
+  onTalk: (project: Project) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -143,6 +146,9 @@ export function ProjectPanel({
                 <button type="button" key={q} onClick={() => onAsk(q, i)}>{q}</button>
               ))}
             </div>
+            <button type="button" className="talk" aria-haspopup="dialog" onClick={() => onTalk(project)}>
+              Talk to Jordanne about this project →
+            </button>
           </div>
         </div>
       )}

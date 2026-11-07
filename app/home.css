@@ -28,8 +28,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .bar { position: fixed; top: 0; left: 0; right: 0; z-index: 8; padding: 6px 24px; background: var(--bg); display: flex; justify-content: space-between; align-items: center;
   transform: translateY(-100%); visibility: hidden; transition: transform .35s ease, visibility .35s; }
 .home.scrolled .bar { transform: none; visibility: visible; }
-.home .bar a { padding: 12px 0; }
-.home .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.home .bar a, .home .bar button { padding: 12px 0; color: inherit; cursor: pointer; }
+.home .bar a:hover, .home .bar button:hover { text-decoration: underline; text-underline-offset: 4px; }
 .home .bar .who { font-family: var(--serif); font-variation-settings: var(--name-vs); font-size: 17px; letter-spacing: -0.02em; }
 
 /* ---------- Name block ---------- */
@@ -140,8 +140,8 @@ html:has(.home) { scroll-behavior: smooth; }
 .home footer { background: var(--foot); color: var(--foot-ink); margin-top: 10vh; padding: 9vh 24px 22px; }
 .home footer .big { font-family: var(--serif); font-style: italic; font-variation-settings: "wght" 340, "opsz" 144, "SOFT" 100, "WONK" 1;
   font-size: clamp(34px, 6vw, 96px); letter-spacing: -0.02em; line-height: 1; }
-.home footer .big a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
-.home footer .copied { min-height: 1.5em; margin-top: 14px; opacity: .85; }
+.home footer .big a:hover, .home footer .big button:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+.home footer .big button { font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .home footer .frow a { padding: 10px 0; }
 .home footer .rule { height: 1px; background: currentColor; opacity: .55; margin: 5vh 0 12px; }
 .home footer .frow { display: flex; flex-wrap: wrap; gap: 10px 48px; font-size: 15px; }
@@ -222,7 +222,8 @@ html:has(.home) { scroll-behavior: smooth; }
 /* "Talk to the human": the concierge pilot (lib/concierge.ts). The line under
    an answer, more prominent when the question was for Jordanne herself or
    jordbot couldn't cite a source, and the panel, which reuses .project. */
-.home .after-answer .talk { color: var(--d1); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 10px 0; font: inherit; }
+.home .project-foot .talk { display: inline-block; margin-top: 12px; }
+.home .after-answer .talk, .home .project-foot .talk { color: var(--d1); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 10px 0; font: inherit; }
 .home .after-answer.prompt { color: var(--text); padding: 4px 0 4px 14px; border-left: 2px solid var(--d1); }
 .home .after-answer.prompt .talk { font-variation-settings: "wght" 550, "ital" 0; }
 .home .concierge .lede { font-size: 17px; line-height: 1.6; color: var(--soft); margin-top: 8px; }
