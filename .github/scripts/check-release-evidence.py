@@ -10,7 +10,8 @@ that jordannedyck-ai/release_gate.py writes:
 
 The file must say "status": "pass", and this script re-checks why rather than
 trusting it: a full single-turn, multi-turn and dev e2e run named, every failing
-check signed off (a tier-1 one only as "checker miss: ..."), every QA item
+check signed off (a tier-1 one only as "checker miss: ...", or "not served: ..."
+when the e2e run passed that case), every QA item
 ticked, and for jordbot-web a tested commit that is on this branch.
 
 A rollback needs no evidence: a tag or FAISS_DIR that prod has run before is
@@ -44,6 +45,15 @@ def ran_before(base, path, line):
     return bool(git("log", base, "--format=%H", "-S", line, "--", path).stdout.strip())
 
 
+def tier1_ok(f, signoff):
+    """'not served:' (2026-11-06): text the site never sends, e.g. A01's model
+    refusal, which the site replaces with a fixed reply. It counts only when the
+    dev e2e run passed the same case, so the site's own answer was checked."""
+    return signoff.startswith("checker miss") or (
+        signoff.startswith("not served") and f.get("kind") != "e2e"
+        and f.get("e2e_case_passed") is True)
+
+
 def problems_in(path, want):
     if not os.path.exists(path):
         return [f"{path} is missing; run release_gate.py and add the file to this PR"]
@@ -65,9 +75,10 @@ def problems_in(path, want):
         what = f"{f.get('kind')} {f.get('case')} {f.get('check')}"
         if not signoff:
             out.append(f"{what} failed and is not signed off")
-        elif str(f.get("check", "")).startswith("T1.") and not signoff.lower().startswith("checker miss"):
+        elif str(f.get("check", "")).startswith("T1.") and not tier1_ok(f, signoff.lower()):
             # A release needs every tier-1 check (jordannedyck-ai README).
-            out.append(f"{what} is tier 1: only a 'checker miss: ...' sign-off lets it through")
+            out.append(f"{what} is tier 1: only 'checker miss: ...', or 'not served: ...' "
+                       "with the e2e run passing that case, lets it through")
     if not ev.get("qa") or not all(q.get("done") is True for q in ev["qa"]):
         out.append("QA items not all ticked")
     if want.get("image") == "jordbot-web":
