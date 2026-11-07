@@ -93,8 +93,9 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Chat event log | Postgres, table `chat_events` | One row per `/api/chat` request. Schema: `db/schema.sql`; the deployed schema is `k8s/*/postgres-schema.yaml`. See `k8s/postgres/README.md` |
 | Retention and backups | `k8s/postgres/*-cronjob.yaml` | 180 days and 14 days of backups, as stated in `app/page.tsx`. **Not deployed yet**; deploying them needs Peter |
 | Public dashboard | `/dashboard` | Aggregates only |
-| Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret) |
-| Health | `/api/health` | Public summary; `?deep=1` with `x-monitor-token` adds anomaly stats |
+| Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret). Traffic filter: Real (default), Smoke tests (`flags ? 'smoke'`), All synthetic |
+| Health | `/api/health` | Public summary, including `prompt_version` and `release` (the image tag, `dev` on dev builds); `?deep=1` with `x-monitor-token` adds anomaly stats |
+| Prod smoke test | `scripts/smoke-prod.mjs` | After every release; see [Prod release step 4](#4-verify). Requests with a valid `x-monitor-token` and `x-smoke-run: <tag>` are stored with `flags.smoke`; without the token the header is ignored |
 | Checkly checks | `monitoring/` | Own `package.json`; `npm test` / `npm run deploy` from that folder |
 
 Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOARD_ADMIN_PASSWORD`, `MONITOR_TOKEN`, `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; evals only, never in prod).
@@ -265,10 +266,19 @@ Use the same `$SHA` you tested in dev:
 git fetch origin && git merge-base --is-ancestor $SHA origin/master && echo "on master"
 ```
 
-Then run the step 2 BuildRun from the dev loop with two changes:
+Then run the step 2 BuildRun from the dev loop with these changes:
 
 - `generateName: ${BUILD}-release-`
 - `image: quay.nekohouse.ca:8443/peter/${IMAGE}:vX.Y`
+- For `jordbot-web` only, bake the tag in, so `/api/health` reports it as `release` (the smoke test in step 4 waits for it). Add to `paramValues`:
+
+  ```yaml
+        - name: build-args
+          values:
+            - value: RELEASE=vX.Y
+  ```
+
+  Without it the image reports `"release": "dev"`, and the smoke test fails once its wait runs out.
 
 Wait until `SUCCEEDED=True`, the same as in dev. No podman and no Quay login.
 
@@ -295,10 +305,10 @@ Argo syncs within about 3 minutes of the merge.
 oc -n jordbot get deploy jordannedyck-ai jordannedyck-ai-web \
   -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image
 oc -n jordbot rollout status deploy/jordannedyck-ai-web --timeout=5m
-curl -s https://jordannedyck.com/api/health
+curl -s https://jordannedyck.com/api/health        # "release" shows the new jordbot-web tag
 ```
 
-Then send one chat on https://jordannedyck.com.
+Then run the smoke test and read every answer it prints: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y --wait 600`. It checks health, `prompt_version` against the evidence file, and 7 chats. It exits 1 on a failed check; red means prod is broken, so go to [Rollback](#rollback). Its chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them, and they show under **Smoke tests** in `/dashboard/admin`. Each run is 5 gpt-4o answers, a few cents.
 
 ## Rollback
 

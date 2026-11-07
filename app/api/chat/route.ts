@@ -6,7 +6,7 @@ import { getOrCreateSessionId } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
-import { isMonitorRequest } from '@/lib/monitor';
+import { isMonitorRequest, smokeRun } from '@/lib/monitor';
 import { parseChatInput, parseSource, parseClientId, parseTimelineShown, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
@@ -190,6 +190,9 @@ export async function POST(req: NextRequest) {
   const { sessionId } = await getOrCreateSessionId();
   const userAgent = req.headers.get('user-agent');
   const isSynthetic = isMonitorRequest(req);
+  // A post-release smoke run's tag, spread into every row's flags.
+  const smoke = smokeRun(req);
+  const smokeFlag = smoke ? { smoke } : {};
   const source = parseSource(body);
   const clientId = parseClientId(body);
   const query = input.lastUserContent;
@@ -235,7 +238,7 @@ export async function POST(req: NextRequest) {
       latencyMs: elapsed(),
       error: `rate_limited:${limit.reason}`,
       rateLimited: true,
-      flags: freeLabels(query, null),
+      flags: { ...freeLabels(query, null), ...smokeFlag },
     });
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please try again later.' },
@@ -249,7 +252,7 @@ export async function POST(req: NextRequest) {
       latencyMs: elapsed(),
       error: 'rejected:oversize',
       rateLimited: false,
-      flags: { ...freeLabels(query, null), oversize: true, oversize_reason: input.reason },
+      flags: { ...freeLabels(query, null), ...smokeFlag, oversize: true, oversize_reason: input.reason },
     });
     return NextResponse.json(
       { error: 'Message or conversation too long. Please start a new conversation.' },
@@ -298,6 +301,7 @@ export async function POST(req: NextRequest) {
       : null,
     isSynthetic,
     flags: {
+      ...smokeFlag,
       ...(input.droppedRoles.length ? { dropped_roles: input.droppedRoles } : {}),
       ...(unsigned ? { unsigned_assistant_turns: unsigned } : {}),
       // In flags rather than a column, so no schema change. Absent when
