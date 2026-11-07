@@ -95,7 +95,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Public dashboard | `/dashboard` | Aggregates only |
 | Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret). Traffic filter: Real (default), Smoke tests (`flags ? 'smoke'`), All synthetic |
 | Health | `/api/health` | Public summary, including `prompt_version` and `release` (the image tag, `dev` on dev builds); `?deep=1` with `x-monitor-token` adds anomaly stats |
-| Prod smoke test | `scripts/smoke-prod.mjs` | After every release; see [Prod release step 4](#4-verify). Requests with a valid `x-monitor-token` and `x-smoke-run: <tag>` are stored with `flags.smoke`; without the token the header is ignored |
+| Prod smoke test | `.github/workflows/prod-smoke.yml` | After every release merge; see [Prod release step 4](#4-verify-the-prod-smoke-action). Requests with a valid `x-monitor-token` and `x-smoke-run: <tag>` are stored with `flags.smoke`; without the token the header is ignored |
 | Checkly checks | `monitoring/` | Own `package.json`; `npm test` / `npm run deploy` from that folder |
 
 Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOARD_ADMIN_PASSWORD`, `MONITOR_TOKEN`, `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; evals only, never in prod).
@@ -270,7 +270,7 @@ Then run the step 2 BuildRun from the dev loop with these changes:
 
 - `generateName: ${BUILD}-release-`
 - `image: quay.nekohouse.ca:8443/peter/${IMAGE}:vX.Y`
-- For `jordbot-web` only, bake the tag in, so `/api/health` reports it as `release` (the smoke test in step 4 waits for it). Add to `paramValues`:
+- For `jordbot-web` only, bake the tag in, so `/api/health` reports it as `release` (the prod-smoke Action waits for it). Add to `paramValues`:
 
   ```yaml
         - name: build-args
@@ -278,7 +278,7 @@ Then run the step 2 BuildRun from the dev loop with these changes:
             - value: RELEASE=vX.Y
   ```
 
-  Without it the image reports `"release": "dev"`, and the smoke test fails once its wait runs out.
+  Without it the image reports `"release": "dev"`, and the prod-smoke Action fails after 10 minutes of waiting.
 
 Wait until `SUCCEEDED=True`, the same as in dev. No podman and no Quay login.
 
@@ -297,18 +297,20 @@ gh pr create --repo jordanne-dyck/jordannedyck-ai-web --fill
 - Change nothing else in the PR except the evidence file. CI rejects anything in the release file except the two tags, fails without passing evidence, and any other `k8s/` change waits for Peter.
 - Merge once `Validate k8s manifests` passes.
 
-### 4. Verify
+### 4. Verify: the prod-smoke Action
 
-Argo syncs within about 3 minutes of the merge.
+The merge starts `.github/workflows/prod-smoke.yml`. Argo syncs within about 3 minutes; the Action polls `/api/health` for up to 10 minutes until `release` shows the new `jordbot-web` tag, then runs `scripts/smoke-prod.mjs` against https://jordannedyck.com: health, `prompt_version` against the evidence file, and 7 chats (fixed lead and timeline, the timeline part, a project card, the fixed refusal, a 3-turn follow-up conversation).
 
 ```bash
-oc -n jordbot get deploy jordannedyck-ai jordannedyck-ai-web \
-  -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image
-oc -n jordbot rollout status deploy/jordannedyck-ai-web --timeout=5m
-curl -s https://jordannedyck.com/api/health        # "release" shows the new jordbot-web tag
+gh run list --repo jordanne-dyck/jordannedyck-ai-web --workflow prod-smoke.yml --limit 1
+gh run view --repo jordanne-dyck/jordannedyck-ai-web <run-id>    # the answers are in the run summary on GitHub
 ```
 
-Then run the smoke test and read every answer it prints: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y --wait 600`. It checks health, `prompt_version` against the evidence file, and 7 chats. It exits 1 on a failed check; red means prod is broken, so go to [Rollback](#rollback). Its chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them, and they show under **Smoke tests** in `/dashboard/admin`. Each run is 5 gpt-4o answers, a few cents.
+- **The release is verified only when the run is green and someone has read the answers in its summary.** A check that passes says the answer has the right shape, not that it is right.
+- **Red means prod is broken: go to [Rollback](#rollback).** The summary lists each failed check under the answers.
+- The smoke chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them. They show under **Smoke tests** in `/dashboard/admin`.
+- Run it again by hand from the Actions tab (`workflow_dispatch`, optional tag), or locally: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y`. Point it at dev with `--base $DEV`. Each run is 5 gpt-4o answers, a few cents.
+- It checks the `jordbot-web` tag only. A backend-only release still runs the chats, but nothing waits for the backend rollout first: check `oc -n jordbot rollout status deploy/jordannedyck-ai` before reading the result.
 
 ## Rollback
 
