@@ -1,10 +1,10 @@
 {
   "generated_by": "jordannedyck-ai/release_gate.py",
-  "generated": "2026-11-06",
+  "generated": "2026-11-07",
   "image": null,
   "tag": null,
   "sha": null,
-  "faiss_dir": "C:/Program Files/Git/faiss/kb-762b34e",
+  "faiss_dir": "/faiss/kb-762b34e",
   "prompt_version": "dd326013",
   "index": "fc423314",
   "evals": {
