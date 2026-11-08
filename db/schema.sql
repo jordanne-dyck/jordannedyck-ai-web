@@ -105,3 +105,39 @@ CREATE TABLE IF NOT EXISTS admin_login_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_admin_login_attempts_ip
   ON admin_login_attempts (ip_hash, created_at DESC);
+
+-- Concierge pilot, phase 2 (nimbalyst-local/plans/concierge-pilot.md,
+-- 2026-11-07). One row per note a visitor sends Jordanne from the "Talk to the
+-- human" panel. Kept apart from chat_events: this is what the visitor chose to
+-- send, with their name and email, not the conversation. Deleted after 365
+-- days by k8s/postgres/retention-cronjob.yaml; the period is stated to
+-- visitors in lib/leads.ts (LEAD_CONSENT). Change them together.
+CREATE TABLE IF NOT EXISTS leads (
+  id          BIGSERIAL PRIMARY KEY,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  name        TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  -- lib/concierge.ts PURPOSES id, or NULL if the visitor didn't pick one.
+  purpose     TEXT,
+  -- Project slug when the panel was opened from a project.
+  project     TEXT,
+  note        TEXT NOT NULL,
+  -- 'ai' | 'template' | 'blank': how the note started, before the visitor's edits.
+  drafted_by  TEXT,
+  edited      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- When the visitor pressed Send under the consent wording.
+  consent_at  TIMESTAMPTZ NOT NULL,
+  -- For the per-visitor limit in app/api/lead/route.ts only.
+  ip_hash     TEXT NOT NULL,
+  -- 'new' | 'replied' | 'conversation' | 'closed', set in /dashboard/admin/leads.
+  status      TEXT NOT NULL DEFAULT 'new',
+  status_at   TIMESTAMPTZ,
+  -- First time the lead left 'new': the pilot's reply time.
+  replied_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_created_at
+  ON leads (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_leads_ip_hash
+  ON leads (ip_hash, created_at DESC);

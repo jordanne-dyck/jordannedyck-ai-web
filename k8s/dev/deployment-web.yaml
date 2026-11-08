@@ -41,6 +41,10 @@ spec:
                 secretKeyRef:
                   key: DASHBOARD_ADMIN_PASSWORD
                   name: app-observability
+            # Concierge lead form (app/api/lead). Prod stays off until its
+            # retention CronJob deletes leads after 365 days.
+            - name: LEADS_ENABLED
+              value: "1"
             - name: IP_HASH_SALT
               valueFrom:
                 secretKeyRef:
