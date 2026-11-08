@@ -121,12 +121,12 @@ async function chat(messages) {
 function show(label, q, r) {
   log(`\n### ${label}\n`);
   log(`**Q:** ${q}  `);
-  log(`HTTP ${r.status} · first token ${r.ttft ?? '-'} ms · total ${r.total} ms\n`);
+  log(`HTTP ${r.status} | first token ${r.ttft ?? '-'} ms | total ${r.total} ms\n`);
   log('```text');
   log(r.text || '(no text)');
   log('```');
   const sources = r.parts['data-sources']?.sources ?? [];
-  log(`Sources: ${sources.length ? sources.map((s) => `[${s.n}] ${s.title}${s.section ? ` — ${s.section}` : ''}`).join('; ') : 'none'}  `);
+  log(`Sources: ${sources.length ? sources.map((s) => `[${s.n}] ${s.title}${s.section ? ` - ${s.section}` : ''}`).join('; ') : 'none'}  `);
   for (const k of ['data-timeline', 'data-project', 'error']) {
     if (r.parts[k]) log(`${k}: \`${JSON.stringify(r.parts[k])}\`  `);
   }
