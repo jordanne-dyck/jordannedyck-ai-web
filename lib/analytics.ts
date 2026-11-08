@@ -56,7 +56,7 @@ export type AnalyticsEvent =
   // offered; the note, and who drafted it; sending it. Never the note's text.
   | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none'; from: 'after_answer' | 'footer' | 'link' | 'bar' | 'error' | 'project' } }
   | { name: 'brief_drafted'; props: { by: 'ai' | 'template'; purpose: string | null } }
-  | { name: 'brief_sent'; props: { channel: 'email' | 'copy'; edited: boolean } };
+  | { name: 'brief_sent'; props: { channel: 'email' | 'copy' | 'form'; edited: boolean } };
 
 // `beacon` for events sent while the page is closing, when a normal request
 // would be cancelled.

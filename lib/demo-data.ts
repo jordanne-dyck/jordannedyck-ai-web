@@ -4,6 +4,7 @@
 // can reach the public page. Answers only describe this site's own build, so
 // nothing here states a fact about Jordanne that the record has not checked.
 import type { EventRow, FixItem, GapQuestion } from './queries';
+import type { LeadRow } from './leads';
 
 const SESSION = 'sample-session-0001';
 const BASE = {
@@ -190,4 +191,55 @@ export const SAMPLE_GAPS: SampleGap[] = [
       searchedAs: 'How long did it take Jordanne to build the chatbot?',
     },
   },
+];
+
+// The concierge pilot's leads view (/dashboard/admin/leads), with made-up
+// people at example.com addresses. Shown permanently instead of real numbers
+// (decided 2026-11-07): it shows what is tracked and how, not results.
+const lead = (r: Omit<LeadRow, 'status' | 'statusAt' | 'repliedAt' | 'edited'> & Partial<LeadRow>): LeadRow => ({
+  status: 'new',
+  statusAt: null,
+  repliedAt: null,
+  edited: true,
+  ...r,
+});
+
+export const SAMPLE_LEADS: LeadRow[] = [
+  lead({
+    id: 's3',
+    createdAt: '2026-11-04T15:12:00.000Z',
+    name: 'Sample Visitor',
+    email: 'visitor@example.com',
+    purpose: 'other',
+    project: null,
+    note: "Hi Jordanne,\n\nI'm Sample Visitor, a product lead at Example Co.\n\nI asked jordbot about how this site was built.\n\nI'd like to talk about how you decide what AI handles and what a person handles.\n\nSample Visitor",
+    draftedBy: 'ai',
+  }),
+  lead({
+    id: 's2',
+    createdAt: '2026-11-03T13:40:00.000Z',
+    name: 'Example Recruiter',
+    email: 'recruiter@example.com',
+    purpose: 'recruiting',
+    project: null,
+    note: "Hi Jordanne,\n\nI'm Example Recruiter, a recruiter at Example Talent.\n\nI'd like to talk about a role I'm recruiting for.\n\nExample Recruiter",
+    draftedBy: 'template',
+    status: 'conversation',
+    statusAt: '2026-11-04T10:05:00.000Z',
+    repliedAt: '2026-11-03T20:15:00.000Z',
+  }),
+  lead({
+    id: 's1',
+    createdAt: '2026-11-02T09:30:00.000Z',
+    name: 'Placeholder Person',
+    email: 'person@example.com',
+    purpose: 'project',
+    project: 'ai-resume',
+    note: "Hi Jordanne,\n\nI'm Placeholder Person, [your role] at [company].\n\nI'd like to talk about working together on a project.\n\nPlaceholder Person",
+    draftedBy: 'ai',
+    edited: false,
+    status: 'replied',
+    statusAt: '2026-11-02T16:00:00.000Z',
+    repliedAt: '2026-11-02T16:00:00.000Z',
+  }),
 ];

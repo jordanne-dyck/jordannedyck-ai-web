@@ -6,7 +6,7 @@ export function AdminShell({
   tab,
   children,
 }: {
-  tab: 'log' | 'insights' | 'gaps' | null;
+  tab: 'log' | 'insights' | 'gaps' | 'leads' | null;
   children: React.ReactNode;
 }) {
   const tabClass = (on: boolean) =>
@@ -37,6 +37,7 @@ export function AdminShell({
             <Link href="/dashboard/admin" className={tabClass(tab === 'log')}>Event log</Link>
             <Link href="/dashboard/admin/insights" className={tabClass(tab === 'insights')}>Insights</Link>
             <Link href="/dashboard/admin/gaps" className={tabClass(tab === 'gaps')}>Gaps</Link>
+            <Link href="/dashboard/admin/leads" className={tabClass(tab === 'leads')}>Leads</Link>
           </nav>
         )}
         {children}

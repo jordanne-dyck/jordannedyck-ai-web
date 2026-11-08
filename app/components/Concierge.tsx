@@ -6,11 +6,27 @@ import type { Project } from '@/lib/projects';
 import {
   EMAIL, HANDLES, MAILTO_MAX, PURPOSES, REPLY_TIME, mailtoHref, templateBrief, type PurposeId, type Trigger, type Turn,
 } from '@/lib/concierge';
+import { LEAD_CONSENT } from '@/lib/leads';
+
+// A blank the visitor hasn't filled in yet, like "[your role]".
+const BLANK = /\[[^\]\n]+\]/;
+
+// Whether the "Send to Jordanne" form is on here (app/api/lead): asked once
+// per page load. Off, or unknown, means email only, as in phase 1.
+let leadsEnabled: Promise<boolean> | null = null;
+export function formEnabled(): Promise<boolean> {
+  leadsEnabled ??= fetch('/api/lead')
+    .then((r) => (r.ok ? r.json() : { enabled: false }))
+    .then((j: { enabled?: boolean }) => j.enabled === true, () => false);
+  return leadsEnabled;
+}
 
 // "Talk to the human": the concierge pilot's panel (lib/concierge.ts). The
 // visitor picks why they're getting in touch, if they like, and gets a note
-// drafted from their conversation to edit and send by email. Nothing is
-// stored. A native modal <dialog>, like the project panel.
+// drafted from their conversation to edit and send. Where the lead form is on
+// (phase 2, lib/leads.ts), the note is sent with the form and stored as a
+// lead; email stays as the smaller option. Otherwise nothing is stored. A
+// native modal <dialog>, like the project panel.
 export function ConciergePanel({
   open,
   opener,
@@ -40,6 +56,14 @@ export function ConciergePanel({
   const [drafting, setDrafting] = useState(false);
   const [by, setBy] = useState<'ai' | 'template'>('ai');
   const [copied, setCopied] = useState(false);
+  const [form, setForm] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) formEnabled().then(setForm);
+  }, [open]);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -82,6 +106,59 @@ export function ConciergePanel({
       track({ name: 'brief_sent', props: { channel: 'copy', edited } });
     }, () => {});
   };
+
+  const send = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const email = String(data.get('email') ?? '').trim();
+    setSending(true);
+    setSendError(null);
+    let status = 0;
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.get('name'),
+          email,
+          website: data.get('website'),
+          note: brief,
+          purpose,
+          project: project?.slug,
+          draftedBy: hasChat ? by : 'blank',
+          edited,
+        }),
+      });
+      status = res.status;
+    } catch {
+      // status 0: shown below as "didn't go through".
+    }
+    setSending(false);
+    if (status === 200) {
+      track({ name: 'brief_sent', props: { channel: 'form', edited } });
+      setSent(email);
+    } else {
+      setSendError(
+        status === 400
+          ? 'Check your name and email, and that the note has something in it.'
+          : status === 429
+            ? 'Too many notes have been sent today. Please send it by email instead.'
+            : "That didn't go through. Please send it by email instead.",
+      );
+    }
+  };
+
+  const mailto = tooLong ? (
+    <span className="hint">Too long for an email link. Copy it and send it to {EMAIL}.</span>
+  ) : (
+    <a
+      className={form ? 'alt' : 'send'}
+      href={mailtoHref(brief)}
+      onClick={() => track({ name: 'brief_sent', props: { channel: 'email', edited } })}
+    >
+      {form ? 'Or send it from your own email' : 'Send by email →'}
+    </a>
+  );
 
   return (
     <dialog
@@ -176,24 +253,49 @@ export function ConciergePanel({
                 )}
                 <p className="hint">
                   {hasChat && <>To write it, your conversation goes to OpenAI, as your questions already do. </>}
-                  The note isn&apos;t saved anywhere. It only reaches Jordanne if you send it.
+                  {form
+                    ? <>The note isn&apos;t saved until you send it.</>
+                    : <>The note isn&apos;t saved anywhere. It only reaches Jordanne if you send it.</>}
                 </p>
               </div>
             </div>
           </div>
-          {drafted !== null && (
-            <div className="project-foot concierge-foot">
-              {tooLong ? (
-                <span className="hint">Too long for an email link. Copy it and send it to {EMAIL}.</span>
-              ) : (
-                <a
-                  className="send"
-                  href={mailtoHref(brief)}
-                  onClick={() => track({ name: 'brief_sent', props: { channel: 'email', edited } })}
-                >
-                  Send by email →
-                </a>
+          {drafted !== null && sent !== null && (
+            <div className="project-foot concierge-foot" role="status">
+              <p className="sent">
+                Sent. {REPLY_TIME} Her reply goes to {sent}.
+              </p>
+            </div>
+          )}
+          {drafted !== null && sent === null && form && (
+            <form className="project-foot concierge-foot lead-form" onSubmit={send}>
+              <label>
+                <span className="label">Your name</span>
+                <input name="name" autoComplete="name" required maxLength={100} />
+              </label>
+              <label>
+                <span className="label">Your email</span>
+                <input name="email" type="email" autoComplete="email" required maxLength={254} />
+              </label>
+              {/* For bots only: hidden from people and screen readers. */}
+              <input name="website" className="trap" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+              {BLANK.test(brief) && (
+                <p className="hint consent">Your note still has [brackets]. Fill them in or delete them before you send it.</p>
               )}
+              <p className="hint consent">{LEAD_CONSENT}</p>
+              {sendError && <p className="hint error" role="alert">{sendError}</p>}
+              <div className="lead-actions">
+                <button type="submit" className="send" disabled={sending || brief.trim().length < 10}>
+                  {sending ? 'Sending…' : 'Send to Jordanne →'}
+                </button>
+                {mailto}
+                <button type="button" className="label" onClick={copy}>{copied ? 'Copied' : 'Copy note'}</button>
+              </div>
+            </form>
+          )}
+          {drafted !== null && sent === null && !form && (
+            <div className="project-foot concierge-foot">
+              {mailto}
               <button type="button" className="label" onClick={copy}>{copied ? 'Copied' : 'Copy note'}</button>
               <span className="label to">To {EMAIL}</span>
             </div>

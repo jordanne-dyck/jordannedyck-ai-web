@@ -18,7 +18,7 @@ import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
 import { splitAtTimeline, withoutTimelineMarker } from '@/lib/timeline';
-import { ConciergePanel } from '@/app/components/Concierge';
+import { ConciergePanel, formEnabled } from '@/app/components/Concierge';
 import { conciergeTrigger } from '@/lib/concierge';
 import './home.css';
 
@@ -223,6 +223,11 @@ export default function Home() {
   const [conciergeOpen, setConciergeOpen] = useState(false);
   const [conciergeOpener, setConciergeOpener] = useState<HTMLElement | null>(null);
   const [conciergeKey, setConciergeKey] = useState(0);
+  // Where the lead form is on, the privacy line says notes sent with it are kept.
+  const [leadForm, setLeadForm] = useState(false);
+  useEffect(() => {
+    formEnabled().then(setLeadForm);
+  }, []);
   // The project the panel was opened from, named in the note.
   const [conciergeProject, setConciergeProject] = useState<Project | null>(null);
   // The answer that showed the timeline earlier in this tab, before a reload.
@@ -611,11 +616,12 @@ export default function Home() {
             />
             <button type="submit" disabled={isLoading || !input.trim()}>Send</button>
           </form>
-          {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days) and
-              backup-cronjob.yaml (14 nightly dumps). Change them together. */}
+          {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days for
+              chats, 365 for notes sent to Jordanne) and backup-cronjob.yaml (14
+              nightly dumps). Change them together. */}
           <p className="fine label">
             It can get things wrong. Check anything important with Jordanne.
-            {messages.length === 0 && <> Chats are kept 180 days to improve answers. Backups, up to 14 days more.</>}
+            {messages.length === 0 && <> Chats are kept 180 days to improve answers.{leadForm && <> A note you send Jordanne, with your name and email, is kept 1 year so she can reply.</>} Backups, up to 14 days more.</>}
           </p>
         </div>
       </main>
