@@ -229,7 +229,12 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .concierge .lede { font-size: 17px; line-height: 1.6; color: var(--soft); margin-top: 8px; }
 .home .concierge .hint { color: var(--soft); font-size: 14px; line-height: 1.55; margin-top: 8px; }
 /* One scrolling column; only the send row is pinned, so a phone shows the note */
-.home .concierge-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.home .concierge-form { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
+/* Send follows the content rather than the panel's bottom edge, and stays in
+   view once the content is taller than the screen */
+.home .concierge .project-body { flex: 0 1 auto; }
+.home .concierge .project-top { justify-content: flex-end; }
+@media (min-width: 641px) { .home .concierge .concierge-foot { background: transparent; padding-top: 4px; } }
 .home .concierge .field { margin-top: 22px; display: grid; gap: 6px; }
 .home .concierge .field .label, .home .lead-fields .label { color: var(--soft); }
 .home .concierge textarea { width: 100%; font: inherit; font-size: 16px; line-height: 1.55; color: var(--text); background: var(--input); border: 0; border-radius: 10px; padding: 14px 16px; resize: vertical; outline: none; }

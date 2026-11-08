@@ -225,7 +225,7 @@ export function ConciergePanel({
       {open && (
         <div className="project-inner">
           <div className="project-top">
-            <span className="label">Talk to Jordanne</span>
+            {/* No title here: the heading below is the panel's only one. */}
             <button type="button" className="label" onClick={onClose}>Close ✕</button>
           </div>
           {sent !== null ? (
