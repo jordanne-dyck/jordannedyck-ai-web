@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { track } from '@/lib/analytics';
 import type { Project } from '@/lib/projects';
 import {
-  EMAIL, HANDLES, MAILTO_MAX, PURPOSES, REPLY_TIME, mailtoHref, templateBrief, type PurposeId, type Trigger, type Turn,
+  EMAIL, MAILTO_MAX, REPLY_TIME, mailtoHref, templateBrief, type Trigger, type Turn,
 } from '@/lib/concierge';
 import { LEAD_CONSENT } from '@/lib/leads';
 
-// A blank the visitor hasn't filled in yet, like "[your role]".
+// A blank the visitor hasn't filled in yet, like "[what you'd like to talk about]".
 const BLANK = /\[[^\]\n]+\]/;
 
 // Whether the "Send to Jordanne" form is on here (app/api/lead): asked once
@@ -22,11 +22,13 @@ export function formEnabled(): Promise<boolean> {
 }
 
 // "Talk to the human": the concierge pilot's panel (lib/concierge.ts). The
-// visitor picks why they're getting in touch, if they like, and gets a note
-// drafted from their conversation to edit and send. Where the lead form is on
-// (phase 2, lib/leads.ts), the note is sent with the form and stored as a
-// lead; email stays as the smaller option. Otherwise nothing is stored. A
-// native modal <dialog>, like the project panel.
+// note is ready the moment the panel opens: the visitor's questions at once,
+// replaced by the AI draft when it arrives unless they've started typing.
+// Where the lead form is on (phase 2, lib/leads.ts), the note is sent with
+// the form and stored as a lead; email stays as the smaller option. Otherwise
+// nothing is stored. One scrolling column with only Send pinned, so a phone
+// shows the note (simplified 2026-11-08). A native modal <dialog>, like the
+// project panel.
 export function ConciergePanel({
   open,
   opener,
@@ -45,21 +47,24 @@ export function ConciergePanel({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   // Opened before asking jordbot anything (the footer, the About page): no
-  // conversation to draft from, so the note starts as the blank template and
-  // no AI is called.
+  // conversation to draft from, so no AI is called. The note starts empty, or
+  // names the project it was opened from.
   const hasChat = turns.some((t) => t.role === 'user');
-  const [purpose, setPurpose] = useState<PurposeId | null>(null);
   const about = project?.title ?? null;
-  const [brief, setBrief] = useState(() => (hasChat ? '' : templateBrief([], null, about)));
-  // The note as drafted, to tell whether the visitor edited it.
-  const [drafted, setDrafted] = useState<string | null>(() => (hasChat ? null : templateBrief([], null, about)));
-  const [drafting, setDrafting] = useState(false);
-  const [by, setBy] = useState<'ai' | 'template'>('ai');
+  const [initial] = useState(() => (hasChat || about ? templateBrief(turns, about) : ''));
+  const [brief, setBrief] = useState(initial);
+  // The note as last drafted, to tell whether the visitor edited it.
+  const [drafted, setDrafted] = useState(initial);
+  const [drafting, setDrafting] = useState(hasChat);
+  const [by, setBy] = useState<'ai' | 'template'>('template');
   const [copied, setCopied] = useState(false);
   const [form, setForm] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  // The AI draft replaces the note only if the visitor hasn't typed in it.
+  const typed = useRef(false);
+  const asked = useRef(false);
 
   useEffect(() => {
     if (open) formEnabled().then(setForm);
@@ -75,30 +80,33 @@ export function ConciergePanel({
     }
   }, [open, opener]);
 
-  const draft = async () => {
-    setDrafting(true);
-    setCopied(false);
-    let text: string | null = null;
-    try {
-      const res = await fetch('/api/brief', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: turns, purpose, project: project?.slug }),
-      });
-      if (res.ok) text = ((await res.json()) as { brief?: string }).brief ?? null;
-    } catch {
-      // The template below stands in.
-    }
-    const by = text ? 'ai' : 'template';
-    const note = text ?? templateBrief(turns, purpose, about);
-    track({ name: 'brief_drafted', props: { by, purpose } });
-    setBy(by);
-    setBrief(note);
-    setDrafted(note);
-    setDrafting(false);
-  };
+  // The AI draft, once per opening.
+  useEffect(() => {
+    if (!open || !hasChat || asked.current) return;
+    asked.current = true;
+    (async () => {
+      let text: string | null = null;
+      try {
+        const res = await fetch('/api/brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: turns, project: project?.slug }),
+        });
+        if (res.ok) text = ((await res.json()) as { brief?: string }).brief ?? null;
+      } catch {
+        // The questions already in the note stand in.
+      }
+      track({ name: 'brief_drafted', props: { by: text ? 'ai' : 'template' } });
+      if (text && !typed.current) {
+        setBy('ai');
+        setBrief(text);
+        setDrafted(text);
+      }
+      setDrafting(false);
+    })();
+  }, [open, hasChat, turns, project]);
 
-  const edited = drafted !== null && brief.trim() !== drafted.trim();
+  const edited = brief.trim() !== drafted.trim();
   const tooLong = mailtoHref(brief).length > MAILTO_MAX;
   const copy = () => {
     navigator.clipboard?.writeText(brief).then(() => {
@@ -123,7 +131,6 @@ export function ConciergePanel({
           email,
           website: data.get('website'),
           note: brief,
-          purpose,
           project: project?.slug,
           draftedBy: hasChat ? by : 'blank',
           edited,
@@ -148,8 +155,13 @@ export function ConciergePanel({
     }
   };
 
+  // Email, the smaller option beside the form (decided 2026-11-07). Copy only
+  // when the note is too long for a mail link.
   const mailto = tooLong ? (
-    <span className="hint">Too long for an email link. Copy it and send it to {EMAIL}.</span>
+    <>
+      <span className="hint">Too long for an email link. Copy it and send it to {EMAIL}.</span>
+      <button type="button" className="label" onClick={copy}>{copied ? 'Copied' : 'Copy note'}</button>
+    </>
   ) : (
     <a
       className={form ? 'alt' : 'send'}
@@ -158,6 +170,46 @@ export function ConciergePanel({
     >
       {form ? 'Or send it from your own email' : 'Send by email →'}
     </a>
+  );
+
+  const head = (
+    <>
+      <h3 id="concierge-title">Talk to the human</h3>
+      <p className="lede">
+        {trigger === 'intent'
+          ? 'That one is a question for her, not jordbot. '
+          : trigger === 'uncited'
+            ? "jordbot couldn't answer that from her sources, so ask her directly. "
+            : ''}
+        {REPLY_TIME}
+      </p>
+    </>
+  );
+
+  const note = (
+    <div className="field">
+      <span className="label">Your note</span>
+      <textarea
+        value={brief}
+        onChange={(e) => {
+          typed.current = true;
+          setBrief(e.target.value);
+        }}
+        rows={7}
+        placeholder="What would you like to talk to Jordanne about?"
+        aria-label="Your note to Jordanne"
+        aria-busy={drafting}
+      />
+      {hasChat && (
+        <p className="hint">
+          {drafting
+            ? 'AI is drafting this from your conversation, which already goes to OpenAI.'
+            : by === 'ai'
+              ? 'Drafted by AI from your conversation, which already goes to OpenAI. Change anything.'
+              : 'Your questions, ready to send. Change anything.'}
+        </p>
+      )}
+    </div>
   );
 
   return (
@@ -176,129 +228,58 @@ export function ConciergePanel({
             <span className="label">Talk to Jordanne</span>
             <button type="button" className="label" onClick={onClose}>Close ✕</button>
           </div>
-          <div className="project-body">
-            <h3 id="concierge-title">Talk to the human</h3>
-            <p className="lede">
-              {trigger === 'intent'
-                ? 'That one is a question for her, not jordbot. '
-                : trigger === 'uncited'
-                  ? "jordbot couldn't answer that from her sources, so ask her directly. "
-                  : ''}
-              {REPLY_TIME}
-            </p>
-
-            <div className="sec">
-              <span className="label">jordbot handles</span>
-              <ul>{HANDLES.jordbot.map((h) => <li key={h}>{h}</li>)}</ul>
-            </div>
-            <div className="sec">
-              <span className="label">Jordanne handles</span>
-              <ul>{HANDLES.jordanne.map((h) => <li key={h}>{h}</li>)}</ul>
-            </div>
-
-            <div className="sec">
-              <span className="label">Getting in touch about</span>
-              <div>
-                <div className="chips purposes" role="radiogroup" aria-label="Getting in touch about (optional)">
-                  {PURPOSES.map((p) => (
-                    <button
-                      type="button"
-                      key={p.id}
-                      role="radio"
-                      aria-checked={purpose === p.id}
-                      onClick={() => {
-                        const next = purpose === p.id ? null : p.id;
-                        setPurpose(next);
-                        // The blank template follows the purpose until the visitor edits it.
-                        if (!hasChat && !edited) {
-                          const note = templateBrief([], next, about);
-                          setBrief(note);
-                          setDrafted(note);
-                        }
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+          {sent !== null ? (
+            <>
+              <div className="project-body">
+                <h3 id="concierge-title">Sent</h3>
+                <p className="sent" role="status">{REPLY_TIME} Her reply goes to {sent}.</p>
+              </div>
+              <div className="project-foot concierge-foot">
+                <button type="button" className="send" onClick={onClose}>Back to jordbot</button>
+              </div>
+            </>
+          ) : form ? (
+            <form className="concierge-form" onSubmit={send}>
+              <div className="project-body">
+                {head}
+                {note}
+                <div className="lead-fields">
+                  <label>
+                    <span className="label">Your name</span>
+                    <input name="name" autoComplete="name" required maxLength={100} />
+                  </label>
+                  <label>
+                    <span className="label">Your email</span>
+                    <input name="email" type="email" autoComplete="email" required maxLength={254} />
+                  </label>
+                  {/* For bots only: hidden from people and screen readers. */}
+                  <input name="website" className="trap" tabIndex={-1} autoComplete="off" aria-hidden="true" />
                 </div>
-                <p className="hint">Optional.</p>
-              </div>
-            </div>
-
-            <div className="sec">
-              <span className="label">Your note</span>
-              <div>
-                {drafted === null ? (
-                  <button type="button" className="draft" onClick={draft} disabled={drafting}>
-                    {drafting ? 'Writing your note…' : 'Write my note from this conversation'}
-                  </button>
-                ) : (
-                  <>
-                    <textarea
-                      value={brief}
-                      onChange={(e) => setBrief(e.target.value)}
-                      rows={12}
-                      aria-label="Your note to Jordanne"
-                      aria-busy={drafting}
-                    />
-                    <p className="hint">
-                      {!hasChat
-                        ? 'Fill in the [brackets] and change anything before you send it.'
-                        : by === 'ai'
-                        ? 'Drafted by AI from your conversation. Fill in the [brackets] and change anything before you send it.'
-                        : "The AI draft isn't available right now, so this is a template with your questions. Fill in the [brackets]."}{' '}
-                      {hasChat && <button type="button" onClick={draft} disabled={drafting}>{drafting ? 'Rewriting…' : 'Rewrite it'}</button>}
-                    </p>
-                  </>
+                {!drafting && BLANK.test(brief) && (
+                  <p className="hint">Your note still has [brackets]. Fill them in or delete them before you send it.</p>
                 )}
-                <p className="hint">
-                  {hasChat && <>To write it, your conversation goes to OpenAI, as your questions already do. </>}
-                  {form
-                    ? <>The note isn&apos;t saved until you send it.</>
-                    : <>The note isn&apos;t saved anywhere. It only reaches Jordanne if you send it.</>}
-                </p>
+                <p className="hint">{LEAD_CONSENT}</p>
+                {sendError && <p className="hint error" role="alert">{sendError}</p>}
               </div>
-            </div>
-          </div>
-          {drafted !== null && sent !== null && (
-            <div className="project-foot concierge-foot" role="status">
-              <p className="sent">
-                Sent. {REPLY_TIME} Her reply goes to {sent}.
-              </p>
-            </div>
-          )}
-          {drafted !== null && sent === null && form && (
-            <form className="project-foot concierge-foot lead-form" onSubmit={send}>
-              <label>
-                <span className="label">Your name</span>
-                <input name="name" autoComplete="name" required maxLength={100} />
-              </label>
-              <label>
-                <span className="label">Your email</span>
-                <input name="email" type="email" autoComplete="email" required maxLength={254} />
-              </label>
-              {/* For bots only: hidden from people and screen readers. */}
-              <input name="website" className="trap" tabIndex={-1} autoComplete="off" aria-hidden="true" />
-              {BLANK.test(brief) && (
-                <p className="hint consent">Your note still has [brackets]. Fill them in or delete them before you send it.</p>
-              )}
-              <p className="hint consent">{LEAD_CONSENT}</p>
-              {sendError && <p className="hint error" role="alert">{sendError}</p>}
-              <div className="lead-actions">
+              <div className="project-foot concierge-foot">
                 <button type="submit" className="send" disabled={sending || brief.trim().length < 10}>
                   {sending ? 'Sending…' : 'Send to Jordanne →'}
                 </button>
                 {mailto}
-                <button type="button" className="label" onClick={copy}>{copied ? 'Copied' : 'Copy note'}</button>
               </div>
             </form>
-          )}
-          {drafted !== null && sent === null && !form && (
-            <div className="project-foot concierge-foot">
-              {mailto}
-              <button type="button" className="label" onClick={copy}>{copied ? 'Copied' : 'Copy note'}</button>
-              <span className="label to">To {EMAIL}</span>
-            </div>
+          ) : (
+            <>
+              <div className="project-body">
+                {head}
+                {note}
+                <p className="hint">The note isn&apos;t saved anywhere. It only reaches Jordanne if you send it.</p>
+              </div>
+              <div className="project-foot concierge-foot">
+                {mailto}
+                <span className="label to">To {EMAIL}</span>
+              </div>
+            </>
           )}
         </div>
       )}

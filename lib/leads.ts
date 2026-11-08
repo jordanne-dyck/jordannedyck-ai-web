@@ -9,7 +9,7 @@
 // (decided 2026-11-07). The period matches k8s/postgres/retention-cronjob.yaml.
 export const LEAD_RETENTION_DAYS = 365;
 export const LEAD_CONSENT =
-  "Jordanne gets your name, email and this note, and uses them only to reply to you. They're kept for 1 year, then deleted. Never shared, never added to a mailing list.";
+  'Jordanne uses your name, email and note only to reply to you. Kept for 1 year, then deleted. Never shared.';
 
 export const LEAD_STATUSES = [
   { id: 'new', label: 'New' },

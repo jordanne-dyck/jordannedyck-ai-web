@@ -227,36 +227,30 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .after-answer.prompt { color: var(--text); padding: 4px 0 4px 14px; border-left: 2px solid var(--d1); }
 .home .after-answer.prompt .talk { font-variation-settings: "wght" 550, "ital" 0; }
 .home .concierge .lede { font-size: 17px; line-height: 1.6; color: var(--soft); margin-top: 8px; }
-.home .concierge .chips { margin: 0; }
-/* All four purposes, also while chatting, when the composer shows one chip */
-.home .concierge .chips button:nth-of-type(n) { display: inline-flex; }
-.home .concierge .chips button::before { background: transparent; border: 1px solid var(--soft); }
-.home .concierge .chips button[aria-checked="true"] { border-color: var(--d1); }
-.home .concierge .chips button[aria-checked="true"]::before { background: var(--d1); border-color: var(--d1); }
 .home .concierge .hint { color: var(--soft); font-size: 14px; line-height: 1.55; margin-top: 8px; }
-.home .concierge .hint button { color: var(--text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; }
+/* One scrolling column; only the send row is pinned, so a phone shows the note */
+.home .concierge-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.home .concierge .field { margin-top: 22px; display: grid; gap: 6px; }
+.home .concierge .field .label, .home .lead-fields .label { color: var(--soft); }
 .home .concierge textarea { width: 100%; font: inherit; font-size: 16px; line-height: 1.55; color: var(--text); background: var(--input); border: 0; border-radius: 10px; padding: 14px 16px; resize: vertical; outline: none; }
 .home .concierge textarea:focus { box-shadow: 0 0 0 2px var(--d1); }
-.home .concierge .draft, .home .concierge .send { display: inline-block; font-size: 16px; background: var(--send); color: var(--send-ink); padding: 12px 22px; border-radius: 999px; cursor: pointer; font-variation-settings: "wght" 550, "ital" 0; }
-.home .concierge .draft:disabled { opacity: .6; cursor: default; }
+.home .concierge .send { display: inline-block; font-size: 16px; background: var(--send); color: var(--send-ink); padding: 12px 22px; border-radius: 999px; cursor: pointer; font-variation-settings: "wght" 550, "ital" 0; }
+.home .concierge .send:disabled { opacity: .6; cursor: default; }
 .home .concierge-foot { display: flex; align-items: center; gap: 12px 22px; flex-wrap: wrap; }
 .home .concierge-foot .label { margin: 0; display: inline; }
 .home .concierge-foot button.label { color: var(--text); cursor: pointer; padding: 10px 0; }
+.home .concierge-foot .hint { margin: 0; }
 .home .concierge-foot .to { color: var(--soft); }
-/* Phase 2: the "Send to Jordanne" form (lib/leads.ts). */
-.home .lead-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; align-items: start; }
-.home .lead-form label { display: grid; gap: 6px; }
-.home .lead-form label .label { display: block; }
-.home .lead-form input { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: transparent; border: 1px solid var(--soft); border-radius: 10px; padding: 12px 14px; outline: none; }
-.home .lead-form input:focus { box-shadow: 0 0 0 2px var(--d1); }
-.home .lead-form .trap { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
-.home .lead-form .consent, .home .lead-form .error, .home .lead-form .lead-actions { grid-column: 1 / -1; margin: 0; }
-.home .lead-form .error { color: var(--text); }
-.home .lead-form .lead-actions { display: flex; align-items: center; gap: 12px 22px; flex-wrap: wrap; }
-.home .lead-form .send:disabled { opacity: .6; cursor: default; }
 .home .concierge-foot .alt { color: var(--text); text-decoration: underline; text-underline-offset: 3px; font-size: 15px; }
-.home .concierge-foot .sent { font-size: 17px; line-height: 1.55; margin: 0; }
-@media (max-width: 640px) { .home .lead-form { grid-template-columns: 1fr; } }
+/* The lead form's fields (phase 2, lib/leads.ts), under the note */
+.home .lead-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin-top: 18px; }
+.home .lead-fields label { display: grid; gap: 6px; }
+.home .lead-fields input { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: transparent; border: 1px solid var(--soft); border-radius: 10px; padding: 12px 14px; outline: none; }
+.home .lead-fields input:focus { box-shadow: 0 0 0 2px var(--d1); }
+.home .lead-fields .trap { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+.home .concierge .error { color: var(--text); }
+.home .concierge .sent { font-size: 17px; line-height: 1.55; margin-top: 8px; }
+@media (max-width: 640px) { .home .lead-fields { grid-template-columns: 1fr; } }
 
 /* Career timeline under an answer: a short vertical clip. Years run down the
    frame; JS moves the playhead and camera, CSS only fades the labels. */

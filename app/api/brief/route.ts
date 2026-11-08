@@ -9,7 +9,7 @@ import { projectBySlug } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/brief {messages: [{role, content}], purpose?}
+// POST /api/brief {messages: [{role, content}], project?}
 // The concierge pilot's note (lib/concierge.ts): drafts the email a visitor
 // sends Jordanne, from their conversation. Nothing is stored, and the note and
 // conversation are never logged. On any failure the panel uses its template,
@@ -20,7 +20,6 @@ const TIMEOUT_MS = 12_000;
 
 // What the model extracts; lib/concierge.ts composeBrief writes the note.
 const FIELDS = z.object({
-  name: z.string().nullable(),
   role: z.string().nullable(),
   company: z.string().nullable(),
   topics: z.array(z.string()),
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest) {
     // can't put arbitrary text in the note.
     const slug = (body as { project?: unknown })?.project;
     const about = typeof slug === 'string' ? (projectBySlug(slug)?.title ?? null) : null;
-    return NextResponse.json({ brief: composeBrief(output, input.turns, input.purpose, about) });
+    return NextResponse.json({ brief: composeBrief(output, input.turns, about) });
   } catch (error) {
     // The error's name and status only: the request holds the visitor's
     // conversation, and the provider's message can echo it.

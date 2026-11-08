@@ -11,22 +11,15 @@ export const EMAIL = 'jordanne.dyck@gmail.com';
 // The promise the pilot is measured against (decided 2026-11-05).
 export const REPLY_TIME = 'Jordanne replies personally within one business day.';
 
-// What each side handles, shown in the panel.
-export const HANDLES = {
-  jordbot: ['Her record, projects and results', 'How she works and thinks', 'Answers from her own sources, cited'],
-  jordanne: ['Fit for a role or a project', 'Availability, rates and terms', 'References', "Anything jordbot couldn't answer from her sources"],
-};
-
-// Why the visitor is getting in touch: optional, and the only thing the note
-// may say about them that they didn't write themselves. A purpose, not a job
-// title, so the note never assumes who they are (decided 2026-11-05).
+// Why the visitor got in touch. The panel stopped asking on 2026-11-08 (one
+// less decision before the note); kept so /api/lead and the admin Leads tab
+// still read leads that carry one.
 export const PURPOSES = [
-  { id: 'hiring', label: 'Hiring for a role', ask: "a role I'm hiring for" },
-  { id: 'recruiting', label: 'Recruiting for a role', ask: "a role I'm recruiting for" },
-  { id: 'project', label: 'Working together on a project', ask: 'working together on a project' },
-  { id: 'other', label: 'Something else', ask: null },
+  { id: 'hiring', label: 'Hiring for a role' },
+  { id: 'recruiting', label: 'Recruiting for a role' },
+  { id: 'project', label: 'Working together on a project' },
+  { id: 'other', label: 'Something else' },
 ] as const;
-export type PurposeId = (typeof PURPOSES)[number]['id'];
 
 export function purposeOf(id: unknown) {
   return PURPOSES.find((p) => p.id === id) ?? null;
@@ -72,37 +65,35 @@ export function conciergeTrigger(a: { query: string; citedCount: number | null; 
 
 export type Turn = { role: 'user' | 'assistant'; content: string };
 
-// The note when the AI draft is unavailable. Blanks for everything the
-// visitor hasn't said; their own questions, quoted, for what they asked.
-// `about` is a project's title when the panel was opened from that project:
-// it fills "I'd like to talk about" when the visitor gave no reason.
+// The note while the AI draft is being written, and when it's unavailable:
+// the visitor's own questions, quoted. Who they are comes from the form's
+// name field, so the note doesn't ask (decided 2026-11-08). `about` is a
+// project's title when the panel was opened from that project: it fills
+// "I'd like to talk about" when the visitor gave no reason.
 const aboutAsk = (about: string | null | undefined) => (about ? `your work on ${about}` : null);
 
-export function templateBrief(turns: Turn[], purpose: PurposeId | null, about: string | null = null): string {
+export function templateBrief(turns: Turn[], about: string | null = null): string {
   const asked = turns
     .filter((t) => t.role === 'user')
     .map((t) => t.content.trim().replace(/\s+/g, ' '))
     .filter(Boolean)
     .slice(-3)
     .map((q) => `- ${q.length > 100 ? `${q.slice(0, 99)}…` : q}`);
-  const ask = purposeOf(purpose)?.ask ?? aboutAsk(about) ?? "[what you'd like to talk about]";
+  const ask = aboutAsk(about) ?? "[what you'd like to talk about]";
   return [
     'Hi Jordanne,',
-    "I'm [your name], [your role] at [company].",
     ...(asked.length ? [`I asked jordbot:\n${asked.join('\n')}`] : []),
     `I'd like to talk about ${ask}.`,
-    '[your name]',
   ].join('\n\n');
 }
 
 // The AI draft (app/api/brief/route.ts) in two steps, so the visitor is never
 // guessed at (decided 2026-11-05). The model only extracts what the
-// conversation says (BriefFields); the note is assembled here, with a blank
-// for every detail that's missing. A first version had the model write the
+// conversation says (BriefFields); the note is assembled here, and a detail
+// that's missing is left out. A first version had the model write the
 // note itself: in a 10-draft check on dev it dropped details visitors gave,
 // added wishes they never expressed and repeated jordbot's answers.
 export type BriefFields = {
-  name: string | null;
   role: string | null;
   company: string | null;
   topics: string[];
@@ -112,7 +103,6 @@ export type BriefFields = {
 
 export const BRIEF_SYSTEM_PROMPT = `You read a conversation between a visitor of jordannedyck.com and jordbot, the site's AI, which answers questions about Jordanne Dyck's work. The visitor wants to email Jordanne. Extract the facts for that email. Never guess: a field the conversation doesn't state is null or empty.
 
-- name: the visitor's own first or full name, only if they wrote it. A job title is not a name.
 - role, company: only as the visitor wrote them about themselves, copied word for word. A question about fintech does not make them work in fintech; a question about hiring does not make them a hiring manager.
 - topics: 1 to 3 short noun phrases naming what the visitor asked about, addressed to Jordanne as "you" ("your experience leading teams"), never a question. Only what the visitor actually asked about, never what jordbot answered.
 - unanswered: questions the visitor asked that jordbot said it could not answer, rewritten as a short question to Jordanne using "you". Empty unless jordbot said it couldn't answer.
@@ -125,8 +115,8 @@ export function briefPrompt(turns: Turn[]): string {
   return turns.map((t) => `${t.role === 'user' ? 'Visitor' : 'jordbot'}: ${t.content.trim()}`).join('\n');
 }
 
-// A detail the visitor's own messages don't contain is dropped, so a name,
-// role or company can't be invented even if the model tries.
+// A detail the visitor's own messages don't contain is dropped, so a role or
+// company can't be invented even if the model tries.
 function stated(value: string | null, visitorText: string): string | null {
   const v = value?.trim().replace(/[.,]$/, '');
   return v && visitorText.includes(v.toLowerCase()) ? v : null;
@@ -155,12 +145,17 @@ const listOf = (items: string[]) =>
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-export function composeBrief(f: BriefFields, turns: Turn[], purpose: PurposeId | null, about: string | null = null): string {
+// "I'm a recruiter at Hays.", only from what the visitor said about
+// themselves, and left out otherwise. A bare title gets an article.
+function intro(role: string | null, company: string | null): string | null {
+  const r = role && (/^(?:a|an|the|my|our)\s|^[A-Z]/.test(role) ? role : `${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}`);
+  if (r) return company ? `I'm ${r} at ${company}.` : `I'm ${r}.`;
+  return company ? `I'm at ${company}.` : null;
+}
+
+export function composeBrief(f: BriefFields, turns: Turn[], about: string | null = null): string {
   const visitorText = turns.filter((t) => t.role === 'user').map((t) => t.content).join('\n').toLowerCase();
   const role = stated(f.role, visitorText);
-  // A name is capitalised and isn't the job title ("a recruiter").
-  const rawName = stated(f.name, visitorText);
-  const name = rawName && /^[A-Z]/.test(rawName) && rawName.toLowerCase() !== role?.toLowerCase() ? rawName : null;
   const company = stated(f.company, visitorText);
   const topics = f.topics
     .map((t) => clip(toYou(t.trim().replace(/[.?]$/, '')), 120))
@@ -172,16 +167,16 @@ export function composeBrief(f: BriefFields, turns: Turn[], purpose: PurposeId |
     : [];
   const w = f.wants?.trim().replace(/^(?:to\s+)?(?:talk|speak|chat)\s+(?:(?:to|with)\s+you\s+)?about\s+/i, '').replace(/[.]$/, '');
   const wants = w && grounded(w, visitorText) ? clip(toYou(w), 160) : null;
-  const ask = purposeOf(purpose)?.ask ?? wants ?? aboutAsk(about) ?? "[what you'd like to talk about]";
+  const ask = wants ?? aboutAsk(about) ?? "[what you'd like to talk about]";
+  const me = intro(role, company);
   return [
     'Hi Jordanne,',
-    `I'm ${name ?? '[your name]'}, ${role ?? '[your role]'} at ${company ?? '[company]'}.`,
+    ...(me ? [me] : []),
     ...(topics.length ? [`I asked jordbot about ${listOf(topics)}.`] : []),
     ...(unanswered.length
       ? [unanswered.length === 1 ? `jordbot couldn't answer one thing: ${unanswered[0]}` : `jordbot couldn't answer these:\n${unanswered.map((q) => `- ${q}`).join('\n')}`]
       : []),
     `I'd like to talk about ${ask}.`,
-    name ?? '[your name]',
   ].join('\n\n');
 }
 
@@ -191,7 +186,7 @@ export const BRIEF_MAX_TURNS = 12;
 const BRIEF_MAX_USER_CHARS = 2000;
 const BRIEF_MAX_ASSISTANT_CHARS = 1200;
 
-export function parseBriefInput(body: unknown): { ok: true; turns: Turn[]; purpose: PurposeId | null } | { ok: false; reason: string } {
+export function parseBriefInput(body: unknown): { ok: true; turns: Turn[] } | { ok: false; reason: string } {
   const raw = (body as { messages?: unknown })?.messages;
   if (!Array.isArray(raw) || raw.length === 0) return { ok: false, reason: 'messages must be a non-empty array' };
   if (raw.length > 40) return { ok: false, reason: 'too many messages' };
@@ -204,8 +199,7 @@ export function parseBriefInput(body: unknown): { ok: true; turns: Turn[]; purpo
     turns.push({ role, content: role === 'assistant' ? content.slice(0, BRIEF_MAX_ASSISTANT_CHARS) : content });
   }
   if (!turns.some((t) => t.role === 'user')) return { ok: false, reason: 'no visitor messages' };
-  const purpose = purposeOf((body as { purpose?: unknown })?.purpose)?.id ?? null;
-  return { ok: true, turns: turns.slice(-BRIEF_MAX_TURNS), purpose };
+  return { ok: true, turns: turns.slice(-BRIEF_MAX_TURNS) };
 }
 
 export const SUBJECT = 'Talk to Jordanne (from jordannedyck.com)';
