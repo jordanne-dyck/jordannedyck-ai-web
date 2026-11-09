@@ -41,6 +41,29 @@ spec:
                 secretKeyRef:
                   key: DASHBOARD_ADMIN_PASSWORD
                   name: app-observability
+            # Concierge lead form (app/api/lead). Leads are deleted after 365
+            # days by retention-cronjob.yaml.
+            - name: LEADS_ENABLED
+              value: "1"
+            # Lead emails through Mailgun (lib/notify.ts). The key and Jordanne's
+            # address come from Doppler via Peter; optional, so the pod starts
+            # without them and leads are stored and marked not emailed.
+            - name: MAIL_DOMAIN
+              value: jordannedyck.com
+            - name: SITE_URL
+              value: https://jordannedyck.com
+            - name: MAIL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: MAIL_API_KEY
+                  name: app-observability
+                  optional: true
+            - name: LEAD_NOTIFY_TO
+              valueFrom:
+                secretKeyRef:
+                  key: LEAD_NOTIFY_TO
+                  name: app-observability
+                  optional: true
             - name: IP_HASH_SALT
               valueFrom:
                 secretKeyRef:
@@ -51,6 +74,14 @@ spec:
                 secretKeyRef:
                   key: MONITOR_TOKEN
                   name: app-observability
+            # /api/admin/* (export, eval candidates, themes). Optional so the pod
+            # starts before the key exists; the admin routes refuse until it does.
+            - name: ADMIN_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: ADMIN_API_TOKEN
+                  name: app-observability
+                  optional: true
             - name: TURN_SIGNING_KEY
               valueFrom:
                 secretKeyRef:

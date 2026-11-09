@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_login_attempts_ip
 -- 2026-11-07). One row per note a visitor sends Jordanne from the "Talk to the
 -- human" panel. Kept apart from chat_events: this is what the visitor chose to
 -- send, with their name and email, not the conversation. Deleted after 365
--- days by k8s/postgres/retention-cronjob.yaml; the period is stated to
+-- days by k8s/prod/retention-cronjob.yaml; the period is stated to
 -- visitors in lib/leads.ts (LEAD_CONSENT). Change them together.
 CREATE TABLE IF NOT EXISTS leads (
   id          BIGSERIAL PRIMARY KEY,

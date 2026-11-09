@@ -17,5 +17,6 @@ resources:
   - pvc.yaml
   - postgres.yaml
   - postgres-schema.yaml
+  - retention-cronjob.yaml
 components:
   - release

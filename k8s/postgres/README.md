@@ -11,11 +11,14 @@ This folder holds the jobs that Argo CD does **not** sync:
 | File | What | Status |
 |---|---|---|
 | `migration-job.yaml` | Loads `postgres-schema` into the database | Run by hand after a schema change |
-| `retention-cronjob.yaml` | Deletes rows older than 180 days, daily | Not deployed |
 | `backup-cronjob.yaml` | Nightly `pg_dump`, keeps 14 | Not deployed; storage is Peter's call (see the file header) |
 
-The retention and backup periods are stated to visitors in `app/page.tsx`.
-Neither job runs today, so deploying them (through `k8s/prod`, with Peter's
+The retention CronJob moved to `k8s/prod/retention-cronjob.yaml`, so Argo CD
+syncs it in prod: chats and admin logins after 180 days, leads after 365. Dev
+has none.
+
+The retention and backup periods are stated to visitors in `app/page.tsx` and
+`lib/leads.ts`. Deploying the backup job (through `k8s/prod`, with Peter's
 review) is still open.
 
 ## Running a migration
