@@ -116,7 +116,7 @@ Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOA
 
 ## CI (GitHub Actions)
 
-- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`) and a Trivy scan. HIGH/CRITICAL CVEs fail it. Runs on pushes to `master`, PRs and weekly.
+- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`), a gitleaks scan of the whole git history, and a Trivy scan. A leaked secret or a HIGH/CRITICAL CVE fails it. The CI scan catches a missed pre-push `gitleaks` run after the push, so the local run is still required. Runs on pushes to `master`, PRs and weekly.
 - `k8s.yml` (this repo): `kustomize build` and `kubeconform` for both roots, plus a check that the release file only sets the two `vX.Y` tags. Required on every PR.
 - Backend dependency changes: edit `pyproject.toml`, run `uv lock`, commit both files.
 
