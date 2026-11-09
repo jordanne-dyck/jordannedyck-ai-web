@@ -20,8 +20,30 @@ export const metadata: Metadata = {
   // The root layout's canonical points at the homepage; without this the
   // page would tell Google it is a duplicate of /.
   alternates: { canonical: 'https://jordannedyck.com/about' },
-  openGraph: { title, description, url: 'https://jordannedyck.com/about' },
-  twitter: { title, description },
+  // Next replaces the layout's openGraph/twitter objects instead of merging
+  // them, so the image and card type have to be repeated here.
+  openGraph: {
+    type: 'profile',
+    siteName: 'Jordanne Dyck Portfolio',
+    locale: 'en_US',
+    title,
+    description,
+    url: 'https://jordannedyck.com/about',
+    images: [
+      {
+        url: '/og-image-v3.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Jordanne Dyck holding her cat, next to her name and title',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title,
+    description,
+    images: ['/og-image-v3.jpg'],
+  },
 };
 
 const EXPERTISE = [

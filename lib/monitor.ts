@@ -35,39 +35,45 @@ export type KeyStatus = 'ok' | 'auth_failed' | 'unreachable' | 'model_missing';
 const REQUIRED_MODELS = ['gpt-4o', 'gpt-4o-mini'];
 
 // Cached so a public /api/health hammered by a visitor cannot turn into a
-// flood of calls to OpenAI. Checkly polls every 5 minutes, well past the TTL.
+// flood of calls to OpenAI. Checkly polls every 10 minutes, well past the TTL.
 const KEY_CHECK_TTL_MS = 60_000;
 let cached: { status: KeyStatus; at: number } | null = null;
 
 // Lists models with the app's key. A list call, not a generation, so it costs
 // no tokens. This is the check that catches an expired or revoked key, and a
 // retired model.
+async function listModels(key: string): Promise<KeyStatus> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5000),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as { data?: { id: string }[] } | null;
+      const listed = new Set((data?.data ?? []).map((m) => m.id));
+      return REQUIRED_MODELS.every((m) => listed.has(m)) ? 'ok' : 'model_missing';
+    }
+    return res.status === 401 || res.status === 403 ? 'auth_failed' : 'unreachable';
+  } catch {
+    return 'unreachable';
+  }
+}
+
+// 'unreachable' gets one retry and is never cached: a slow or briefly failing
+// OpenAI made Checkly flap 11 times on 2026-11-08 while the backend's own key
+// check passed. Worst case 5s + 1s + 5s, inside Checkly's 15s limit.
 export async function checkOpenAiKey(): Promise<KeyStatus> {
   if (cached && Date.now() - cached.at < KEY_CHECK_TTL_MS) {
     return cached.status;
   }
-  let status: KeyStatus;
   const key = process.env.OPENAI_API_KEY;
-  if (!key) {
-    status = 'auth_failed';
-  } else {
-    try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${key}` },
-        signal: AbortSignal.timeout(5000),
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const data = (await res.json().catch(() => null)) as { data?: { id: string }[] } | null;
-        const listed = new Set((data?.data ?? []).map((m) => m.id));
-        status = REQUIRED_MODELS.every((m) => listed.has(m)) ? 'ok' : 'model_missing';
-      } else {
-        status = res.status === 401 || res.status === 403 ? 'auth_failed' : 'unreachable';
-      }
-    } catch {
-      status = 'unreachable';
-    }
+  if (!key) return 'auth_failed';
+  let status = await listModels(key);
+  if (status === 'unreachable') {
+    await new Promise((r) => setTimeout(r, 1000));
+    status = await listModels(key);
   }
-  cached = { status, at: Date.now() };
+  if (status !== 'unreachable') cached = { status, at: Date.now() };
   return status;
 }

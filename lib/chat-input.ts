@@ -105,3 +105,17 @@ export function parseClientId(body: unknown): string | null {
 export function parseTimelineShown(body: unknown): boolean {
   return (body as { timelineShown?: unknown })?.timelineShown === true;
 }
+
+// Whether the page has already shown the build story this visit. A story
+// question then gets the replay, not the lead again. Added 2026-11-08.
+export function parseStoryShown(body: unknown): boolean {
+  return (body as { storyShown?: unknown })?.storyShown === true;
+}
+
+// The project card a panel question was asked from, sent by app/page.tsx. Only
+// a slug-shaped value is kept. Added 2026-11-08, so the ai-resume card's "How
+// did she build it?" can open the build story.
+export function parseProjectSlug(body: unknown): string | null {
+  const slug = (body as { project?: unknown })?.project;
+  return typeof slug === 'string' && /^[a-z0-9-]{1,80}$/.test(slug) ? slug : null;
+}

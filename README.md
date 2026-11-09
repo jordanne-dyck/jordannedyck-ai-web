@@ -9,7 +9,7 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 - **Collects visitor feedback**: thumbs up or down on each answer.
 - **Shows public metrics** at `/dashboard`: volume, latency, spend and the questions people click.
 - **Gives me an admin view**: every conversation, plus an insights tab.
-- **Reports its own health** at `/api/health`, which Checkly checks every 5 minutes.
+- **Reports its own health** at `/api/health`, which Checkly checks every 10 minutes.
 
 ## How a question is answered
 
