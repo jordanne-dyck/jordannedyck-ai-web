@@ -9,6 +9,17 @@ How to develop, test and release jordbot (jordannedyck.com). Read this before ta
 - **Images are built in the cluster** by Shipwright in `jordbot-dev`. You never run podman, and you never handle Quay credentials.
 - **Peter owns the cluster.** The namespaces, RBAC, ExternalSecrets and the Argo apps live in his repos, not here. See [Needs Peter](#needs-peter).
 
+### Hard rule: dev and prod never share a PR
+
+A PR changes `k8s/dev/` or the prod side (`k8s/prod/`, `k8s/postgres/`), never both. Mixing them makes every dev change wait for Peter's review, and he should only be needed for prod (Peter, PR #101, 2026-11-09).
+
+1. **Dev PR first.** App code, docs and the `k8s/dev/` change. It merges without Peter.
+2. **Test on dev.** Build, roll out and check it (the [dev loop](#dev-loop-jordbot-dev)).
+3. **Prod PR after.** Only once dev works: a separate PR with the `k8s/prod/` (or `k8s/postgres/`) change. This is the one Peter reviews. A release (`k8s/prod/release/kustomization.yaml`) is its own PR as always.
+
+- The app code in the dev PR must keep working on prod's current manifests, because the next release builds from `master`. A new env var is optional or has a safe default until the prod PR lands.
+- Before opening or pushing any PR, check: `git diff --name-only origin/master...HEAD -- k8s/`. If it lists `k8s/dev/` and `k8s/prod/` or `k8s/postgres/`, split it before pushing.
+
 ## Preflight: run before any cluster command
 
 ```bash
@@ -331,7 +342,7 @@ Don't attempt these. Write Jordanne a short request for Peter: what you need, wh
 
 - New or changed secrets or environment values from Doppler, including key rotation.
 - RBAC, ServiceAccounts, or anything outside `jordbot` and `jordbot-dev`.
-- Structural changes under `k8s/prod/`, `k8s/postgres/` or `.github/`: new objects, env vars, resources, replicas, routes. These are PRs he must approve (CODEOWNERS).
+- Structural changes under `k8s/prod/`, `k8s/postgres/` or `.github/`: new objects, env vars, resources, replicas, routes. These are PRs he must approve (CODEOWNERS). Never bundle a `k8s/dev/` change into them ([hard rule](#hard-rule-dev-and-prod-never-share-a-pr)).
 - Anything in prod beyond a release, a rollback or deleting a pod. That includes schema migrations, re-seeding the FAISS PVC and deploying the retention/backup CronJobs.
 - The cluster, Argo CD, Quay, DNS or haproxy.
 
