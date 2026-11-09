@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, splitAtTimeline, TIMELINE_REPLAY, withoutTimelineMarker,
+  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, showsTimeline, splitAtTimeline, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '../lib/timeline.ts';
 import { SUGGESTED_QUESTIONS } from '../lib/suggested-questions.ts';
 
@@ -78,4 +78,29 @@ test('replay: only a timeline question, only once shown', () => {
   const [before, after] = splitAtTimeline(TIMELINE_REPLAY);
   assert.equal(before, "Here's her timeline again.");
   assert.equal(after, '');
+});
+
+// The 2026-11-07 defect (v1.16 QA, Jordanne's phone): "Where did Jordanne work
+// before DECIEM?" after the overview question showed no timeline. The answer
+// carried it with explicit: false, and the page had already shown one.
+test('before-DECIEM after the overview question: the timeline still shows', () => {
+  const q = 'Where did Jordanne work before DECIEM?';
+  // Dev, 2026-11-08: the answer cited the "Career Before DECIEM" chunks.
+  for (const cited of [['exp-028'], ['exp-001'], []]) {
+    const t = timelineFor(q, cited, [{ chunk_id: 'exp-001' }]);
+    console.log(`  cited ${JSON.stringify(cited)} -> ${JSON.stringify(t)}`);
+    assert.equal(t?.explicit, true, JSON.stringify(cited));
+  }
+  // The overview answer ('first') showed it; this answer ('second') comes later.
+  assert.equal(showsTimeline({ explicit: true }, 'second', 'first'), true);
+});
+
+test('a cited career answer shows the timeline once per page', () => {
+  const t = timelineFor('What did she do at DECIEM?', ['exp-028'], []);
+  assert.deepEqual(t, { reason: 'cited', explicit: false });
+  assert.equal(showsTimeline(t, 'first', 'first'), true);
+  assert.equal(showsTimeline(t, 'second', 'first'), false);
+  assert.equal(showsTimeline(null, 'first', 'first'), false);
+  assert.equal(timelineFor('What is FundLocal?', ['res-1'], [{ chunk_id: 'exp-028' }]), null);
+  assert.deepEqual(timelineFor('Tell me more', [], [{ chunk_id: 'exp-028' }]), { reason: 'retrieved', explicit: false });
 });
