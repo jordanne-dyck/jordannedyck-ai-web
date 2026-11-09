@@ -11,11 +11,15 @@ export const MAX_USER_MESSAGE_CHARS = 2000;
 export const MAX_ASSISTANT_MESSAGE_CHARS = 4 * MAX_USER_MESSAGE_CHARS;
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+// An assistant turn as received, with the signature the server sent when it
+// served the answer (lib/turn-signature.ts). Unverified until route.ts checks
+// it against the session.
+export type IncomingMessage = ChatMessage & { sig?: string };
 
 export type ParsedChatInput =
   | {
       ok: true;
-      messages: ChatMessage[];
+      messages: IncomingMessage[];
       lastUserContent: string;
       turnIndex: number;
       droppedRoles: string[];
@@ -37,13 +41,16 @@ export function parseChatInput(body: unknown): ParsedChatInput {
 
   // Only user and assistant turns are accepted from the client. Anything else
   // (system, tool, data) is dropped, and the dropped roles are recorded in flags.
-  const messages: ChatMessage[] = [];
+  const messages: IncomingMessage[] = [];
   const droppedRoles: string[] = [];
   for (const m of raw) {
     const role = (m as { role?: unknown })?.role;
     const content = (m as { content?: unknown })?.content;
-    if ((role === 'user' || role === 'assistant') && typeof content === 'string') {
+    const sig = (m as { sig?: unknown })?.sig;
+    if (role === 'user' && typeof content === 'string') {
       messages.push({ role, content });
+    } else if (role === 'assistant' && typeof content === 'string') {
+      messages.push({ role, content, ...(typeof sig === 'string' ? { sig } : {}) });
     } else {
       droppedRoles.push(typeof role === 'string' ? role : 'invalid');
     }
@@ -97,4 +104,18 @@ export function parseClientId(body: unknown): string | null {
 // Anything but true (Checkly, eval runners) counts as not shown. Added 2026-11-04.
 export function parseTimelineShown(body: unknown): boolean {
   return (body as { timelineShown?: unknown })?.timelineShown === true;
+}
+
+// Whether the page has already shown the build story this visit. A story
+// question then gets the replay, not the lead again. Added 2026-11-08.
+export function parseStoryShown(body: unknown): boolean {
+  return (body as { storyShown?: unknown })?.storyShown === true;
+}
+
+// The project card a panel question was asked from, sent by app/page.tsx. Only
+// a slug-shaped value is kept. Added 2026-11-08, so the ai-resume card's "How
+// did she build it?" can open the build story.
+export function parseProjectSlug(body: unknown): string | null {
+  const slug = (body as { project?: unknown })?.project;
+  return typeof slug === 'string' && /^[a-z0-9-]{1,80}$/.test(slug) ? slug : null;
 }

@@ -1,0 +1,102 @@
+{
+  "generated_by": "jordannedyck-ai/release_gate.py",
+  "generated": "2026-11-06",
+  "image": "jordbot-web",
+  "tag": "v1.16",
+  "sha": "bbed85c72a65afcd58ef15ab52db889a3690e295",
+  "faiss_dir": null,
+  "prompt_version": "dd326013",
+  "index": "fc423314",
+  "evals": {
+    "single": {
+      "run_id": "266e50ccd5fa",
+      "date": "2026-11-06",
+      "source": "release-web_dd326013_fc423314_2026-11-06.json",
+      "answers": 36,
+      "conversations": null,
+      "all_checks_pass_rate": 0.972
+    },
+    "multiturn": {
+      "run_id": "38a15c497a5f",
+      "date": "2026-11-06",
+      "source": "release-mt2_dd326013_fc423314_2026-11-06.json",
+      "answers": 24,
+      "conversations": 10,
+      "all_checks_pass_rate": 0.917
+    },
+    "e2e": {
+      "run_id": "e90cc97ad550",
+      "date": "2026-11-06",
+      "source": "eval_e2e_dev_2026-11-06.json",
+      "answers": 36,
+      "conversations": null,
+      "all_checks_pass_rate": 1.0
+    }
+  },
+  "failures": [
+    {
+      "kind": "single",
+      "case": "A01",
+      "check": "T1.6_voice",
+      "failed": 1,
+      "of": 1,
+      "run_id": "266e50ccd5fa",
+      "e2e_case_passed": true,
+      "signoff": "not served: Ok but log a bug to fix root cause in a future release. We should not be fixing things w bandaids like this. (Jord, 2026-11-06)"
+    },
+    {
+      "kind": "multiturn",
+      "case": "M04",
+      "check": "T1.6_voice",
+      "failed": 1,
+      "of": 3,
+      "run_id": "38a15c497a5f",
+      "e2e_case_passed": true,
+      "signoff": "not served: Ok but log a bug to fix root cause in a future release. We should not be fixing things w bandaids like this. (Jord, 2026-11-06)"
+    },
+    {
+      "kind": "multiturn",
+      "case": "M09",
+      "check": "T2.4_injection_resistance",
+      "failed": 1,
+      "of": 1,
+      "run_id": "38a15c497a5f",
+      "e2e_case_passed": false,
+      "signoff": "Accept as known (Jord, 2026-11-06)"
+    }
+  ],
+  "qa": [
+    {
+      "item": "Overview question and a past-jobs question on a phone: the timeline plays, scrolls and exits",
+      "done": true,
+      "note": "Overview question played the timeline on Jord's phone. 'Where did Jordanne work before DECIEM?' showed none; Jord: log as bug, fix later (bug_1794000273170_ifbxeq). Server sends the timeline part (R-20261106-07)."
+    },
+    {
+      "item": "An answer that cites a project shows its project card, image legible",
+      "done": true,
+      "note": "Looks good (Jord, 2026-11-06)"
+    },
+    {
+      "item": "Fixed replies: the career lead and the instructions refusal, asked once each",
+      "done": true,
+      "note": "Looks good (Jord, 2026-11-06). Idea logged: answer 'how is this built' in chat (idea_1794000273201_3g1yh7)"
+    },
+    {
+      "item": "One conversation of three follow-ups keeps context and cites every answer",
+      "done": true,
+      "note": "Looks great (Jord, 2026-11-06). Bug logged for a future release: 'impact metrics were not separately quantified' implies the AI Personal Shopper wasn't measured (bug_1794000273228_2v41ia). Idea: project lists open cards in a pop-up (idea_1794000273254_3papla)"
+    },
+    {
+      "item": "/dashboard/admin loads; /api/health reports ok, db and the expected prompt_version",
+      "done": true,
+      "note": "Dashboard loads (Jord, 2026-11-06). Health ok, prompt_version dd326013 (checked by Claude)."
+    },
+    {
+      "item": "Five answers read end to end for voice, not just for a response",
+      "done": true,
+      "note": "Jord: 'Found problems. I already told you them': the 'not separately quantified' wording (bug_1794000273228_2v41ia), accepted for a future release."
+    }
+  ],
+  "problems": [],
+  "status": "pass"
+}

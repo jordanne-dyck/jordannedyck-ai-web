@@ -75,7 +75,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 
 | Resource | Name | Detail |
 |---|---|---|
-| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db`. Dev also mounts PVC `faiss-share` (RWX, PV `jordbot-faiss-db-dev`) at `/faiss`; `FAISS_DIR` picks the version folder, now `/faiss/kb-a21b730` in dev, `/faiss/kb-a69ceae` in prod. Prod: PR #32 |
+| Backend deployment / service | `jordannedyck-ai` | Flask :5000, mounts PVC `faiss-db`. Dev also mounts PVC `faiss-share` (RWX, PV `jordbot-faiss-db-dev`) at `/faiss`; `FAISS_DIR` picks the version folder, now `/faiss/kb-762b34e` in dev and prod. Prod: PR #32 |
 | Frontend deployment / service | `jordannedyck-ai-web` | Next.js :3000 |
 | Database | `postgres` | Deployment, Service, PVC `postgres-data`, ConfigMap `postgres-schema` |
 | Route | `jordbot` (prod), `jordbot-dev` (dev) | |
@@ -223,7 +223,24 @@ Follow `k8s/postgres/README.md`. In dev you can run the migration Job yourself. 
 
 ## Prod release
 
-Only release commits that passed the dev checks and are merged to `master`.
+Only release commits that passed the dev checks and the release gate, and are merged to `master`.
+
+### 0. Release gate (required, CI-enforced)
+
+Every prod change, meaning a new image tag or a new prod `FAISS_DIR`, needs an evidence file in the same PR: `releases/<image>-<tag>.json` or `releases/faiss-<folder>.json`. The `Validate k8s manifests` check (`.github/scripts/check-release-evidence.py`) fails the PR without it. Rollbacks to a tag or index prod has already run need no file.
+
+The dev checks above prove the site responds. They are not the gate. The gate needs all of this, for the exact prompt and index prod will run:
+
+1. **Dev runs the release candidate.** Build `$SHA` to `:dev`, roll it out, and have dev's `FAISS_DIR` set to the index going to prod. `curl -s $DEV/api/health` shows the `prompt_version` you expect.
+2. **Full evals, which are paid and need Jordanne's go first.** Run each with `--estimate` first. From `jordannedyck-ai`: a full single-turn `run_eval.py` run and a full `run_eval.py --multiturn` run, both without `--only`, on that prompt and index. Then a full `run_e2e.py --source-system dev` run against dev. It is paced over several sittings with `--resume`, and only the final sitting counts as full.
+3. **Generate the evidence.** In `jordannedyck-ai`:
+   `uv run python release_gate.py --image jordbot-web --tag vX.Y --sha $SHA --prompt <prompt_version> --index <index id>`
+   For an index promotion, use `--faiss-dir /faiss/kb-<commit>` instead of `--image/--tag/--sha`. The script writes into `releases/` here and prints every failing check by case.
+4. **Read every failure and get Jordanne's ruling.** Open the answers themselves, not the pass rate. Write her ruling into that failure's `signoff` in her words: a checker miss, a known defect she accepts for this release, or a blocker. A blocker stops the release. A tier-1 failure (`T1.*`) can only be signed off as `checker miss: <why>`, or as `not served: <why>` when the site never sends that text and the dev e2e run passed the same case (A01: the site's fixed reply replaces the model's refusal). CI rejects any other ruling. Don't write a sign-off for her.
+5. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
+6. **Re-run the gate.** It keeps sign-offs and ticks. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
+
+An index promotion and the frontend release it was tested with go out together. Merge the `FAISS_DIR` PR, then the release PR straight after.
 
 ### 1. Pick the next unused tag
 
@@ -260,12 +277,14 @@ Wait until `SUCCEEDED=True`, the same as in dev. No podman and no Quay login.
 ```bash
 git switch -c release/<image>-vX.Y origin/master
 # edit only newTag for that image in k8s/prod/release/kustomization.yaml
+# add the gate's evidence file: releases/<image>-vX.Y.json (status "pass")
+git add releases/<image>-vX.Y.json
 gitleaks git --no-banner
 git commit -am "release: <image> vX.Y" && git push origin HEAD
 gh pr create --repo jordanne-dyck/jordannedyck-ai-web --fill
 ```
 
-- Change nothing else in the PR. CI rejects anything in that file except the two tags, and any other `k8s/` change waits for Peter.
+- Change nothing else in the PR except the evidence file. CI rejects anything in the release file except the two tags, fails without passing evidence, and any other `k8s/` change waits for Peter.
 - Merge once `Validate k8s manifests` passes.
 
 ### 4. Verify

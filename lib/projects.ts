@@ -36,17 +36,32 @@ export const PROJECTS: Project[] = [
     when: '2025 – present',
     org: 'Personal project',
     role: 'Creator & developer',
-    tags: 'AI, MCP, RAG, vector search',
+    tags: 'AI, RAG, MCP, evals, Next.js, Flask',
     problem: 'Static resumes describe skills instead of showing them.',
+    // Refreshed 2026-11-08 with the build story (lib/build-story.ts), with
+    // Jordanne's OK. Stack: k8s/ and the backend's retrieval.py; decisions:
+    // EVALS.md and results log R-20261030-13.
     built:
-      'my career as an interactive web-based chat. Production RAG, custom MCP server, UI, eval harness, monitoring',
-    results: ['Working prototype in 5 days', 'Used in real recruiter and networking conversations, then refined'],
+      'my career as an interactive web-based chat. Production RAG, custom MCP server, UI, eval harness, monitoring. Two parts released separately, a Next.js site and a Flask search service over FAISS, deployed from git with Argo CD on OpenShift. Decisions settled by evals: the model by a four-model test and her blind read, retrieval by MRR.',
+    results: [
+      'Working prototype in 5 days',
+      'Used in real recruiter and networking conversations, then refined',
+      // jordannedyck-ai README.md: 95 cases, 29 of them one per defect.
+      '95-case eval set; every defect found becomes a permanent test',
+    ],
+    // The first opens the build story (STORY_CARD in lib/build-story.ts).
     questions: ['How did she build it?', 'What would she change?'],
     images: ['/projects/ai-resume/architecture.webp', '/projects/ai-resume/frontend.mp4', '/projects/ai-resume/dashboard.webp'],
+    // Public files only: each was checked in the repo on master, 2026-11-08.
     links: [
       { label: 'Live dashboard', href: 'https://jordannedyck.com/dashboard' },
       { label: 'Backend code', href: 'https://github.com/jordanne-dyck/jordannedyck-ai' },
       { label: 'Frontend code', href: 'https://github.com/jordanne-dyck/jordannedyck-ai-web' },
+      { label: "How it's tested (backend README)", href: 'https://github.com/jordanne-dyck/jordannedyck-ai/blob/master/README.md' },
+      { label: 'Model and cost decisions (EVALS.md)', href: 'https://github.com/jordanne-dyck/jordannedyck-ai/blob/master/EVALS.md' },
+      { label: 'Eval trend', href: 'https://github.com/jordanne-dyck/jordannedyck-ai/blob/master/eval_history/trend.svg' },
+      { label: 'Frontend README', href: 'https://github.com/jordanne-dyck/jordannedyck-ai-web/blob/master/README.md' },
+      { label: 'Architecture as code (k8s/)', href: 'https://github.com/jordanne-dyck/jordannedyck-ai-web/tree/master/k8s' },
     ],
   },
   {

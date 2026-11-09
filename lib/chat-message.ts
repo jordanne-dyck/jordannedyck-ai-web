@@ -11,6 +11,10 @@ import type { Segment, SourcesData } from './citations';
 //   data-event      the chat_events row id, which the visitor rates the answer by
 //   data-project    the slug of the project card shown under the answer; every
 //                   request. Slug only: no filename or chunk id
+//   data-timeline   the career timeline (lib/timeline.ts)
+//   data-story      the build story (lib/build-story.ts)
+//   data-turn-sig   the answer's signature, sent back with it next turn
+//                   (lib/turn-signature.ts); only when TURN_SIGNING_KEY is set
 // They replace the AI SDK v4 `8:` message annotations (changed 2026-10-27).
 export type RetrievalData = {
   // The text retrieval ran on: the follow-up rewrite, or the latest message.
@@ -33,6 +37,9 @@ export type ChatDataParts = {
   project: { slug: string };
   // The career timeline; `explicit` when the question asked for it.
   timeline: { explicit: boolean };
+  // The build story (lib/build-story.ts), and how the question reached it.
+  story: { from: 'chip' | 'typed' | 'card'; replay: boolean };
+  'turn-sig': { sig: string };
 };
 
 export type ChatUIMessage = UIMessage<never, ChatDataParts>;

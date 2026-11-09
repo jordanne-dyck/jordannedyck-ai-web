@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, splitAtTimeline, TIMELINE_REPLAY, withoutTimelineMarker,
+  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, splitAtTimeline, TIMELINE_REPLAY, withoutTimelineMarker,
 } from '../lib/timeline.ts';
 import { SUGGESTED_QUESTIONS } from '../lib/suggested-questions.ts';
 
@@ -17,6 +17,36 @@ test('overview questions without the word timeline', () => {
     assert.equal(asksForOverview(q), true);
   }
   assert.equal(asksForOverview('What is FundLocal and why did Jordanne build it?'), false);
+});
+
+// The 2026-11-05 defect: "before DECIEM" cited only exp-001 and got no card.
+test('career-history questions bring the timeline, not the fixed lead', () => {
+  const yes = [
+    'Where did Jordanne work before DECIEM?',
+    'Where has she worked?',
+    'Where did she work?',
+    'What did she do before DECIEM?',
+    'What were her previous roles?',
+    'Any past employers I should know about?',
+    'Which companies has she worked for?',
+  ];
+  const no = [
+    'Where did she study?',
+    'What is she doing now?',
+    'Where does she work now?',
+    'What did she do at DECIEM?',
+    'What roles did she hold at Loblaw Digital?',
+    'What is FundLocal and why did Jordanne build it?',
+    'Tell me about her education',
+  ];
+  for (const q of [...yes, ...no]) {
+    console.log(`  ${q} -> history=${asksForCareerHistory(q)} overview=${asksForOverview(q)}`);
+  }
+  for (const q of yes) {
+    assert.equal(asksForCareerHistory(q), true, q);
+    assert.equal(asksForOverview(q), false, q);
+  }
+  for (const q of no) assert.equal(asksForCareerHistory(q), false, q);
 });
 
 test('leadsWithCareer: only the top retrieved chunk counts', () => {

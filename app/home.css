@@ -395,10 +395,45 @@ html:has(.home) { scroll-behavior: smooth; }
 /* Smaller buttons for a mouse; touch keeps the 44px target */
 @media (pointer: fine) { .home .tl-list .chips button { min-height: 30px; } }
 
+/* Build story under its lead: the visitor's question down a vertical rail of
+   five stops (BuildStory.tsx). The rail fills behind the stop that is playing. */
+.home .story { margin: 22px 0 4px; }
+.home .st-rail { list-style: none; margin: 0; padding: 0; }
+.home .st-stop { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; }
+.home .st-mark { display: flex; flex-direction: column; align-items: center; }
+.home .st-mark::before { content: ""; width: 12px; height: 12px; margin-top: 16px; border-radius: 50%; box-sizing: border-box;
+  border: 2px solid var(--soft); background: var(--bg); flex: none; transition: background .3s, border-color .3s, box-shadow .3s; }
+.home .st-mark i { width: 2px; flex: 1; min-height: 12px; background: var(--rule); transition: background .3s; }
+.home .st-stop:last-child .st-mark i { display: none; }
+.home .st-stop[data-passed] .st-mark::before, .home .st-stop[data-cur] .st-mark::before { background: var(--d1); border-color: var(--d1); }
+.home .st-stop[data-passed] .st-mark i { background: var(--d1); }
+.home .st-stop[data-cur] .st-mark::before { box-shadow: 0 0 0 4px rgba(201, 139, 94, .25); }
+.home .st-stop[data-fork] .st-title { color: var(--d2); }
+.home .st-stop[data-fork][data-passed] .st-mark::before { background: var(--d2); border-color: var(--d2); }
+.home .st-body { min-width: 0; padding-bottom: 6px; }
+/* The whole head is the tap target: 44px tall at least */
+.home .st-head { display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; }
+.home .st-title { font-weight: 500; font-size: 15px; }
+.home .st-parts { color: var(--soft); }
+.home .st-head:hover .st-title { text-decoration: underline; text-underline-offset: 3px; }
+.home .st-head:focus-visible, .home .st-talk:focus-visible, .home .st-meta a:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
+.home .st-detail { margin: 2px 0 10px; padding-left: 12px; border-left: 2px solid var(--d1); font-size: 14px; line-height: 1.5; color: var(--d3); }
+.home .st-detail p { margin: 0; }
+.home .st-stop[data-fork] .st-detail { border-left-color: var(--d2); }
+/* The fork to Jordanne: a filled button, like the timeline's way back */
+.home .story .st-talk { display: inline-flex; align-items: center; min-height: 44px; margin-top: 10px; padding: 0 18px; border: 1px solid var(--text);
+  border-radius: 999px; background: var(--text); color: var(--bg); font: inherit; font-size: 14px; text-decoration: none; cursor: pointer; }
+.home .story .st-talk:hover { background: var(--band); border-color: var(--band); }
+.home .st-meta a { color: var(--soft); padding: 8px 0; min-height: 24px; text-decoration: none; }
+.home .st-meta a:hover { color: var(--text); }
+@media (pointer: coarse) { .home .st-meta a, .home .st-meta button { min-height: 44px; display: inline-flex; align-items: center; } }
+
 @media (prefers-reduced-motion: reduce) {
   .home .project[open] { animation: none !important; }
   .home .card-img img, .home .card-img video { transition: none; }
   .home .row, .home .grain, .home .tl-year { animation: none; }
+  .home .st-mark::before, .home .st-mark i { transition: none; }
   .home .name .ch { animation: none; transform: none; }
   .home .name-photo img { transform: none !important; }
   .home .bar { transition: none; }
