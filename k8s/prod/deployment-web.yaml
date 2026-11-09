@@ -51,6 +51,14 @@ spec:
                 secretKeyRef:
                   key: MONITOR_TOKEN
                   name: app-observability
+            # /api/admin/* (export, eval candidates, themes). Optional so the pod
+            # starts before the key exists; the admin routes refuse until it does.
+            - name: ADMIN_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: ADMIN_API_TOKEN
+                  name: app-observability
+                  optional: true
             - name: TURN_SIGNING_KEY
               valueFrom:
                 secretKeyRef:

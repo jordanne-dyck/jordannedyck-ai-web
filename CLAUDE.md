@@ -97,7 +97,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Health | `/api/health` | Public summary; `?deep=1` with `x-monitor-token` adds anomaly stats |
 | Checkly checks | `monitoring/` | Own `package.json`; `npm test` / `npm run deploy` from that folder |
 
-Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOARD_ADMIN_PASSWORD`, `MONITOR_TOKEN`, `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; evals only, never in prod).
+Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOARD_ADMIN_PASSWORD`, `MONITOR_TOKEN` (Checkly: synthetic marker and `/api/health?deep=1` only), `ADMIN_API_TOKEN` (`/api/admin/*` via `x-admin-token`; must differ from `MONITOR_TOKEN`), `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; evals only, never in prod).
 
 ### Repo layout
 

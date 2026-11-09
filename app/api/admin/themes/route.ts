@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { isMonitorRequest } from '@/lib/monitor';
+import { isAdminApiRequest } from '@/lib/monitor';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_ROWS = 1000;
 const MAX_THEME_CHARS = 60;
 
-// POST /api/admin/themes {themes: [{id, theme}]} with x-monitor-token.
+// POST /api/admin/themes {themes: [{id, theme}]} with x-admin-token.
 // Write-back from the weekly /convo-review command (site-monitoring plan,
 // Phase 4): the theme the review gave each question, by meaning. Stored in
 // flags.theme, not topic_tags: topic_tags[1] is the free KB-category label the
 // topic chart reads, and the review compares the two. A later review replaces
 // the earlier theme. Synthetic rows are never touched.
 export async function POST(req: NextRequest) {
-  if (!isMonitorRequest(req)) {
+  if (!isAdminApiRequest(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as { themes?: unknown } | null;

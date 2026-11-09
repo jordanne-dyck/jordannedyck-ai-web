@@ -6,13 +6,13 @@ Write this week's conversation review for jordannedyck.com.
 
 ## 1. Pull the export
 
-Run this in PowerShell from the repo root. `MONITOR_TOKEN` must be set in the session first (the same value as the `app-observability` secret); never print it.
+Run this in PowerShell from the repo root. `ADMIN_API_TOKEN` must be set in the session first (the same value as the `app-observability` secret); never print it.
 
 ```powershell
 New-Item -ItemType Directory -Force nimbalyst-local/reviews | Out-Null
 $since = (Get-Date).ToUniversalTime().AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ssZ")
 Invoke-RestMethod -Uri "https://www.jordannedyck.com/api/admin/export?since=$since" `
-  -Headers @{ "x-monitor-token" = $env:MONITOR_TOKEN } |
+  -Headers @{ "x-admin-token" = $env:ADMIN_API_TOKEN } |
   ConvertTo-Json -Depth 20 | Out-File -Encoding utf8 nimbalyst-local\reviews\export-latest.json
 ```
 
@@ -46,7 +46,7 @@ Once the review file is written, store each question's theme from section 2 on i
 ```powershell
 $body = @{ themes = $themes } | ConvertTo-Json -Depth 5
 Invoke-RestMethod -Method Post -Uri "https://www.jordannedyck.com/api/admin/themes" `
-  -Headers @{ "x-monitor-token" = $env:MONITOR_TOKEN } -ContentType "application/json" -Body $body
+  -Headers @{ "x-admin-token" = $env:ADMIN_API_TOKEN } -ContentType "application/json" -Body $body
 ```
 
 Print the response. `updated` must equal `requested`; if it doesn't, say which ids were not updated. Add one line at the end of the review: the number of themes written back.
