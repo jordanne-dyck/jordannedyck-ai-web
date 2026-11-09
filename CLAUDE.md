@@ -93,8 +93,9 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Chat event log | Postgres, table `chat_events` | One row per `/api/chat` request. Schema: `db/schema.sql`; the deployed schema is `k8s/*/postgres-schema.yaml`. See `k8s/postgres/README.md` |
 | Retention and backups | `k8s/postgres/*-cronjob.yaml` | 180 days and 14 days of backups, as stated in `app/page.tsx`. **Not deployed yet**; deploying them needs Peter |
 | Public dashboard | `/dashboard` | Aggregates only |
-| Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret) |
-| Health | `/api/health` | Public summary; `?deep=1` with `x-monitor-token` adds anomaly stats |
+| Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret). Traffic filter: Real (default), Smoke tests (`flags ? 'smoke'`), All synthetic |
+| Health | `/api/health` | Public summary, including `prompt_version` and `release` (the image tag, `dev` on dev builds); `?deep=1` with `x-monitor-token` adds anomaly stats |
+| Prod smoke test | `scripts/smoke-prod.mjs` | After every release; see [Prod release step 4](#4-verify). Requests with a valid `x-monitor-token` and `x-smoke-run: <tag>` are stored with `flags.smoke`; without the token the header is ignored |
 | Checkly checks | `monitoring/` | Own `package.json`; `npm test` / `npm run deploy` from that folder |
 
 Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOARD_ADMIN_PASSWORD`, `MONITOR_TOKEN` (Checkly: synthetic marker and `/api/health?deep=1` only), `ADMIN_API_TOKEN` (`/api/admin/*` via `x-admin-token`; must differ from `MONITOR_TOKEN`), `FLASK_API_URL`, and optional `EMIT_RETRIEVAL` (exposes retrieved chunks in the stream; evals only, never in prod).
@@ -115,7 +116,7 @@ Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOA
 
 ## CI (GitHub Actions)
 
-- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`) and a Trivy scan. HIGH/CRITICAL CVEs fail it. Runs on pushes to `master`, PRs and weekly.
+- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`), a gitleaks scan of the whole git history, and a Trivy scan. A leaked secret or a HIGH/CRITICAL CVE fails it. The CI scan catches a missed pre-push `gitleaks` run after the push, so the local run is still required. Runs on pushes to `master`, PRs and weekly.
 - `k8s.yml` (this repo): `kustomize build` and `kubeconform` for both roots, plus a check that the release file only sets the two `vX.Y` tags. Required on every PR.
 - Backend dependency changes: edit `pyproject.toml`, run `uv lock`, commit both files.
 
@@ -237,8 +238,10 @@ The dev checks above prove the site responds. They are not the gate. The gate ne
    `uv run python release_gate.py --image jordbot-web --tag vX.Y --sha $SHA --prompt <prompt_version> --index <index id>`
    For an index promotion, use `--faiss-dir /faiss/kb-<commit>` instead of `--image/--tag/--sha`. The script writes into `releases/` here and prints every failing check by case.
 4. **Read every failure and get Jordanne's ruling.** Open the answers themselves, not the pass rate. Write her ruling into that failure's `signoff` in her words: a checker miss, a known defect she accepts for this release, or a blocker. A blocker stops the release. A tier-1 failure (`T1.*`) can only be signed off as `checker miss: <why>`, or as `not served: <why>` when the site never sends that text and the dev e2e run passed the same case (A01: the site's fixed reply replaces the model's refusal). CI rejects any other ruling. Don't write a sign-off for her.
-5. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
-6. **Re-run the gate.** It keeps sign-offs and ticks. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
+   A sign-off holds only for the run and failure count it was given on. A new run clears it (the old ruling stays as `previous_signoff`, which nothing checks), so Jordanne rules again. CI rejects a failure that isn't from the run the evidence names.
+5. **Docs, reviewed and approved by Jordanne.** The gate lists the docs it needs: README, EVALS, DECISIONS and COVERAGE in `jordannedyck-ai`, and this repo's README. Jordanne first reviews every results-log entry still `reviewed: no`, since the docs draw on them. Then the docs are updated from the reviewed results, the release's runs and the commits that shipped, and she gets a review packet: per doc, only what was added or changed, each new fact with its source. She edits or approves. The approved text is merged to master in each repo, the gate is re-run so each doc's `commit` is the merged one, and she sets `"approved": true`. A doc that changes on master after approval needs approving again. COVERAGE.md must be exactly what `coverage_report.py --write` produces. CI rejects the PR otherwise.
+6. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
+7. **Re-run the gate.** It keeps sign-offs, ticks and approved docs. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
 
 An index promotion and the frontend release it was tested with go out together. Merge the `FAISS_DIR` PR, then the release PR straight after.
 
@@ -265,10 +268,19 @@ Use the same `$SHA` you tested in dev:
 git fetch origin && git merge-base --is-ancestor $SHA origin/master && echo "on master"
 ```
 
-Then run the step 2 BuildRun from the dev loop with two changes:
+Then run the step 2 BuildRun from the dev loop with these changes:
 
 - `generateName: ${BUILD}-release-`
 - `image: quay.nekohouse.ca:8443/peter/${IMAGE}:vX.Y`
+- For `jordbot-web` only, bake the tag in, so `/api/health` reports it as `release` (the smoke test in step 4 waits for it). Add to `paramValues`:
+
+  ```yaml
+        - name: build-args
+          values:
+            - value: RELEASE=vX.Y
+  ```
+
+  Without it the image reports `"release": "dev"`, and the smoke test fails once its wait runs out.
 
 Wait until `SUCCEEDED=True`, the same as in dev. No podman and no Quay login.
 
@@ -295,10 +307,10 @@ Argo syncs within about 3 minutes of the merge.
 oc -n jordbot get deploy jordannedyck-ai jordannedyck-ai-web \
   -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image
 oc -n jordbot rollout status deploy/jordannedyck-ai-web --timeout=5m
-curl -s https://jordannedyck.com/api/health
+curl -s https://jordannedyck.com/api/health        # "release" shows the new jordbot-web tag
 ```
 
-Then send one chat on https://jordannedyck.com.
+Then run the smoke test and read every answer it prints: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y --wait 600`. It checks health, `prompt_version` against the evidence file, and 7 chats. It exits 1 on a failed check; red means prod is broken, so go to [Rollback](#rollback). Its chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them, and they show under **Smoke tests** in `/dashboard/admin`. Each run is 5 gpt-4o answers, a few cents.
 
 ## Rollback
 

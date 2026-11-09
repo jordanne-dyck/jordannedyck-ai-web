@@ -17,7 +17,7 @@ import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
-import { splitAtTimeline } from '@/lib/timeline';
+import { showsTimeline, splitAtTimeline } from '@/lib/timeline';
 import { BuildStory } from '@/app/components/BuildStory';
 import { splitAtStory, STORY_CARD } from '@/lib/build-story';
 import './home.css';
@@ -89,10 +89,6 @@ function timelineOf(message: ChatUIMessage): { explicit: boolean } | null {
   }
   return null;
 }
-
-// The answer that showed the timeline this visit, kept for the tab's life so a
-// reload doesn't show it again.
-const TIMELINE_KEY = 'jb_timeline_shown';
 
 // The build story part: null when the answer has none.
 function storyOf(message: ChatUIMessage): { from: 'chip' | 'typed' | 'card'; replay: boolean } | null {
@@ -241,12 +237,6 @@ export default function Home() {
   const [openProject, setOpenProject] = useState<Project | null>(null);
   // The card that opened the panel, kept after closing so focus can go back to it.
   const [opener, setOpener] = useState<HTMLElement | null>(null);
-  // The answer that showed the timeline earlier in this tab, before a reload.
-  // Read once; only answers render the timeline, so the server's null is safe.
-  const [shownBefore] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try { return sessionStorage.getItem(TIMELINE_KEY); } catch { return null; }
-  });
   const [storyBefore] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     try { return sessionStorage.getItem(STORY_KEY); } catch { return null; }
@@ -331,15 +321,11 @@ export default function Home() {
     sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg, storyShown: !!storyMsg } });
   };
 
-  // The timeline shows under the first answer that carries it, once per visit.
-  // Later answers show it only when the question asked for it. Sent with each
-  // question as timelineShown, so asking for it again gets the short replay.
-  const timelineMsg =
-    shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
-  useEffect(() => {
-    if (!timelineMsg || shownBefore) return;
-    try { sessionStorage.setItem(TIMELINE_KEY, timelineMsg); } catch {}
-  }, [timelineMsg, shownBefore]);
+  // The timeline shows under the first answer on the page that carries it.
+  // Later answers show it only when the question asked for it (showsTimeline).
+  // Sent with each question as timelineShown, so asking for it again gets the
+  // short replay.
+  const timelineMsg = messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
   // The build story shows under every answer that carries it; this only decides
   // whether the next ask gets the full lead or the replay.
   const storyMsg =
@@ -445,7 +431,7 @@ export default function Home() {
             // The timeline takes the project card's place (decided 2026-11-04),
             // inside the answer where it marks the spot, otherwise after it.
             const timeline = message.role === 'user' ? null : timelineOf(message);
-            const showTimeline = !!timeline && (timeline.explicit || timelineMsg === message.id);
+            const showTimeline = showsTimeline(timeline, message.id, timelineMsg);
             const timelineEl = timeline && showTimeline
               ? <Timeline
                   explicit={timeline.explicit}

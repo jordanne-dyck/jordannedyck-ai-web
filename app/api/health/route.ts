@@ -6,7 +6,7 @@ import { PROMPT_VERSION } from '@/lib/prompt-version';
 
 export const dynamic = 'force-dynamic';
 
-// Public: GET /api/health -> {ok, db, openai, backend, prompt_version}
+// Public: GET /api/health -> {ok, db, openai, backend, prompt_version, release}
 // Monitor:  GET /api/health?deep=1 with x-monitor-token -> adds anomalies, rates,
 // label counts and answer quality over the last 24 hours.
 export async function GET(req: NextRequest) {
@@ -21,7 +21,13 @@ export async function GET(req: NextRequest) {
   // is the single summary flag.
   // prompt_version: the id on every chat_events row, so an eval run against
   // this deployment records which prompt it was served (release gate).
-  const body: Record<string, unknown> = { ...health, prompt_version: PROMPT_VERSION };
+  // release: the image tag, baked in by the BuildRun's RELEASE build arg
+  // ("dev" without one). The prod-smoke Action waits for it to show the new tag.
+  const body: Record<string, unknown> = {
+    ...health,
+    prompt_version: PROMPT_VERSION,
+    release: process.env.RELEASE || null,
+  };
 
   if (deep && health.db) {
     const [anomalies, stats, labels24h, quality24h] = await Promise.all([

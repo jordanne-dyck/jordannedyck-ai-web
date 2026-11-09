@@ -24,6 +24,20 @@ export function isAdminApiRequest(req: NextRequest): boolean {
   return safeEqual(supplied, expected);
 }
 
+// The x-smoke-run header of a post-release smoke run (scripts/smoke-prod.mjs),
+// stored as flags.smoke so /dashboard/admin can show or hide those rows. Read
+// only on a monitor request; anyone else's header is ignored. Kept to 40
+// characters of [A-Za-z0-9._-], so it is safe to store and to show.
+export function smokeRun(req: NextRequest): string | null {
+  if (!isMonitorRequest(req)) return null;
+  return cleanSmokeRun(req.headers.get('x-smoke-run'));
+}
+
+export function cleanSmokeRun(raw: string | null): string | null {
+  const run = (raw ?? '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
+  return run || null;
+}
+
 // 'model_missing': the key works but a model the site calls is no longer listed
 // (retired, or blocked for this project). Added 2026-10-14.
 export type KeyStatus = 'ok' | 'auth_failed' | 'unreachable' | 'model_missing';

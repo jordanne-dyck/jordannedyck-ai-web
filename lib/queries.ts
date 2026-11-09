@@ -198,8 +198,10 @@ export type EventFilters = {
   range: '1h' | '24h' | '7d' | '30d' | '90d';
   onlyErrors?: boolean;
   onlyRateLimited?: boolean;
-  // Synthetic (Checkly) rows are hidden unless this is set, and then only they show.
-  onlySynthetic?: boolean;
+  // Which rows: real visitors (the default), post-release smoke runs
+  // (flags.smoke, scripts/smoke-prod.mjs), or every synthetic row (Checkly
+  // and smoke runs).
+  traffic?: 'real' | 'smoke' | 'synthetic';
   ipHash?: string;
   retrieval?: 'empty' | 'error' | 'weak';
   source?: 'button' | 'typed';
@@ -218,6 +220,12 @@ export const RANGE_INTERVAL: Record<EventFilters['range'], string> = {
   '90d': '90 days',
 };
 
+const TRAFFIC_SQL: Record<NonNullable<EventFilters['traffic']>, string> = {
+  real: 'is_synthetic = FALSE',
+  smoke: `is_synthetic = TRUE AND flags ? 'smoke'`,
+  synthetic: 'is_synthetic = TRUE',
+};
+
 export async function getEventsList(
   filters: EventFilters,
   page: number,
@@ -226,7 +234,7 @@ export async function getEventsList(
   const interval = RANGE_INTERVAL[filters.range];
   const where: string[] = [
     `created_at > NOW() - INTERVAL '${interval}'`,
-    `is_synthetic = ${filters.onlySynthetic ? 'TRUE' : 'FALSE'}`,
+    TRAFFIC_SQL[filters.traffic ?? 'real'],
   ];
   const params: unknown[] = [];
 

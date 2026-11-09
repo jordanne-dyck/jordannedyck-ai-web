@@ -34,4 +34,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
+# The image tag, shown as `release` on /api/health. A release BuildRun passes
+# RELEASE=vX.Y in its build-args; dev builds leave it at "dev".
+ARG RELEASE=dev
+ENV RELEASE=${RELEASE}
+
 CMD ["node", "server.js"]
