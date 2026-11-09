@@ -60,9 +60,11 @@ html:has(.home) { scroll-behavior: smooth; }
 @keyframes home-rtl { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .home .name-links { position: relative; z-index: 1; display: flex; gap: 32px; align-items: center; margin: 3vh 2vw 0; padding-top: 12px; border-top: 1px solid currentColor; font-size: 17px; }
 .home .name-links a { padding: 10px 0; }
-.home a.icon { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; margin: 0 -10px; }
-.home a.icon svg { width: 20px; height: 20px; stroke-width: 1.75; }
-.home a.icon:hover { opacity: .7; }
+.home .icon:is(a, button) { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; margin: 0 -10px; color: inherit; cursor: pointer; }
+.home .icon:is(a, button) svg { width: 20px; height: 20px; stroke-width: 1.75; }
+.home .icon:is(a, button):hover { opacity: .7; }
+/* The address in the footer is text to read and copy, not a link */
+.home footer .email { padding: 10px 0; user-select: all; }
 .home .after-answer { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .home .name-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .home .name-links .label { margin-left: auto; opacity: .75; }

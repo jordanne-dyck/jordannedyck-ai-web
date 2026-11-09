@@ -108,6 +108,8 @@ const STORY_KEY = 'jb_story_shown';
 
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
+// Her contact card (public/), offered beside the address in the footer.
+const VCARD = '/jordanne-dyck.vcf';
 const GITHUB = 'https://github.com/jordanne-dyck';
 const PHONE = '647-454-2244';
 
@@ -272,7 +274,7 @@ export default function Home() {
     chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     inputRef.current?.focus({ preventScroll: true });
   };
-  const contact = (where: 'hero' | 'after_answer' | 'footer', channel: 'email' | 'linkedin' | 'github' | 'phone') =>
+  const contact = (where: 'hero' | 'after_answer' | 'footer', channel: 'email' | 'linkedin' | 'github' | 'phone' | 'vcard') =>
     track({ name: 'contact_clicked', props: { where, channel } });
   const retry = () => {
     track({ name: 'answer_retried', props: {} });
@@ -388,10 +390,10 @@ export default function Home() {
     ? conciergeTrigger({
         query: textOf(lastQuestion),
         citedCount: sourcesOf(lastAnswer)?.sources.length ?? null,
-        timeline: !!timelineOf(lastAnswer),
+        timeline: !!timelineOf(lastAnswer) || !!storyOf(lastAnswer),
       })
     : null;
-  const openConcierge = (el: HTMLElement | null, from: 'after_answer' | 'footer' | 'link' | 'bar' | 'error' | 'project', project: Project | null = null) => {
+  const openConcierge = (el: HTMLElement | null, from: 'after_answer' | 'footer' | 'link' | 'bar' | 'hero' | 'error' | 'project' | 'story', project: Project | null = null) => {
     track({ name: 'concierge_opened', props: { trigger: from === 'after_answer' ? (trigger ?? 'none') : 'none', from } });
     setConciergeProject(project);
     setConciergeOpener(el);
@@ -451,10 +453,11 @@ export default function Home() {
         <p className="sr-only">Sr. Product Manager. DTC products that bridge human and digital moments at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
-          {/* Email and phone as icons, in line with LinkedIn and GitHub */}
-          <a className="icon" href={`mailto:${EMAIL}`} aria-label="Email" onClick={() => contact('hero', 'email')}>
+          {/* Email and phone as icons, in line with LinkedIn and GitHub. Email
+              opens the concierge panel (Jordanne, 2026-11-08). */}
+          <button type="button" className="icon" aria-label="Email Jordanne" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'hero')}>
             <Mail aria-hidden="true" />
-          </a>
+          </button>
           <a className="icon" href={`tel:${PHONE.replace(/-/g, '')}`} aria-label={`Call ${PHONE}`} onClick={() => contact('hero', 'phone')}>
             <Phone aria-hidden="true" />
           </a>
@@ -508,6 +511,7 @@ export default function Home() {
                   replay={story.replay}
                   paused={paused}
                   ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                  onTalk={el => openConcierge(el, 'story')}
                 />
               : null;
             const shown = sources ? placeMarkers(text, sources.segments).text : text;
@@ -689,7 +693,10 @@ export default function Home() {
         {/* Contact links stay on one line on phones; the page link goes under them */}
         <nav className="frow" aria-label="Contact links">
           <span className="fcontact">
-            <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
+            {/* The address as text, not a link: sending goes through the panel
+                above, and the card saves her details (Jordanne, 2026-11-08). */}
+            <span className="email">{EMAIL}</span>
+            <a href={VCARD} download onClick={() => contact('footer', 'vcard')}>Save contact</a>
             <a href={`tel:${PHONE.replace(/-/g, '')}`} onClick={() => contact('footer', 'phone')}>{PHONE}</a>
             <Socials onClick={ch => contact('footer', ch)} />
           </span>
