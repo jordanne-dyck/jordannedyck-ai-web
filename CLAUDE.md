@@ -116,7 +116,7 @@ Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOA
 
 ## CI (GitHub Actions)
 
-- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`) and a Trivy scan. HIGH/CRITICAL CVEs fail it. Runs on pushes to `master`, PRs and weekly.
+- `ci.yml` (both repos): lint (`ruff check` / `npm run lint`), a gitleaks scan of the whole git history, and a Trivy scan. A leaked secret or a HIGH/CRITICAL CVE fails it. The CI scan catches a missed pre-push `gitleaks` run after the push, so the local run is still required. Runs on pushes to `master`, PRs and weekly.
 - `k8s.yml` (this repo): `kustomize build` and `kubeconform` for both roots, plus a check that the release file only sets the two `vX.Y` tags. Required on every PR.
 - Backend dependency changes: edit `pyproject.toml`, run `uv lock`, commit both files.
 
@@ -238,8 +238,10 @@ The dev checks above prove the site responds. They are not the gate. The gate ne
    `uv run python release_gate.py --image jordbot-web --tag vX.Y --sha $SHA --prompt <prompt_version> --index <index id>`
    For an index promotion, use `--faiss-dir /faiss/kb-<commit>` instead of `--image/--tag/--sha`. The script writes into `releases/` here and prints every failing check by case.
 4. **Read every failure and get Jordanne's ruling.** Open the answers themselves, not the pass rate. Write her ruling into that failure's `signoff` in her words: a checker miss, a known defect she accepts for this release, or a blocker. A blocker stops the release. A tier-1 failure (`T1.*`) can only be signed off as `checker miss: <why>`, or as `not served: <why>` when the site never sends that text and the dev e2e run passed the same case (A01: the site's fixed reply replaces the model's refusal). CI rejects any other ruling. Don't write a sign-off for her.
-5. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
-6. **Re-run the gate.** It keeps sign-offs and ticks. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
+   A sign-off holds only for the run and failure count it was given on. A new run clears it (the old ruling stays as `previous_signoff`, which nothing checks), so Jordanne rules again. CI rejects a failure that isn't from the run the evidence names.
+5. **Docs, reviewed and approved by Jordanne.** The gate lists the docs it needs: README, EVALS, DECISIONS and COVERAGE in `jordannedyck-ai`, and this repo's README. Jordanne first reviews every results-log entry still `reviewed: no`, since the docs draw on them. Then the docs are updated from the reviewed results, the release's runs and the commits that shipped, and she gets a review packet: per doc, only what was added or changed, each new fact with its source. She edits or approves. The approved text is merged to master in each repo, the gate is re-run so each doc's `commit` is the merged one, and she sets `"approved": true`. A doc that changes on master after approval needs approving again. COVERAGE.md must be exactly what `coverage_report.py --write` produces. CI rejects the PR otherwise.
+6. **QA on dev.** Jordanne ticks each `qa` item (`"done": true`) once it is done on dev, on a phone where the item says so.
+7. **Re-run the gate.** It keeps sign-offs, ticks and approved docs. Then add the evidence file to the release PR (step 3 below) or the `FAISS_DIR` PR. It must say `"status": "pass"`.
 
 An index promotion and the frontend release it was tested with go out together. Merge the `FAISS_DIR` PR, then the release PR straight after.
 

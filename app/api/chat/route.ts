@@ -7,14 +7,17 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest, smokeRun } from '@/lib/monitor';
-import { parseChatInput, parseSource, parseClientId, parseTimelineShown, MAX_USER_MESSAGE_CHARS } from '@/lib/chat-input';
+import {
+  parseChatInput, parseSource, parseClientId, parseTimelineShown, parseStoryShown, parseProjectSlug, MAX_USER_MESSAGE_CHARS,
+} from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
 import {
-  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, TIMELINE_REPLAY, withoutTimelineMarker,
+  asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '@/lib/timeline';
+import { asksForBuildStory, storyFromCard, STORY_LEAD, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
 import { asksForInstructions, FIXED_REFUSAL } from '@/lib/prompt-request';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
@@ -202,6 +205,13 @@ export async function POST(req: NextRequest) {
   const timelineExplicit = asksForTimeline(query);
   const timelineLead = asksForOverview(query);
   const timelineReplay = isTimelineReplay(query, parseTimelineShown(body));
+  // A question about how this site was built gets the build story inside
+  // Jordanne's fixed lead, or the short replay once it has shown this visit
+  // (decided 2026-11-08). So does the ai-resume card's "How did she build it?",
+  // from that card only. The model is not called for it.
+  const storyCard = storyFromCard(parseProjectSlug(body), query);
+  const storyAsked = storyCard || asksForBuildStory(query);
+  const storyReplay = storyAsked && parseStoryShown(body);
   // A request to see the bot's own instructions gets a fixed refusal, with no
   // model call (decided 2026-11-05).
   const instructionsAsked = asksForInstructions(query);
@@ -339,13 +349,20 @@ export async function POST(req: NextRequest) {
 
   // A fixed answer, with no model call: the refusal for a request to see the
   // instructions (which wins over an overview), or for an overview question
-  // the fixed lead and the timeline, or the replay. Retrieval still ran, so the
+  // the fixed lead and the timeline, or the replay, or for a build question
+  // the story's lead and trace. Retrieval still ran, so the
   // row records what an answer would have had; a failed search doesn't matter
   // here. Skipping it would leave retrieval_status null, which drops the row
   // from the dashboard's answered counts. model is null, and
-  // flags.fixed_refusal or flags.timeline_lead tells these rows apart from
-  // generated answers.
-  const fixed = instructionsAsked
+  // flags.fixed_refusal, flags.timeline_lead or flags.story_lead tells these
+  // rows apart from generated answers.
+  const fixed: {
+    id: string;
+    answer: string;
+    timeline: boolean;
+    story?: true;
+    flags: Record<string, unknown>;
+  } | null = instructionsAsked
     ? { id: 'refusal', answer: FIXED_REFUSAL, timeline: false, flags: { fixed_refusal: true } }
     : timelineLead
       ? {
@@ -357,10 +374,21 @@ export async function POST(req: NextRequest) {
             timeline_lead: timelineReplay ? 'replay' : 'fixed',
           },
         }
-      : null;
+      : storyAsked
+        ? {
+            id: 'story',
+            answer: storyReplay ? STORY_REPLAY : STORY_LEAD,
+            timeline: false,
+            story: true,
+            flags: {
+              story: storyCard ? 'card' : 'asked',
+              story_lead: storyReplay ? 'replay' : 'fixed',
+            },
+          }
+        : null;
   if (fixed) {
     const { answer } = fixed;
-    const text = withoutTimelineMarker(answer);
+    const text = withoutStoryMarker(withoutTimelineMarker(answer));
     return createUIMessageStreamResponse({
       stream: createUIMessageStream<ChatUIMessage>({
         execute: async ({ writer }) => {
@@ -380,6 +408,10 @@ export async function POST(req: NextRequest) {
           writer.write({ type: 'data-sources', data: buildSources([], retrieval.chunks) });
           if (fixed.timeline) {
             writer.write({ type: 'data-timeline', data: { explicit: true } });
+          }
+          if (fixed.story) {
+            const from = storyCard ? 'card' : source === 'button' ? 'chip' : 'typed';
+            writer.write({ type: 'data-story', data: { from, replay: storyReplay } });
           }
           const rowId = await logRedacted({
             ...baseEvent,
@@ -472,10 +504,10 @@ export async function POST(req: NextRequest) {
           onEnd: async ({ text: streamed, usage }) => {
             firstChunk.clear();
             try {
-              // The timeline placeholder is for the page only. The model can
-              // still copy it from an earlier fixed lead in the history.
-              const text = withoutTimelineMarker(streamed);
-              const raw = withoutTimelineMarker(cited.raw);
+              // The timeline and story placeholders are for the page only. The
+              // model can still copy one from an earlier fixed lead in the history.
+              const text = withoutStoryMarker(withoutTimelineMarker(streamed));
+              const raw = withoutStoryMarker(withoutTimelineMarker(cited.raw));
               const promptTokens = usage.inputTokens ?? null;
               const completionTokens = usage.outputTokens ?? null;
               const { segments, citedIds } = parseCitations(raw);
@@ -501,17 +533,13 @@ export async function POST(req: NextRequest) {
               if (project) {
                 writer.write({ type: 'data-project', data: { slug: project } });
               }
-              // The career timeline. The page shows it once per visit, in place
-              // of the project card (overview questions, which always show it,
-              // never get here). An answer with no citations at all gets it
-              // when retrieval led with her role history. A question about
-              // where she worked before gets it whatever was cited.
-              const timelineCited = citesCareer(citedIds);
-              const timelineRetrieved = citedIds.length === 0 && leadsWithCareer(retrieval.chunks);
-              const timelineAsked = !timelineCited && !timelineRetrieved && asksForCareerHistory(query);
-              const timeline = timelineCited || timelineRetrieved || timelineAsked;
+              // The career timeline, in place of the project card (overview
+              // questions, which always show it, never get here). The page
+              // shows it once per page, or every time for a question about
+              // where she worked before (timelineFor).
+              const timeline = timelineFor(query, citedIds, retrieval.chunks);
               if (timeline) {
-                writer.write({ type: 'data-timeline', data: { explicit: false } });
+                writer.write({ type: 'data-timeline', data: { explicit: timeline.explicit } });
               }
               const rowId = await logRedacted({
                 ...baseEvent,
@@ -520,8 +548,8 @@ export async function POST(req: NextRequest) {
                   ...freeLabels(query, text),
                   ...(project ? { project_card: project } : {}),
                   ...(predicted ? { project_predicted: predicted } : {}),
-                  // Sent, not necessarily shown: the page decides once per visit.
-                  ...(timeline ? { timeline: timelineRetrieved ? 'retrieved' : timelineAsked ? 'asked' : 'cited' } : {}),
+                  // Sent, not necessarily shown: the page decides, unless explicit.
+                  ...(timeline ? { timeline: timeline.reason, ...(timeline.explicit ? { timeline_explicit: true } : {}) } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer

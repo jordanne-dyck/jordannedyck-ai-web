@@ -1,6 +1,6 @@
 // Career timeline (decided 2026-11-04: option B, an animated card; a full-screen
 // story may follow). Shown under an answer that cites her career-trajectory
-// chunks, once per visit, and again whenever the question asks for it.
+// chunks, once per page, and again whenever the question asks for it.
 //
 // The copy is hand-written from jordannedyck-ai/knowledge-base/experience/
 // professional-overview.md (exp-027 to exp-030, and exp-042, which holds the
@@ -226,6 +226,36 @@ export function asksForOverview(query: string): boolean {
 // she doing now", not "what did she do at DECIEM".
 export function asksForCareerHistory(query: string): boolean {
   return /\bwhere\s+(?:did|has|had)\s+(?:she|jordanne)\s+(?:work|worked)\b|\bwhat\s+did\s+(?:she|jordanne)\s+do\s+before\b|\b(?:previous|past|former|prior)\s+(?:employers?|roles?|jobs?|positions?|companies)\b|\b(?:what|which)\s+(?:companies|employers)\s+(?:has|did)\s+(?:she|jordanne)\s+work/i.test(query);
+}
+
+// The timeline under a model answer, or null. `reason` is logged. `explicit`
+// when the question asked about her past jobs: the page then shows it every
+// time, not once per visit (Jordanne, 2026-11-08, after "Where did Jordanne
+// work before DECIEM?" showed none on her phone in v1.16 QA, because the
+// overview question had already shown it). The question brings it whatever
+// was cited.
+export function timelineFor(
+  query: string,
+  citedIds: string[],
+  chunks: { chunk_id: string | null }[],
+): { reason: 'cited' | 'retrieved' | 'asked'; explicit: boolean } | null {
+  const explicit = asksForCareerHistory(query);
+  if (citesCareer(citedIds)) return { reason: 'cited', explicit };
+  if (citedIds.length === 0 && leadsWithCareer(chunks)) return { reason: 'retrieved', explicit };
+  if (explicit) return { reason: 'asked', explicit };
+  return null;
+}
+
+// Whether the page shows an answer's timeline: always when the question asked
+// for it, otherwise only under the first answer on the page that carries one.
+// Once per page, not per tab: after a reload the earlier answer is gone, so
+// the next one shows it (Jordanne, 2026-11-08).
+export function showsTimeline(
+  timeline: { explicit: boolean } | null,
+  messageId: string,
+  firstTimelineId: string | null,
+): boolean {
+  return !!timeline && (timeline.explicit || firstTimelineId === messageId);
 }
 
 // Where the timeline goes in an answer: on its own line, the page plays the

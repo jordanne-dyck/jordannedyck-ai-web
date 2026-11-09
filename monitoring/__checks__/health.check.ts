@@ -3,10 +3,11 @@ import { emailAlert } from './alert-channels'
 
 // The check that would have caught the October 2026 expired-key outage.
 // /api/health lists models with the site's OpenAI key: no tokens, no cost,
-// so it can run every 5 minutes.
+// Every 10 minutes since 2026-11-08: every 5 used about 8,600 runs a month on
+// its own and the free plan quota was nearly spent.
 new ApiCheck('health', {
   name: 'Health: database, OpenAI key, backend',
-  frequency: Frequency.EVERY_5M,
+  frequency: Frequency.EVERY_10M,
   alertChannels: [emailAlert],
   degradedResponseTime: 5000,
   maxResponseTime: 15000,

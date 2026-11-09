@@ -17,7 +17,9 @@ import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
-import { splitAtTimeline } from '@/lib/timeline';
+import { showsTimeline, splitAtTimeline } from '@/lib/timeline';
+import { BuildStory } from '@/app/components/BuildStory';
+import { splitAtStory, STORY_CARD } from '@/lib/build-story';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -88,9 +90,15 @@ function timelineOf(message: ChatUIMessage): { explicit: boolean } | null {
   return null;
 }
 
-// The answer that showed the timeline this visit, kept for the tab's life so a
-// reload doesn't show it again.
-const TIMELINE_KEY = 'jb_timeline_shown';
+// The build story part: null when the answer has none.
+function storyOf(message: ChatUIMessage): { from: 'chip' | 'typed' | 'card'; replay: boolean } | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-story') return p.data;
+  }
+  return null;
+}
+// Whether the build story has shown this visit, so asking again gets the replay.
+const STORY_KEY = 'jb_story_shown';
 
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
@@ -229,11 +237,9 @@ export default function Home() {
   const [openProject, setOpenProject] = useState<Project | null>(null);
   // The card that opened the panel, kept after closing so focus can go back to it.
   const [opener, setOpener] = useState<HTMLElement | null>(null);
-  // The answer that showed the timeline earlier in this tab, before a reload.
-  // Read once; only answers render the timeline, so the server's null is safe.
-  const [shownBefore] = useState<string | null>(() => {
+  const [storyBefore] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
-    try { return sessionStorage.getItem(TIMELINE_KEY); } catch { return null; }
+    try { return sessionStorage.getItem(STORY_KEY); } catch { return null; }
   });
 
   // The first-screen button: take the visitor to the chat, cursor in the box.
@@ -312,18 +318,22 @@ export default function Home() {
     sentAt.current = now();
     // `source` lets the dashboard count button questions (site-monitoring plan, 2026-10-14).
     // `clientId` joins the row to its PostHog session (Phase 2).
-    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
+    sendMessage({ text: prompt }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg, storyShown: !!storyMsg } });
   };
 
-  // The timeline shows under the first answer that carries it, once per visit.
-  // Later answers show it only when the question asked for it. Sent with each
-  // question as timelineShown, so asking for it again gets the short replay.
-  const timelineMsg =
-    shownBefore ?? messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
+  // The timeline shows under the first answer on the page that carries it.
+  // Later answers show it only when the question asked for it (showsTimeline).
+  // Sent with each question as timelineShown, so asking for it again gets the
+  // short replay.
+  const timelineMsg = messages.find(m => m.role === 'assistant' && timelineOf(m))?.id ?? null;
+  // The build story shows under every answer that carries it; this only decides
+  // whether the next ask gets the full lead or the replay.
+  const storyMsg =
+    storyBefore ?? messages.find(m => m.role === 'assistant' && storyOf(m))?.id ?? null;
   useEffect(() => {
-    if (!timelineMsg || shownBefore) return;
-    try { sessionStorage.setItem(TIMELINE_KEY, timelineMsg); } catch {}
-  }, [timelineMsg, shownBefore]);
+    if (!storyMsg || storyBefore) return;
+    try { sessionStorage.setItem(STORY_KEY, storyMsg); } catch {}
+  }, [storyMsg, storyBefore]);
 
   const showProject = (project: Project, el: HTMLElement, from: 'card' | 'timeline' = 'card') => {
     track({ name: 'project_opened', props: { slug: project.slug, from } });
@@ -338,7 +348,8 @@ export default function Home() {
     track({ name: 'project_question_clicked', props: { slug: project.slug, index } });
     track({ name: 'message_sent', props: { source: 'project' } });
     sentAt.current = now();
-    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg } });
+    // `project` lets the ai-resume card's "How did she build it?" open the build story.
+    sendMessage({ text: question }, { body: { source: 'button', clientId: clientId(), timelineShown: !!timelineMsg, storyShown: !!storyMsg, project: project.slug } });
   };
 
   // The cats stand in until the first words of the answer arrive. The
@@ -420,7 +431,7 @@ export default function Home() {
             // The timeline takes the project card's place (decided 2026-11-04),
             // inside the answer where it marks the spot, otherwise after it.
             const timeline = message.role === 'user' ? null : timelineOf(message);
-            const showTimeline = !!timeline && (timeline.explicit || timelineMsg === message.id);
+            const showTimeline = showsTimeline(timeline, message.id, timelineMsg);
             const timelineEl = timeline && showTimeline
               ? <Timeline
                   explicit={timeline.explicit}
@@ -431,7 +442,18 @@ export default function Home() {
                   onOpenProject={(p, el) => showProject(p, el, 'timeline')}
                 />
               : null;
-            const [before, after] = splitAtTimeline(sources ? placeMarkers(text, sources.segments).text : text);
+            // The build story plays where its marker sits in the fixed lead.
+            const story = message.role === 'user' ? null : storyOf(message);
+            const storyEl = story
+              ? <BuildStory
+                  from={story.from}
+                  replay={story.replay}
+                  paused={paused}
+                  ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                />
+              : null;
+            const shown = sources ? placeMarkers(text, sources.segments).text : text;
+            const [before, after] = story ? splitAtStory(shown) : splitAtTimeline(shown);
             const markdown = (body: string) => (
                     <ReactMarkdown
                       // Model output never loads images: an image URL is
@@ -488,7 +510,7 @@ export default function Home() {
                     {markdown(before)}
                     {after !== null && (
                       <>
-                        {timelineEl}
+                        {storyEl ?? timelineEl}
                         {markdown(after)}
                       </>
                     )}
@@ -508,7 +530,11 @@ export default function Home() {
                     })()}
                     {(() => {
                       if (showTimeline) return after === null ? timelineEl : null;
-                      const project = projectOf(message);
+                      // Under the story, the ai-resume card with the code and
+                      // docs, unless the question came from that card.
+                      const project = story
+                        ? (story.from === 'card' ? null : projectBySlug(STORY_CARD.slug))
+                        : projectOf(message);
                       return project ? <ProjectCard project={project} onOpen={el => showProject(project, el)} /> : null;
                     })()}
                   </div>
@@ -563,7 +589,7 @@ export default function Home() {
               if (isLoading || !input.trim()) return;
               track({ name: 'message_sent', props: { source: 'typed' } });
               sentAt.current = now();
-              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId(), timelineShown: !!timelineMsg } });
+              sendMessage({ text: input }, { body: { source: 'typed', clientId: clientId(), timelineShown: !!timelineMsg, storyShown: !!storyMsg } });
               setInput('');
             }}
             aria-label="Chat with AI assistant"
