@@ -20,12 +20,18 @@ A rollback needs no evidence: a tag or FAISS_DIR that prod has run before is
 allowed through, so reverting a release PR is never blocked.
 
 Runs only on pull requests; needs the full history (checkout fetch-depth: 0).
+When an evidence file is checked, it also reads jordannedyck-ai's history from
+GitHub, so a backend doc changed on master after Jordanne approved it fails.
 """
+import atexit
 import json
 import os
 import re
+import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 
 RELEASE = "k8s/prod/release/kustomization.yaml"
 API = "k8s/prod/deployment-api.yaml"
@@ -35,10 +41,31 @@ FAISS_RE = re.compile(r"name:\s*FAISS_DIR\s*\n\s*value:\s*(\S+)")
 # DOCS in jordannedyck-ai/release_gate.py; "ai" is the backend repo.
 REQUIRED_DOCS = [("ai", "README.md"), ("ai", "EVALS.md"), ("ai", "DECISIONS.md"),
                  ("ai", "COVERAGE.md"), ("web", "README.md")]
+# The backend repo is public, so its docs are checked against its master too.
+# AI_REPO overrides the URL (a local path works) for testing.
+AI_REPO = os.environ.get("AI_REPO", "https://github.com/jordanne-dyck/jordannedyck-ai.git")
+_ai_clone = []
 
 
 def git(*args, check=True):
     return subprocess.run(["git", *args], capture_output=True, text=True, check=check)
+
+
+def ai_last_commit(path):
+    """Newest commit on the backend's master that touched `path`, or None when
+    the backend can't be fetched. Clones once, history only (no file contents)."""
+    if not _ai_clone:
+        d = tempfile.mkdtemp(prefix="jordannedyck-ai-")
+        # git writes its pack files read-only, which rmtree can't remove on Windows.
+        atexit.register(shutil.rmtree, d,
+                        onerror=lambda fn, p, _: (os.chmod(p, stat.S_IWRITE), fn(p)))
+        r = git("clone", "-q", "--bare", "--filter=blob:none", "--single-branch",
+                "--branch", "master", AI_REPO, d, check=False)
+        _ai_clone.append(d if r.returncode == 0 else None)
+    if _ai_clone[0] is None:
+        return None
+    return git("-C", _ai_clone[0], "log", "-1", "--format=%H", "master", "--", path,
+               check=False).stdout.strip() or None
 
 
 def at(ref, path):
@@ -111,6 +138,13 @@ def problems_in(path, want):
                 out.append(f"approved {path} {commit[:7]} is not on this branch")
             elif git("diff", "--quiet", commit, "HEAD", "--", path, check=False).returncode != 0:
                 out.append(f"{path} changed after Jordanne approved it at {commit[:7]}")
+        else:
+            latest = ai_last_commit(path)
+            if latest is None:
+                out.append(f"could not read jordannedyck-ai master to check {path}; re-run this check")
+            elif latest != commit:
+                out.append(f"jordannedyck-ai {path} is at {latest[:7]} on master, "
+                           f"Jordanne approved {commit[:7]}; re-run release_gate.py and approve again")
     if ev.get("coverage_generated") is not True:
         out.append("COVERAGE.md is not what coverage_report.py generates")
     unrev = (ev.get("results_log") or {}).get("unreviewed")
