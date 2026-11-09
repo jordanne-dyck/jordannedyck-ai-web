@@ -8,17 +8,20 @@ const tone = {
   button: 'bg-sky-500/15 text-sky-300',
   topic: 'bg-violet-500/15 text-violet-300',
   pending: 'bg-zinc-800 text-zinc-400',
+  smoke: 'bg-orange-500/15 text-orange-300',
 };
 
 function Badge({ className, children }: { className: string; children: React.ReactNode }) {
   return <span className={`mr-1 mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] ${className}`}>{children}</span>;
 }
 
-// Source, topic and every label on a turn.
+// Source, topic and every label on a turn, and a smoke run's tag.
 export function TurnBadges({ row, showSource = true }: { row: EventRow; showSource?: boolean }) {
   const labels = labelsOf(row.flags);
+  const smoke = typeof row.flags.smoke === 'string' ? row.flags.smoke : null;
   return (
     <>
+      {smoke && <Badge className={tone.smoke}>smoke {smoke}</Badge>}
       {showSource && row.isButton && <Badge className={tone.button}>button</Badge>}
       {row.topicTags?.[0] && <Badge className={tone.topic}>{row.topicTags[0]}</Badge>}
       {labels.map((k) => (
