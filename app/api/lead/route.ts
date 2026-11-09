@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
-import { purposeOf } from '@/lib/concierge';
+import { purposeOf, REPLY_TIME } from '@/lib/concierge';
 import { parseLeadInput } from '@/lib/leads';
-import { insertLead } from '@/lib/lead-store';
+import { insertLead, recordNotify } from '@/lib/lead-store';
+import { isMonitorRequest } from '@/lib/monitor';
+import { notifyLead, type NotifyResult } from '@/lib/notify';
 import { projectBySlug } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +18,14 @@ export const dynamic = 'force-dynamic';
 // (nimbalyst-local/plans/concierge-pilot.md). Nothing here logs the name,
 // email or note.
 //
-// Jordanne isn't notified yet: a central notification service is planned in
-// its own session. Until it exists, leads wait in /dashboard/admin/leads.
+// Each stored lead is emailed to Jordanne, and the visitor gets a fixed
+// confirmation (lib/notify.ts). A failed send never fails the visitor's
+// request: the lead is stored, the failure is recorded on it, and
+// /api/health?deep=1 counts it as unnotified.
+//
+// With x-monitor-token (the Checkly lead check, scripts/lead-check.mjs) the
+// lead is stored as synthetic, skips the limits, both emails go in Mailgun
+// test mode (accepted, not delivered), and the response says what happened.
 
 const enabled = () => process.env.LEADS_ENABLED === '1' && Boolean(process.env.DATABASE_URL);
 
@@ -40,16 +48,33 @@ export async function POST(req: NextRequest) {
     project: input.lead.project && projectBySlug(input.lead.project) ? input.lead.project : null,
   };
 
+  const synthetic = isMonitorRequest(req);
+  let id: string;
   try {
-    const result = await insertLead(lead, hashIp(getClientIp(req)));
+    const result = await insertLead(lead, hashIp(getClientIp(req)), { synthetic });
     if (!result.ok) {
       console.warn('Lead refused: limit', result.limit);
       // Which limit, so the panel can say whose it is (lib/leads.ts).
       return NextResponse.json({ error: 'rate limited', limit: result.limit }, { status: 429 });
     }
-    return NextResponse.json({ ok: true });
+    id = result.id;
   } catch (err) {
     console.error('Lead insert failed:', err instanceof Error ? err.name : 'unknown');
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
+
+  let sent: NotifyResult = { notified: false, confirmed: false, error: 'record_failed' };
+  try {
+    sent = await notifyLead(
+      { id, name: lead.name, email: lead.email, note: lead.note, purposeLabel: purposeOf(lead.purpose)?.label ?? null, project: lead.project },
+      { replyTime: REPLY_TIME, synthetic },
+    );
+    await recordNotify(id, sent);
+    if (sent.error) console.error('Lead notify failed:', id, sent.error);
+  } catch (err) {
+    console.error('Lead notify record failed:', id, err instanceof Error ? err.name : 'unknown');
+  }
+
+  if (synthetic) return NextResponse.json({ ok: true, id, ...sent });
+  return NextResponse.json({ ok: true });
 }

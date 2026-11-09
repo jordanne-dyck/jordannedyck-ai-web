@@ -118,6 +118,9 @@ export type LeadRow = {
   status: LeadStatus;
   statusAt: string | null;
   repliedAt: string | null;
+  // When the email to Jordanne went out (lib/notify.ts), and the latest send error.
+  notifiedAt: string | null;
+  notifyError: string | null;
 };
 
 export type LeadStats = { total: number; replied: number; medianReplyHours: number | null; conversations: number };

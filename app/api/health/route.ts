@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isMonitorRequest } from '@/lib/monitor';
 import { checkHealth } from '@/lib/health';
+import { getLeadPipelineStats } from '@/lib/lead-store';
 import { getAnomalyFlags, getMonitorStats, getLabelCounts24h, getQuality24h } from '@/lib/queries';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 
@@ -8,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 // Public: GET /api/health -> {ok, db, openai, backend, prompt_version, release}
 // Monitor:  GET /api/health?deep=1 with x-monitor-token -> adds anomalies, rates,
-// label counts and answer quality over the last 24 hours.
+// label counts and answer quality over the last 24 hours, and the lead
+// pipeline (`leads`) where the lead form is on.
 export async function GET(req: NextRequest) {
   const deep = req.nextUrl.searchParams.get('deep') === '1';
   if (deep && !isMonitorRequest(req)) {
@@ -40,6 +42,12 @@ export async function GET(req: NextRequest) {
     body.stats = stats;
     body.labels24h = labels24h;
     body.quality24h = quality24h;
+    // The lead pipeline (lib/notify.ts), only where the form is on: prod has
+    // no leads table until its migration runs. Null if the query fails, so a
+    // missing column can't take the rest of the deep view down.
+    if (process.env.LEADS_ENABLED === '1') {
+      body.leads = await getLeadPipelineStats().catch(() => null);
+    }
   }
 
   return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });

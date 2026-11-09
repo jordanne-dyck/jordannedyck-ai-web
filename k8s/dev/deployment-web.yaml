@@ -49,6 +49,25 @@ spec:
             # retention CronJob deletes leads after 365 days.
             - name: LEADS_ENABLED
               value: "1"
+            # Lead emails through Mailgun (lib/notify.ts). The key and Jordanne's
+            # address come from Doppler via Peter; optional, so the pod starts
+            # without them and leads are stored and marked not emailed.
+            - name: MAIL_DOMAIN
+              value: jordannedyck.com
+            - name: SITE_URL
+              value: https://jordbot-dev-jordbot-dev.apps.ocp-centralis.nekohouse.ca
+            - name: MAIL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: MAIL_API_KEY
+                  name: app-observability
+                  optional: true
+            - name: LEAD_NOTIFY_TO
+              valueFrom:
+                secretKeyRef:
+                  key: LEAD_NOTIFY_TO
+                  name: app-observability
+                  optional: true
             - name: IP_HASH_SALT
               valueFrom:
                 secretKeyRef:

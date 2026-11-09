@@ -47,6 +47,10 @@ new ApiCheck('abuse-thresholds', {
       // AssertionBuilder.jsonBody('$.labels24h.moderation').lessThan(1),
       // AssertionBuilder.jsonBody('$.labels24h.off_topic').lessThan(6),
       // AssertionBuilder.jsonBody('$.quality24h.breachCount').lessThan(1),
+      // Add once prod has the lead form and lib/notify.ts: a real lead still New
+      // whose email to Jordanne didn't go out within 10 minutes. Before that,
+      // prod's deep health has no leads block and this would fail.
+      // AssertionBuilder.jsonBody('$.leads.unnotified').lessThan(1),
     ],
   },
 })

@@ -150,6 +150,15 @@ data:
     ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
     ALTER TABLE leads ADD CONSTRAINT leads_status_check
       CHECK (status IN ('new', 'replied', 'conversation', 'closed'));
+
+    -- Lead notifications (lib/notify.ts, 2026-11-09). When the email to Jordanne
+    -- and the visitor's confirmation went out, and the latest send error.
+    -- is_synthetic: a lead from the monitoring check (x-monitor-token), left out of
+    -- the limits, the admin list and the pilot numbers, and deleted after 7 days.
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS notified_at  TIMESTAMPTZ;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_error TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_synthetic BOOLEAN NOT NULL DEFAULT FALSE;
 kind: ConfigMap
 metadata:
   name: postgres-schema
