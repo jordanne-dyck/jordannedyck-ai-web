@@ -16,8 +16,11 @@ const ID = String.raw`[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\d+`;
 const GROUP = String.raw`\[${ID}(?:\s*,\s*${ID})*\]`;
 
 // A citation group plus the spaces before it, so "lab [ops-009]." strips to "lab.".
-export const CITE_RE = new RegExp(String.raw`[ \t]*${GROUP}`, 'g');
-const ID_RE = new RegExp(ID, 'g');
+// Case-insensitive since 2026-11-08 (bug_1794167236506_5t0gvr), as run_eval.py:
+// "[Exp-001]" was neither stripped nor counted, so a visitor would have seen it.
+// Ids are lowercased when parsed.
+export const CITE_RE = new RegExp(String.raw`[ \t]*${GROUP}`, 'gi');
+const ID_RE = new RegExp(ID, 'gi');
 
 export function stripCitations(text: string): string {
   return text.replace(CITE_RE, '');
@@ -34,7 +37,7 @@ export function parseCitations(raw: string): { segments: Segment[]; citedIds: st
   for (const line of raw.split('\n')) {
     let last = 0;
     for (const m of line.matchAll(CITE_RE)) {
-      pushSegment(segments, line.slice(last, m.index), m[0].match(ID_RE) ?? []);
+      pushSegment(segments, line.slice(last, m.index), (m[0].match(ID_RE) ?? []).map((i) => i.toLowerCase()));
       last = m.index + m[0].length;
     }
     pushSegment(segments, line.slice(last), []);
@@ -118,8 +121,8 @@ export const sourceLabel = (s: { title: string; section?: string }) =>
 
 // Holds back the tail of the buffer that could still become a citation: an open
 // "[" whose text so far fits an id list, and any spaces before it. Everything
-// else is safe to send.
-const OPEN_TAIL_RE = /[ \t]*(?:\[[a-z0-9,\s-]*)?$/;
+// else is safe to send. Case-insensitive, as CITE_RE.
+const OPEN_TAIL_RE = /[ \t]*(?:\[[a-z0-9,\s-]*)?$/i;
 const MAX_HELD = 200;
 
 // Removes citations from the text stream and records the raw text, which

@@ -1,7 +1,6 @@
-# Deletes chat_events and admin_login_attempts rows older than 180 days, and
-# leads older than 365 days, once a day. The periods are stated to visitors
-# under the chat input in app/page.tsx and above the concierge Send button
-# (lib/leads.ts). Change them together.
+# Deletes chat_events and admin_login_attempts rows older than 180 days, once a day.
+# The retention period is stated to visitors under the chat input in
+# app/page.tsx. Change both together.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -34,8 +33,7 @@ spec:
                     -h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" \
                     -v ON_ERROR_STOP=1 \
                     -c "DELETE FROM chat_events WHERE created_at < NOW() - INTERVAL '180 days';" \
-                    -c "DELETE FROM admin_login_attempts WHERE created_at < NOW() - INTERVAL '180 days';" \
-                    -c "DELETE FROM leads WHERE created_at < NOW() - INTERVAL '365 days';"
+                    -c "DELETE FROM admin_login_attempts WHERE created_at < NOW() - INTERVAL '180 days';"
               env:
                 - name: POSTGRESQL_USER
                   valueFrom:

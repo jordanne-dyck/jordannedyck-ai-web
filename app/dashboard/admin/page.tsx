@@ -54,7 +54,8 @@ function parseFilters(sp: SearchParams): { filters: EventFilters; page: number }
       range,
       onlyErrors: sp.errors === '1',
       onlyRateLimited: sp.rl === '1',
-      onlySynthetic: sp.syn === '1',
+      // syn=1 was the old "Synthetic only" toggle.
+      traffic: sp.syn === 'smoke' ? 'smoke' : sp.syn === 'all' || sp.syn === '1' ? 'synthetic' : 'real',
       ipHash: sp.ip || undefined,
       retrieval: ret,
       source: src,
@@ -76,7 +77,8 @@ function buildQuery(
   params.set('range', merged.range);
   if (merged.onlyErrors) params.set('errors', '1');
   if (merged.onlyRateLimited) params.set('rl', '1');
-  if (merged.onlySynthetic) params.set('syn', '1');
+  if (merged.traffic === 'smoke') params.set('syn', 'smoke');
+  if (merged.traffic === 'synthetic') params.set('syn', 'all');
   if (merged.ipHash) params.set('ip', merged.ipHash);
   if (merged.retrieval) params.set('ret', merged.retrieval);
   if (merged.source) params.set('src', merged.source);
@@ -219,7 +221,16 @@ function FilterBar({ filters }: { filters: EventFilters }) {
         <span className={`ml-4 ${key}`}>Show:</span>
         {toggle(!!filters.onlyErrors, buildQuery(filters, 0, { onlyErrors: !filters.onlyErrors }), 'Errors')}
         {toggle(!!filters.onlyRateLimited, buildQuery(filters, 0, { onlyRateLimited: !filters.onlyRateLimited }), 'Rate-limited')}
-        {toggle(!!filters.onlySynthetic, buildQuery(filters, 0, { onlySynthetic: !filters.onlySynthetic }), 'Synthetic only')}
+      </div>
+      <div className={row}>
+        <span className={key}>Traffic:</span>
+        {(
+          [
+            ['real', 'Real'],
+            ['smoke', 'Smoke tests'],
+            ['synthetic', 'All synthetic'],
+          ] as const
+        ).map(([t, text]) => toggle(filters.traffic === t, buildQuery(filters, 0, { traffic: t }), text))}
       </div>
       <div className={row}>
         <span className={key}>Retrieval:</span>
