@@ -66,6 +66,11 @@ export function LeadsView({
               </div>
               <div className="text-xs text-zinc-500 md:text-right">
                 <div>in {r.createdAt.replace('T', ' ').slice(0, 16)} UTC</div>
+                {!r.notifiedAt && (
+                  <div className="mt-1 inline-block rounded-md border border-red-500/50 bg-red-500/10 px-2 py-0.5 text-red-200">
+                    Not emailed to you{r.notifyError ? ` (${r.notifyError})` : ''}
+                  </div>
+                )}
                 {r.repliedAt && <div>replied {r.repliedAt.replace('T', ' ').slice(0, 16)} UTC</div>}
                 <form action={setStatus} className="mt-2 flex flex-wrap gap-1 md:justify-end">
                   <input type="hidden" name="id" value={r.id} />

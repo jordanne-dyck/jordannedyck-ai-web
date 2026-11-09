@@ -196,7 +196,11 @@ export const SAMPLE_GAPS: SampleGap[] = [
 // The concierge pilot's leads view (/dashboard/admin/leads), with made-up
 // people at example.com addresses. Shown permanently instead of real numbers
 // (decided 2026-11-07): it shows what is tracked and how, not results.
-const lead = (r: Omit<LeadRow, 'status' | 'statusAt' | 'repliedAt' | 'edited'> & Partial<LeadRow>): LeadRow => ({
+const lead = (
+  r: Omit<LeadRow, 'status' | 'statusAt' | 'repliedAt' | 'edited' | 'notifiedAt' | 'notifyError'> & Partial<LeadRow>,
+): LeadRow => ({
+  notifiedAt: r.createdAt,
+  notifyError: null,
   status: 'new',
   statusAt: null,
   repliedAt: null,
