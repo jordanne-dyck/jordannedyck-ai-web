@@ -15,7 +15,7 @@ import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
 import {
-  asksForCareerHistory, asksForOverview, asksForTimeline, citesCareer, FIXED_LEAD, isTimelineReplay, leadsWithCareer, TIMELINE_REPLAY, withoutTimelineMarker,
+  asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '@/lib/timeline';
 import { asksForBuildStory, storyFromCard, STORY_LEAD, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
 import { asksForInstructions, FIXED_REFUSAL } from '@/lib/prompt-request';
@@ -533,17 +533,13 @@ export async function POST(req: NextRequest) {
               if (project) {
                 writer.write({ type: 'data-project', data: { slug: project } });
               }
-              // The career timeline. The page shows it once per visit, in place
-              // of the project card (overview questions, which always show it,
-              // never get here). An answer with no citations at all gets it
-              // when retrieval led with her role history. A question about
-              // where she worked before gets it whatever was cited.
-              const timelineCited = citesCareer(citedIds);
-              const timelineRetrieved = citedIds.length === 0 && leadsWithCareer(retrieval.chunks);
-              const timelineAsked = !timelineCited && !timelineRetrieved && asksForCareerHistory(query);
-              const timeline = timelineCited || timelineRetrieved || timelineAsked;
+              // The career timeline, in place of the project card (overview
+              // questions, which always show it, never get here). The page
+              // shows it once per page, or every time for a question about
+              // where she worked before (timelineFor).
+              const timeline = timelineFor(query, citedIds, retrieval.chunks);
               if (timeline) {
-                writer.write({ type: 'data-timeline', data: { explicit: false } });
+                writer.write({ type: 'data-timeline', data: { explicit: timeline.explicit } });
               }
               const rowId = await logRedacted({
                 ...baseEvent,
@@ -552,8 +548,8 @@ export async function POST(req: NextRequest) {
                   ...freeLabels(query, text),
                   ...(project ? { project_card: project } : {}),
                   ...(predicted ? { project_predicted: predicted } : {}),
-                  // Sent, not necessarily shown: the page decides once per visit.
-                  ...(timeline ? { timeline: timelineRetrieved ? 'retrieved' : timelineAsked ? 'asked' : 'cited' } : {}),
+                  // Sent, not necessarily shown: the page decides, unless explicit.
+                  ...(timeline ? { timeline: timeline.reason, ...(timeline.explicit ? { timeline_explicit: true } : {}) } : {}),
                   citations: {
                     ...citationLabels(segments, retrieval.chunks),
                     // Redacted like response_text, which holds the same answer
