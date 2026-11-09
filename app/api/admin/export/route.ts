@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isMonitorRequest } from '@/lib/monitor';
+import { isAdminApiRequest } from '@/lib/monitor';
 import { getExport } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/admin/export?since=ISO with x-monitor-token.
+// GET /api/admin/export?since=ISO with x-admin-token.
 // Real traffic since `since` (default 7 days, at most 31), grouped by session,
 // then by conversation, in order. Read by the weekly /convo-review command.
 // Stored text is already redacted (emails and phone numbers).
 export async function GET(req: NextRequest) {
-  if (!isMonitorRequest(req)) {
+  if (!isAdminApiRequest(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const raw = req.nextUrl.searchParams.get('since');

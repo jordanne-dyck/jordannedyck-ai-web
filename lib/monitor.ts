@@ -12,6 +12,18 @@ export function isMonitorRequest(req: NextRequest): boolean {
   return safeEqual(supplied, expected);
 }
 
+// True when the request carries the x-admin-token header and it matches
+// ADMIN_API_TOKEN. Guards the /api/admin routes, which read real visitor
+// conversations and write to chat_events. Kept apart from MONITOR_TOKEN so the
+// token Checkly holds cannot read or change visitor data. With ADMIN_API_TOKEN
+// unset, the admin routes refuse every request.
+export function isAdminApiRequest(req: NextRequest): boolean {
+  const expected = process.env.ADMIN_API_TOKEN;
+  const supplied = req.headers.get('x-admin-token');
+  if (!expected || !supplied) return false;
+  return safeEqual(supplied, expected);
+}
+
 // The x-smoke-run header of a post-release smoke run (scripts/smoke-prod.mjs),
 // stored as flags.smoke so /dashboard/admin can show or hide those rows. Read
 // only on a monitor request; anyone else's header is ignored. Kept to 40

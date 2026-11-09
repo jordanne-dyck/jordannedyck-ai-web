@@ -5,7 +5,7 @@
 //
 //   node scripts/eval-candidates.mjs pull [--days 30] [--eval-set PATH]
 //     Free. Reads GET /api/admin/eval-candidates on the site at $SITE_URL
-//     (default http://localhost:3000) with $MONITOR_TOKEN. The site's own
+//     (default http://localhost:3000) with $ADMIN_API_TOKEN. The site's own
 //     DATABASE_URL decides which chat_events is read: local, jordbot-dev or prod.
 //     Drops questions already in the eval set (read only), then writes
 //     candidates-<date>.json and .md to nimbalyst-local/eval-candidates/.
@@ -63,8 +63,8 @@ function nextFreeIds(questions) {
 
 async function pull(opts) {
   const site = (process.env.SITE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-  const token = process.env.MONITOR_TOKEN;
-  if (!token) throw new Error('MONITOR_TOKEN is not set. It must match the MONITOR_TOKEN the site runs with.');
+  const token = process.env.ADMIN_API_TOKEN;
+  if (!token) throw new Error('ADMIN_API_TOKEN is not set. It must match the ADMIN_API_TOKEN the site runs with.');
   const days = Number(opts.days ?? 30);
 
   const evalPath = resolve(opts['eval-set'] ?? DEFAULT_EVAL_SET);
@@ -74,7 +74,7 @@ async function pull(opts) {
   const nextIds = nextFreeIds(questions);
 
   const url = `${site}/api/admin/eval-candidates?days=${days}`;
-  const res = await fetch(url, { headers: { 'x-monitor-token': token }, cache: 'no-store' });
+  const res = await fetch(url, { headers: { 'x-admin-token': token }, cache: 'no-store' });
   if (!res.ok) throw new Error(`${url} answered ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = await res.json();
 

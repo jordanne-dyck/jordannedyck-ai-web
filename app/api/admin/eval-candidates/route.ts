@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isMonitorRequest } from '@/lib/monitor';
+import { isAdminApiRequest } from '@/lib/monitor';
 import { getEvalCandidates } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/admin/eval-candidates?days=N with x-monitor-token.
+// GET /api/admin/eval-candidates?days=N with x-admin-token.
 // Real visitor turns that went wrong in the last N days (default 30, at most
 // 180, the retention window), grouped by question. Read by
 // scripts/eval-candidates.mjs. Answers come from whichever database this
 // deployment points at. Stored text is already redacted (emails and phone numbers).
 export async function GET(req: NextRequest) {
-  if (!isMonitorRequest(req)) {
+  if (!isAdminApiRequest(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const raw = Number(req.nextUrl.searchParams.get('days'));
