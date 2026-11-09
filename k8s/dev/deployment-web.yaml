@@ -29,6 +29,10 @@ spec:
         - env:
             - name: FLASK_API_URL
               value: http://jordannedyck-ai:5000
+            # The backend's /chat writes the answers (engine/chat.py). Unset or
+            # "ts": route.ts's own pipeline, which prod runs.
+            - name: ANSWER_ENGINE
+              value: python
             - name: NODE_ENV
               value: production
             - name: DATABASE_URL
