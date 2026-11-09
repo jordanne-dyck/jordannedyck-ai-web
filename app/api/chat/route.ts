@@ -80,7 +80,7 @@ type SearchResult = {
   metadata: { filename?: string; category?: string; chunk_id?: string; title?: string };
 };
 
-// Stored with the event, never sent to the client.
+// Stored with the event. Only indexVersion is sent to the client, as data-index.
 type RetrievalMeta = {
   // KB category of the best match: the free topic label (decided 2026-10-14).
   topCategory: string | null;
@@ -435,6 +435,7 @@ export async function POST(req: NextRequest) {
             writer.write({ type: 'data-retrieval', data: retrieval });
           }
           writer.write({ type: 'data-trace', id: 'trace', data: { ...trace, answer: 'fixed' } });
+          writer.write({ type: 'data-index', data: { index_version: meta.indexVersion }, transient: true });
           writer.write({ type: 'text-start', id: fixed.id });
           writer.write({ type: 'text-delta', id: fixed.id, delta: answer });
           writer.write({ type: 'text-end', id: fixed.id });
@@ -513,6 +514,7 @@ export async function POST(req: NextRequest) {
           writer.write({ type: 'data-retrieval', data: retrieval });
         }
         writer.write({ type: 'data-trace', id: 'trace', data: trace });
+        writer.write({ type: 'data-index', data: { index_version: meta.indexVersion }, transient: true });
         // Resolved once onFinish has written its parts, or the call failed.
         // The finish part is sent after it, so the event id is never late.
         let settle = () => {};
@@ -863,6 +865,7 @@ function answerFromEngine(ctx: {
                 },
               };
               if (emitRetrieval) writer.write({ type: 'data-retrieval', data: retrieval });
+              writer.write({ type: 'data-index', data: { index_version: meta.index_version }, transient: true });
               // A failed search ends in the error state with no trace, as in
               // the pipeline above, unless the reply is fixed and doesn't need it.
               if (retrieval.status !== 'error' || meta.fixed) {
