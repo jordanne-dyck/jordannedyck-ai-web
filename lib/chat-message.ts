@@ -19,6 +19,14 @@ import type { TraceData } from './trace';
 //                   id once the answer has finished. Counts and timings only
 //   data-turn-sig   the answer's signature, sent back with it next turn
 //                   (lib/turn-signature.ts); only when TURN_SIGNING_KEY is set
+//   data-index      the index_version the backend's search answered this turn
+//                   from (8 hex chars, a hash of the index files; null when the
+//                   backend reports none); every answer that searched.
+//                   Transient: the page never stores it, so it is not sent
+//                   back. run_e2e.py records it, so an e2e run proves which
+//                   index answered each question (release gate, 2026-11-09).
+//                   Per answer, not /api/health: health says what the backend
+//                   holds when asked, not what answered a given turn
 // They replace the AI SDK v4 `8:` message annotations (changed 2026-10-27).
 export type RetrievalData = {
   // The text retrieval ran on: the follow-up rewrite, or the latest message.
@@ -45,6 +53,7 @@ export type ChatDataParts = {
   story: { from: 'chip' | 'typed' | 'card'; replay: boolean };
   trace: TraceData;
   'turn-sig': { sig: string };
+  index: { index_version: string | null };
 };
 
 export type ChatUIMessage = UIMessage<never, ChatDataParts>;
