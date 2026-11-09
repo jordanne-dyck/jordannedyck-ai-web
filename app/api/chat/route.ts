@@ -3,19 +3,20 @@ import { createUIMessageStream, createUIMessageStreamResponse, streamText, toUIM
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { getOrCreateSessionId } from '@/lib/session';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, type RateLimitResult } from '@/lib/rate-limit';
 import { logChatEvent, type ChatEvent } from '@/lib/logging';
 import { estimateCostUsd } from '@/lib/cost';
 import { isMonitorRequest, smokeRun } from '@/lib/monitor';
 import {
   parseChatInput, parseSource, parseClientId, parseTimelineShown, parseStoryShown, parseProjectSlug, MAX_USER_MESSAGE_CHARS,
+  type ChatMessage,
 } from '@/lib/chat-input';
 import { buildSystemPrompt } from '@/lib/system-prompt';
 import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
 import {
-  asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
+  asksForCareerHistory, asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '@/lib/timeline';
 import { asksForBuildStory, storyFromCard, storyLead, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
 import { gateSentence } from '@/lib/release-gate';
@@ -27,6 +28,7 @@ import { withCiteReminder } from '@/lib/cite-reminder';
 import { keepSignedTurns, signTurn } from '@/lib/turn-signature';
 import { fileCount, type TraceData } from '@/lib/trace';
 import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
+import { engineEvents, type EngineDone, type EngineMeta } from '@/lib/answer-engine';
 
 const MODEL = 'gpt-4o';
 
@@ -282,6 +284,18 @@ export async function POST(req: NextRequest) {
   // anything reads them (lib/turn-signature.ts).
   const { turnIndex } = input;
   const { messages, unsigned } = keepSignedTurns(input.messages, sessionId);
+
+  // ANSWER_ENGINE=python: the backend's /chat writes the answer. Not for the
+  // build story, which the engine doesn't have yet; the refusal and the
+  // overview lead win over it, and the engine has those.
+  if (process.env.ANSWER_ENGINE === 'python' && !(storyAsked && !instructionsAsked && !timelineLead)) {
+    return answerFromEngine({
+      requestStart, query, messages, unsigned, droppedRoles: input.droppedRoles, turnIndex,
+      timelineShown: parseTimelineShown(body),
+      sessionId, ipHash, userAgent, isSynthetic, smokeFlag, source, clientId, limit,
+    });
+  }
+
   // Follow-ups are searched on a standalone rewrite; `query` stays the
   // visitor's own words for logging and labels.
   const rewrite = await rewriteQuery(messages);
@@ -648,4 +662,253 @@ export async function POST(req: NextRequest) {
     logFailure(err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
+}
+
+// Backstop for a backend that stops sending. The engine has its own limits
+// (rewrite, a 10 s search, 20 s to the first chunk, 60 s in all), so this
+// fires only when the backend itself hangs.
+const ENGINE_TIMEOUT_MS = 90_000;
+
+// ANSWER_ENGINE=python: one turn answered by the backend's POST /chat
+// (engine/chat.py), sent to the page as the same parts the pipeline above
+// sends. The rate limit, signed turns and input checks have already run; the
+// row, PII redaction, paid labels and the data-event part stay here.
+function answerFromEngine(ctx: {
+  requestStart: number;
+  query: string;
+  messages: ChatMessage[];
+  unsigned: number;
+  droppedRoles: string[];
+  turnIndex: number;
+  timelineShown: boolean;
+  sessionId: string;
+  ipHash: string;
+  userAgent: string | null;
+  isSynthetic: boolean;
+  smokeFlag: { smoke?: string };
+  source: ChatEvent['source'];
+  clientId: string | null;
+  limit: RateLimitResult;
+}) {
+  const { requestStart, query, messages, sessionId, isSynthetic } = ctx;
+  const elapsed = () => Date.now() - requestStart;
+  const emitRetrieval = !!process.env.EMIT_RETRIEVAL || isSynthetic;
+
+  // The row's fields that don't depend on the answer. Before the engine's meta
+  // arrives only the visitor's side is known.
+  let baseEvent: Omit<
+    ChatEvent,
+    'responseText' | 'promptTokens' | 'completionTokens' | 'costUsd' | 'latencyMs' | 'timeToFirstTokenMs' | 'error' | 'rateLimited'
+  > = {
+    sessionId,
+    ipHash: ctx.ipHash,
+    userAgent: ctx.userAgent,
+    query,
+    queryLength: query.length,
+    source: ctx.source,
+    clientId: ctx.clientId,
+    model: MODEL,
+    turnIndex: ctx.turnIndex,
+    isSynthetic,
+    flags: {
+      ...ctx.smokeFlag,
+      answer_engine: 'python',
+      ...(ctx.droppedRoles.length ? { dropped_roles: ctx.droppedRoles } : {}),
+      ...(ctx.unsigned ? { unsigned_assistant_turns: ctx.unsigned } : {}),
+    },
+  };
+  const logFailure = (reason: string) =>
+    logRedacted({
+      ...baseEvent,
+      ...NO_RESPONSE,
+      flags: { ...baseEvent.flags, ...freeLabels(query, null) },
+      latencyMs: elapsed(),
+      error: reason.slice(0, 500),
+      rateLimited: false,
+    });
+
+  return createUIMessageStreamResponse({
+    stream: createUIMessageStream<ChatUIMessage>({
+      execute: async ({ writer }) => {
+        writer.write({ type: 'start' });
+        const fail = async (reason: string, message: string) => {
+          writer.write({ type: 'error', errorText: message });
+          await logFailure(reason);
+          writer.write({ type: 'finish' });
+        };
+
+        let response: Response;
+        try {
+          response = await fetch(`${backendUrl()}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages, timeline_shown: ctx.timelineShown }),
+            signal: AbortSignal.timeout(ENGINE_TIMEOUT_MS),
+          });
+        } catch (error) {
+          console.error('Answer engine error:', error);
+          return fail(`engine: ${error instanceof Error ? error.name : 'error'}`, 'The answer failed.');
+        }
+        if (!response.ok || !response.body) {
+          console.error('Answer engine error: HTTP', response.status);
+          return fail(`engine: http_${response.status}`, 'The answer failed.');
+        }
+
+        let meta: EngineMeta | null = null;
+        let trace: TraceData | null = null;
+        let firstTokenAt: number | null = null;
+        // What the visitor received, which is what gets signed.
+        let streamed = '';
+
+        const finish = async (meta: EngineMeta, done: EngineDone) => {
+          const id = meta.fixed ?? 'text';
+          if (firstTokenAt === null) {
+            firstTokenAt = Date.now();
+            writer.write({ type: 'text-start', id });
+          }
+          writer.write({ type: 'text-end', id });
+          // The story placeholder is for the page only; the engine strips the
+          // timeline one. The model can still copy one from an earlier answer.
+          const text = withoutStoryMarker(done.answer);
+          const raw = done.answer_cited === null ? null : withoutStoryMarker(done.answer_cited);
+          // Signs the text the visitor received (citations stripped, any
+          // placeholder kept), which is what page.tsx sends back next turn.
+          const sig = signTurn(sessionId, streamed);
+          if (sig) writer.write({ type: 'data-turn-sig', data: { sig } });
+          if (trace && !meta.fixed) {
+            writer.write({ type: 'data-trace', id: 'trace', data: { ...trace, firstWordMs: firstTokenAt - requestStart } });
+          }
+          if (raw !== null && emitRetrieval) {
+            writer.write({ type: 'data-citations', data: { answer: raw, segments: done.segments } });
+          }
+          writer.write({ type: 'data-sources', data: done.sources });
+          if (done.project) writer.write({ type: 'data-project', data: { slug: done.project } });
+          // A fixed overview reply always shows the timeline. A generated answer
+          // shows it every time for a past-jobs question (timelineFor in
+          // lib/timeline.ts), which the engine doesn't mark yet, so it is
+          // decided here.
+          const timelineExplicit = done.timeline ? done.timeline.explicit || asksForCareerHistory(query) : false;
+          if (done.timeline) writer.write({ type: 'data-timeline', data: { explicit: timelineExplicit } });
+          const rowId = await logRedacted({
+            ...baseEvent,
+            flags: {
+              ...baseEvent.flags,
+              ...done.free_labels,
+              ...done.flags,
+              ...(done.project ? { project_card: done.project } : {}),
+              ...(done.project_predicted ? { project_predicted: done.project_predicted } : {}),
+              ...(done.timeline && !meta.fixed
+                ? { timeline: done.timeline.reason, ...(timelineExplicit ? { timeline_explicit: true } : {}) }
+                : {}),
+              ...(raw !== null ? { citations: { ...done.citation_labels, answer: redactPii(raw).text } } : {}),
+            },
+            citedChunkIds: done.cited_ids,
+            responseText: text,
+            promptTokens: done.usage?.prompt_tokens ?? null,
+            completionTokens: done.usage?.completion_tokens ?? null,
+            costUsd: done.cost_usd,
+            latencyMs: elapsed(),
+            timeToFirstTokenMs: firstTokenAt - requestStart,
+            error: null,
+            rateLimited: false,
+          });
+          // Not sent to Checkly, which never rates; paid labels skip its chats.
+          if (rowId && !isSynthetic) {
+            writer.write({ type: 'data-event', data: { id: rowId } });
+            const userTurns = messages.filter((m) => m.role === 'user');
+            void paidLabels({
+              rowId,
+              query,
+              previousQuery: userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null,
+              answer: text,
+              // A fixed reply: moderation and off-topic only, no grounding judge.
+              segments: meta.fixed ? [] : done.segments,
+              chunks: meta.fixed ? [] : meta.retrieval.chunks,
+            });
+          }
+          writer.write({ type: 'finish' });
+        };
+
+        try {
+          for await (const event of engineEvents(response.body)) {
+            if (event.type === 'meta') {
+              meta = event;
+              const { rewrite, retrieval } = meta;
+              baseEvent = {
+                ...baseEvent,
+                promptVersion: meta.prompt_version,
+                indexVersion: meta.index_version,
+                retrievalMs: meta.retrieval_ms,
+                topicTags: meta.top_category ? [meta.top_category] : null,
+                model: meta.model,
+                retrievalStatus: retrieval.status,
+                chunkIds: retrieval.chunks.map((c) => c.chunk_id).filter((id): id is string => id !== null),
+                topSimilarity: retrieval.chunks.length ? Math.max(...retrieval.chunks.map((c) => c.similarity)) : null,
+                flags: {
+                  ...baseEvent.flags,
+                  ...(meta.ranker ? { ranker: meta.ranker } : {}),
+                  ...(meta.cite_reminder ? { cite_reminder: true } : {}),
+                  query_rewrite: {
+                    status: rewrite.status,
+                    ...(rewrite.status === 'skipped'
+                      ? {}
+                      : {
+                          // Redacted like query, which holds the same visitor text.
+                          query: redactPii(rewrite.query).text,
+                          ms: rewrite.ms,
+                          model: rewrite.model,
+                          cost_usd: rewrite.cost_usd,
+                        }),
+                  },
+                },
+              };
+              if (emitRetrieval) writer.write({ type: 'data-retrieval', data: retrieval });
+              // A failed search ends in the error state with no trace, as in
+              // the pipeline above, unless the reply is fixed and doesn't need it.
+              if (retrieval.status !== 'error' || meta.fixed) {
+                trace = {
+                  hourly: ctx.limit.allowed && ctx.limit.hourly !== null ? ctx.limit.hourly + 1 : null,
+                  daily: ctx.limit.allowed && ctx.limit.daily !== null ? ctx.limit.daily + 1 : null,
+                  chars: query.length,
+                  rewritten:
+                    rewrite.status === 'ok' && rewrite.query.trim().toLowerCase() !== query.trim().toLowerCase()
+                      ? rewrite.query
+                      : null,
+                  search: retrieval.status,
+                  passages: retrieval.chunks.length,
+                  files: fileCount(retrieval.chunks),
+                  searchMs: meta.retrieval_ms,
+                  answer: meta.fixed ? 'fixed' : 'model',
+                };
+                writer.write({ type: 'data-trace', id: 'trace', data: trace });
+              }
+            } else if (event.type === 'text') {
+              if (!meta) throw new Error('text before meta');
+              const id = meta.fixed ?? 'text';
+              if (firstTokenAt === null) {
+                firstTokenAt = Date.now();
+                writer.write({ type: 'text-start', id });
+              }
+              streamed += event.delta;
+              writer.write({ type: 'text-delta', id, delta: event.delta });
+            } else if (event.type === 'error') {
+              if (meta && firstTokenAt !== null) writer.write({ type: 'text-end', id: meta.fixed ?? 'text' });
+              return fail(event.reason, event.message);
+            } else if (event.type === 'done') {
+              if (!meta) throw new Error('done before meta');
+              return finish(meta, event);
+            }
+          }
+          throw new Error('stream ended without done');
+        } catch (error) {
+          console.error('Answer engine error:', error);
+          const timedOut = error instanceof Error && error.name === 'TimeoutError';
+          return fail(
+            timedOut ? 'timeout' : `engine: ${error instanceof Error ? error.message : 'error'}`,
+            timedOut ? 'The answer timed out.' : 'The answer failed.',
+          );
+        }
+      },
+    }),
+  });
 }
