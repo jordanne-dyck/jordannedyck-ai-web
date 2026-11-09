@@ -52,14 +52,14 @@ export function storyLead(gate: string | null): string {
   return [
     STORY_MARKER,
     "**What it is.** Jordanne's career as a live chat you can question. It runs as two parts:",
-    "- **jordannedyck.com**, the website you're on\n- **jordbot**, the search over her sources, the eval harness and a custom MCP server",
+    "- **jordannedyck.com**, the website you're on\n- **jordbot**, the RAG search over her sources, the eval harness and a custom MCP server",
     '**Why she built it.** Jordanne built jordbot after losing her job in late 2025. She saw a chance to put her digital skills to work on the job search itself: a resume that shows what she can do, instead of words on a page. The first working version took about five days. She has kept improving it since, with new features, bug fixes and better workflows.',
     // Systems thinking (Jordanne, 2026-11-09). Each claim is in the trace's
     // stops: MRR (stop 2), the judge and the test cases (stop 4), the fork (stop 5).
     "**Built as a system.** Each part has one job and its own measure, and the measures feed back into the build. Search is scored on its own, answers are checked claim by claim, and every defect found becomes a permanent test case that runs before each release. Where her sources end, jordbot hands you to Jordanne instead of guessing.",
     "**What's inside**",
     [
-      '- **Composable.** The website, the search and the answers are separate parts, so one can change without the others. Extending jordbot to more surfaces like email, ad space or direct to a recruiter\'s own AI tools could come next.',
+      '- **Headless.** The search runs as its own service with no screen of its own, so the website and the MCP server both use it. More surfaces like email, ad space or a recruiter\'s own AI tools could plug in the same way.',
       '- **Custom MCP server.** Lets an AI assistant like Claude search her knowledge base directly, so it can answer questions about her background mid-conversation.',
       `- **Evals.** 90+ test cases, with automated and human checks.${gate ? ` ${gate}` : ''}`,
       '- **Monitoring.** A [dashboard](https://jordannedyck.com/dashboard) shows chat requests, cost, topics etc. Automated checks test the site regularly to make sure everything is running.',
