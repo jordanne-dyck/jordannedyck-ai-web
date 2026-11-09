@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { adminLogin, adminLogout, isAdminAuthed } from '@/lib/auth';
 import { setLeadStatus } from '@/lib/lead-store';
-import { isLeadStatus } from '@/lib/leads';
+import { isLeadId, isLeadStatus } from '@/lib/leads';
 import { currentIpHash, isLockedOut, recordLoginAttempt } from '@/lib/admin-login-limit';
 
 export async function loginAction(formData: FormData) {
@@ -33,7 +33,7 @@ export async function setLeadStatusAction(formData: FormData) {
   if (!(await isAdminAuthed())) redirect('/dashboard/admin');
   const id = String(formData.get('id') ?? '');
   const status = formData.get('status');
-  if (!/^d{1,18}$/.test(id) || !isLeadStatus(status)) return;
+  if (!isLeadId(id) || !isLeadStatus(status)) return;
   await setLeadStatus(id, status);
   revalidatePath('/dashboard/admin/leads');
 }

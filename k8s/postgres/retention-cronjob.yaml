@@ -34,7 +34,7 @@ spec:
                     -h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" \
                     -v ON_ERROR_STOP=1 \
                     -c "DELETE FROM chat_events WHERE created_at < NOW() - INTERVAL '180 days';" \
-                    -c "DELETE FROM admin_login_attempts WHERE created_at < NOW() - INTERVAL '180 days';" \r
+                    -c "DELETE FROM admin_login_attempts WHERE created_at < NOW() - INTERVAL '180 days';" \
                     -c "DELETE FROM leads WHERE created_at < NOW() - INTERVAL '365 days';"
               env:
                 - name: POSTGRESQL_USER

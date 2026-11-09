@@ -23,6 +23,11 @@ export function isLeadStatus(s: unknown): s is LeadStatus {
   return LEAD_STATUSES.some((x) => x.id === s);
 }
 
+// A leads.id (BIGSERIAL), as sent by the admin status buttons.
+export function isLeadId(id: unknown): id is string {
+  return typeof id === 'string' && /^\d{1,18}$/.test(id);
+}
+
 // Abuse limits for /api/lead. The per-visitor limit keys on the IP hash,
 // which a client can dodge by setting x-forwarded-for (lib/ip.ts, known), so
 // the site-wide cap is what actually bounds the table.

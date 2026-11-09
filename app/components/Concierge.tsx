@@ -117,6 +117,8 @@ export function ConciergePanel({
 
   const send = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // The button is disabled too; this covers Enter in a field.
+    if (BLANK.test(brief)) return;
     const data = new FormData(e.currentTarget);
     const email = String(data.get('email') ?? '').trim();
     setSending(true);
@@ -149,7 +151,7 @@ export function ConciergePanel({
         status === 400
           ? 'Check your name and email, and that the note has something in it.'
           : status === 429
-            ? 'Too many notes have been sent today. Please send it by email instead.'
+            ? 'Too many notes have been sent in the last 24 hours. Please send it by email instead.'
             : "That didn't go through. Please send it by email instead.",
       );
     }
@@ -256,13 +258,13 @@ export function ConciergePanel({
                   <input name="website" className="trap" tabIndex={-1} autoComplete="off" aria-hidden="true" />
                 </div>
                 {!drafting && BLANK.test(brief) && (
-                  <p className="hint">Your note still has [brackets]. Fill them in or delete them before you send it.</p>
+                  <p className="hint">Your note still has [brackets]. Fill them in or delete them to send it.</p>
                 )}
                 <p className="hint">{LEAD_CONSENT}</p>
                 {sendError && <p className="hint error" role="alert">{sendError}</p>}
               </div>
               <div className="project-foot concierge-foot">
-                <button type="submit" className="send" disabled={sending || brief.trim().length < 10}>
+                <button type="submit" className="send" disabled={sending || brief.trim().length < 10 || BLANK.test(brief)}>
                   {sending ? 'Sending…' : 'Send to Jordanne →'}
                 </button>
                 {mailto}

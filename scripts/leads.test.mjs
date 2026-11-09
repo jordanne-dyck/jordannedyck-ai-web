@@ -1,7 +1,7 @@
 // Unit tests for the concierge leads (lib/leads.ts): npm test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLeadInput, overLeadLimit, leadStats, isLeadStatus, MAX_NOTE, LEADS_SITE_PER_DAY } from '../lib/leads.ts';
+import { parseLeadInput, overLeadLimit, leadStats, isLeadStatus, isLeadId, MAX_NOTE, LEADS_SITE_PER_DAY } from '../lib/leads.ts';
 
 const good = { name: '  Ada   Lovelace ', email: ' Ada@Example.COM ', note: 'Hi Jordanne,\r\n\r\nA role I am hiring for.' };
 
@@ -81,4 +81,16 @@ test('pilot numbers: median reply time and conversations', () => {
 test('statuses', () => {
   assert.equal(isLeadStatus('conversation'), true);
   assert.equal(isLeadStatus('spam'), false);
+});
+
+// 2026-11-07 review: /^d{1,18}$/ (no backslash) matched only the letter d, so
+// every status button returned early and replied_at was never set.
+test('lead ids', () => {
+  assert.equal(isLeadId('42'), true);
+  assert.equal(isLeadId('123456789012345678'), true);
+  assert.equal(isLeadId('d'), false);
+  assert.equal(isLeadId(''), false);
+  assert.equal(isLeadId('1234567890123456789'), false);
+  assert.equal(isLeadId('1 OR 1=1'), false);
+  assert.equal(isLeadId(42), false);
 });
