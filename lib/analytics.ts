@@ -50,14 +50,19 @@ export type AnalyticsEvent =
   | { name: 'feedback'; props: { vote: 'up' | 'down'; has_note: boolean } }
   // Home page acquisition: the first-screen button, and every route to contact her.
   | { name: 'hero_ask_clicked'; props: Record<string, never> }
-  | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer'; channel: 'email' | 'linkedin' | 'github' | 'phone' } }
+  | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer'; channel: 'email' | 'linkedin' | 'github' | 'phone' | 'vcard' } }
   | { name: 'answer_retried'; props: Record<string, never> }
   // The build story (lib/build-story.ts): shown, a stop opened by the visitor,
   // the clip's controls, and its links out. `step` counts from 1.
   | { name: 'story_shown'; props: { explicit: true; from: 'chip' | 'typed' | 'card'; replay: boolean } }
   | { name: 'story_step_opened'; props: { step: number } }
   | { name: 'story_control'; props: { action: 'play' | 'pause' | 'skip'; ms: number } }
-  | { name: 'story_link_clicked'; props: { target: 'dashboard' | 'repo_web' | 'repo_ai' | 'email' | 'concierge' } };
+  | { name: 'story_link_clicked'; props: { target: 'dashboard' | 'repo_web' | 'repo_ai' | 'email' | 'concierge' } }
+  // The concierge pilot (lib/concierge.ts): opening the panel, and why it was
+  // offered; the note, and who drafted it; sending it. Never the note's text.
+  | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none'; from: 'after_answer' | 'footer' | 'link' | 'bar' | 'hero' | 'error' | 'project' | 'story' } }
+  | { name: 'brief_drafted'; props: { by: 'ai' | 'template' } }
+  | { name: 'brief_sent'; props: { channel: 'email' | 'copy' | 'form'; edited: boolean } };
 
 // `beacon` for events sent while the page is closing, when a normal request
 // would be cancelled.

@@ -17,9 +17,11 @@ import { FilmEffects } from '@/app/components/FilmEffects';
 import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
-import { showsTimeline, splitAtTimeline } from '@/lib/timeline';
+import { showsTimeline, splitAtTimeline, withoutTimelineMarker } from '@/lib/timeline';
 import { BuildStory } from '@/app/components/BuildStory';
 import { splitAtStory, STORY_CARD } from '@/lib/build-story';
+import { ConciergePanel, formEnabled } from '@/app/components/Concierge';
+import { conciergeTrigger } from '@/lib/concierge';
 import './home.css';
 
 const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
@@ -102,6 +104,8 @@ const STORY_KEY = 'jb_story_shown';
 
 const EMAIL = 'jordanne.dyck@gmail.com';
 const LINKEDIN = 'https://www.linkedin.com/in/jordannedyck/';
+// Her contact card (public/), offered beside the address in the footer.
+const VCARD = '/jordanne-dyck.vcf';
 const GITHUB = 'https://github.com/jordanne-dyck';
 const PHONE = '647-454-2244';
 
@@ -233,10 +237,22 @@ export default function Home() {
   const [usedPrompts, setUsedPrompts] = useState<Set<number>>(new Set());
   // One switch stops all motion: the band, grain, dust (WCAG 2.2.2).
   const [paused, setPaused] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [openProject, setOpenProject] = useState<Project | null>(null);
   // The card that opened the panel, kept after closing so focus can go back to it.
   const [opener, setOpener] = useState<HTMLElement | null>(null);
+  // The concierge panel, and the button that opened it. `conciergeKey`
+  // starts each opening fresh, so a note drafted earlier isn't reused for a
+  // longer conversation.
+  const [conciergeOpen, setConciergeOpen] = useState(false);
+  const [conciergeOpener, setConciergeOpener] = useState<HTMLElement | null>(null);
+  const [conciergeKey, setConciergeKey] = useState(0);
+  // Where the lead form is on, the privacy line says notes sent with it are kept.
+  const [leadForm, setLeadForm] = useState(false);
+  useEffect(() => {
+    formEnabled().then(setLeadForm);
+  }, []);
+  // The project the panel was opened from, named in the note.
+  const [conciergeProject, setConciergeProject] = useState<Project | null>(null);
   const [storyBefore] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     try { return sessionStorage.getItem(STORY_KEY); } catch { return null; }
@@ -248,13 +264,8 @@ export default function Home() {
     chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     inputRef.current?.focus({ preventScroll: true });
   };
-  const contact = (where: 'hero' | 'after_answer' | 'footer', channel: 'email' | 'linkedin' | 'github' | 'phone') =>
+  const contact = (where: 'hero' | 'after_answer' | 'footer', channel: 'email' | 'linkedin' | 'github' | 'phone' | 'vcard') =>
     track({ name: 'contact_clicked', props: { where, channel } });
-  // The mailto still opens; the copy covers visitors with no mail app set up.
-  const emailAndCopy = () => {
-    contact('footer', 'email');
-    navigator.clipboard?.writeText(EMAIL).then(() => setCopied(true), () => {});
-  };
   const retry = () => {
     track({ name: 'answer_retried', props: {} });
     sentAt.current = now();
@@ -357,11 +368,46 @@ export default function Home() {
   const last = messages[messages.length - 1];
   const waiting = isLoading && (last?.role === 'user' || (last !== undefined && !textOf(last)));
   const answered = !isLoading && !error && messages.some(m => m.role === 'assistant');
+  // Whether the last answer offers Jordanne more prominently: a question for
+  // her herself, or one jordbot answered without a source (lib/concierge.ts).
+  const lastAnswer = answered ? messages.findLast(m => m.role === 'assistant') : undefined;
+  const lastQuestion = messages.findLast(m => m.role === 'user');
+  const trigger = lastAnswer && lastQuestion
+    ? conciergeTrigger({
+        query: textOf(lastQuestion),
+        citedCount: sourcesOf(lastAnswer)?.sources.length ?? null,
+        timeline: !!timelineOf(lastAnswer) || !!storyOf(lastAnswer),
+      })
+    : null;
+  const openConcierge = (el: HTMLElement | null, from: 'after_answer' | 'footer' | 'link' | 'bar' | 'hero' | 'error' | 'project' | 'story', project: Project | null = null) => {
+    track({ name: 'concierge_opened', props: { trigger: from === 'after_answer' ? (trigger ?? 'none') : 'none', from } });
+    setConciergeProject(project);
+    setConciergeOpener(el);
+    setConciergeKey(k => k + 1);
+    setConciergeOpen(true);
+  };
+  // Arriving from the About page's "Talk to the human" (/?talk): open the
+  // panel straight away, then drop the parameter so a reload doesn't reopen it.
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has('talk')) return;
+    // The parameter goes once the panel opens, not before: React's dev mode
+    // runs this twice, cancelling the first frame.
+    const id = requestAnimationFrame(() => {
+      history.replaceState(null, '', location.pathname + location.hash);
+      openConcierge(null, 'link');
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, []);
+  // The conversation as the note's source: plain turns, without the timeline's placeholder.
+  const turns = messages
+    .map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: withoutTimelineMarker(textOf(m)) }))
+    .filter(t => t.content.trim());
   return (
     <div className="home" ref={rootRef} data-chatting={messages.length > 0 || undefined} data-paused={paused || undefined}>
       <div className="bar" ref={barRef}>
         <span className="who" aria-hidden="true">Jordanne Dyck</span>
-        <a href="#contact" className="label">Contact</a>
+        <button type="button" className="label" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'bar')}>Contact</button>
       </div>
 
       <header className="name-block" ref={blockRef}>
@@ -393,10 +439,11 @@ export default function Home() {
         <p className="sr-only">Sr. Product Manager. DTC products that bridge human and digital moments at scale. DECIEM, Loblaw Digital.</p>
         <nav className="name-links" aria-label="Site">
           <Link href="/about">About</Link>
-          {/* Email and phone as icons, in line with LinkedIn and GitHub */}
-          <a className="icon" href={`mailto:${EMAIL}`} aria-label="Email" onClick={() => contact('hero', 'email')}>
+          {/* Email and phone as icons, in line with LinkedIn and GitHub. Email
+              opens the concierge panel (Jordanne, 2026-11-08). */}
+          <button type="button" className="icon" aria-label="Email Jordanne" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'hero')}>
             <Mail aria-hidden="true" />
-          </a>
+          </button>
           <a className="icon" href={`tel:${PHONE.replace(/-/g, '')}`} aria-label={`Call ${PHONE}`} onClick={() => contact('hero', 'phone')}>
             <Phone aria-hidden="true" />
           </a>
@@ -450,6 +497,7 @@ export default function Home() {
                   replay={story.replay}
                   paused={paused}
                   ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                  onTalk={el => openConcierge(el, 'story')}
                 />
               : null;
             const shown = sources ? placeMarkers(text, sources.segments).text : text;
@@ -552,13 +600,19 @@ export default function Home() {
               ) : (
                 <>That answer didn&apos;t come through. <button type="button" onClick={retry}>Try again</button>, or{' '}</>
               )}
-              <a href={`mailto:${EMAIL}`} onClick={() => contact('after_answer', 'email')}>email Jordanne</a>.
+              <button type="button" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'error')}>talk to Jordanne</button>.
             </div>
           )}
           {answered && (
-            <p className="after-answer">
-              Want to talk to Jordanne?{' '}
-              <a href={`mailto:${EMAIL}`} onClick={() => contact('after_answer', 'email')}>Email</a>
+            <p className={trigger ? 'after-answer prompt' : 'after-answer'}>
+              {trigger === 'intent'
+                ? 'That one is for Jordanne herself.'
+                : trigger === 'uncited'
+                  ? "jordbot couldn't find that in her sources."
+                  : 'Want to talk to Jordanne?'}{' '}
+              <button type="button" className="talk" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'after_answer')}>
+                Talk to Jordanne →
+              </button>
               <Socials onClick={ch => contact('after_answer', ch)} />
             </p>
           )}
@@ -605,23 +659,30 @@ export default function Home() {
             />
             <button type="submit" disabled={isLoading || !input.trim()}>Send</button>
           </form>
-          {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days) and
-              backup-cronjob.yaml (14 nightly dumps). Change them together. */}
+          {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days for
+              chats, 365 for notes sent to Jordanne) and backup-cronjob.yaml (14
+              nightly dumps). Change them together. */}
           <p className="fine label">
             It can get things wrong. Check anything important with Jordanne.
-            {messages.length === 0 && <> Chats are kept 180 days to improve answers. Backups, up to 14 days more.</>}
+            {messages.length === 0 && <> Chats are kept 180 days to improve answers.{leadForm && <> A note you send Jordanne, with your name and email, is kept 1 year so she can reply.</>} Backups, up to 14 days more.</>}
           </p>
         </div>
       </main>
 
       <footer id="contact">
-        <div className="big"><a href={`mailto:${EMAIL}`} onClick={emailAndCopy}>Talk to the human →</a></div>
-        <p className="copied label" aria-live="polite">{copied ? `Address copied: ${EMAIL}` : ''}</p>
+        {/* The concierge panel, not a bare mailto (Jordanne, 2026-11-05). The
+            address stays in the row below for visitors who'd rather write themselves. */}
+        <div className="big">
+          <button type="button" aria-haspopup="dialog" onClick={e => openConcierge(e.currentTarget, 'footer')}>Talk to the human →</button>
+        </div>
         <div className="rule" />
         {/* Contact links stay on one line on phones; the page link goes under them */}
         <nav className="frow" aria-label="Contact links">
           <span className="fcontact">
-            <a href={`mailto:${EMAIL}`} onClick={() => contact('footer', 'email')}>{EMAIL}</a>
+            {/* The address as text, not a link: sending goes through the panel
+                above, and the card saves her details (Jordanne, 2026-11-08). */}
+            <span className="email">{EMAIL}</span>
+            <a href={VCARD} download onClick={() => contact('footer', 'vcard')}>Save contact</a>
             <a href={`tel:${PHONE.replace(/-/g, '')}`} onClick={() => contact('footer', 'phone')}>{PHONE}</a>
             <Socials onClick={ch => contact('footer', ch)} />
           </span>
@@ -632,7 +693,22 @@ export default function Home() {
         </div>
       </footer>
 
-      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject} />
+      <ProjectPanel project={openProject} opener={opener} onClose={() => setOpenProject(null)} onAsk={askAboutProject} onOpenProject={setOpenProject}
+        onTalk={p => {
+          // One dialog at a time: the project panel closes, then the concierge opens.
+          setOpenProject(null);
+          requestAnimationFrame(() => openConcierge(opener, 'project', p));
+        }}
+      />
+      <ConciergePanel
+        key={conciergeKey}
+        open={conciergeOpen}
+        opener={conciergeOpener}
+        trigger={conciergeProject ? null : trigger}
+        turns={turns}
+        project={conciergeProject}
+        onClose={() => setConciergeOpen(false)}
+      />
       <FilmEffects paused={paused} />
     </div>
   );

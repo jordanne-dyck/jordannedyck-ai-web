@@ -1,4 +1,6 @@
-import { SAMPLE_EVENTS, SAMPLE_CONVERSATION, SAMPLE_FIXES, SAMPLE_GAPS } from '@/lib/demo-data';
+import { SAMPLE_EVENTS, SAMPLE_CONVERSATION, SAMPLE_FIXES, SAMPLE_GAPS, SAMPLE_LEADS } from '@/lib/demo-data';
+import { leadStats } from '@/lib/leads';
+import { LeadsView } from '../admin/components/LeadsView';
 import { STRONG_MATCH } from '@/lib/thresholds';
 import { TurnBadges } from '../admin/components/Badges';
 import { TurnDetails } from '../admin/components/TurnDetails';
@@ -120,6 +122,15 @@ export function SampleAdmin() {
           </Panel>
         </div>
       </div>
+
+      <Panel
+        title="Concierge pilot: leads"
+        note="Notes visitors send Jordanne from “Talk to the human”, and whether she replied within one business day. Made-up people and numbers."
+      >
+        <div className="p-4">
+          <LeadsView rows={SAMPLE_LEADS} stats={leadStats(SAMPLE_LEADS)} />
+        </div>
+      </Panel>
     </section>
   );
 }

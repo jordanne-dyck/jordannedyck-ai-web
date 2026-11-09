@@ -144,6 +144,12 @@ data:
 
     CREATE INDEX IF NOT EXISTS idx_leads_ip_hash
       ON leads (ip_hash, created_at DESC);
+
+    -- lib/leads.ts LEAD_STATUSES. Dropped and re-added so a re-run picks up a
+    -- changed list, and so it reaches a table created before the check existed.
+    ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
+    ALTER TABLE leads ADD CONSTRAINT leads_status_check
+      CHECK (status IN ('new', 'replied', 'conversation', 'closed'));
 kind: ConfigMap
 metadata:
   name: postgres-schema
