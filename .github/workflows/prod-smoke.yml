@@ -1,0 +1,56 @@
+name: prod-smoke
+
+# After every prod release merge: wait until https://jordannedyck.com reports
+# the new jordbot-web tag on /api/health, then send real chats and check them
+# (scripts/smoke-prod.mjs). Red means prod is broken: CLAUDE.md "Rollback".
+# Green still needs someone to read the answers in the run summary.
+on:
+  push:
+    branches: [master]
+    paths: [k8s/prod/release/kustomization.yaml]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: jordbot-web tag to check (default: the one in k8s/prod/release/kustomization.yaml)
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Prod smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
+        with:
+          node-version: '24'
+
+      - name: Tag under test
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ]; then
+            tag=$(grep -A1 'peter/jordbot-web$' k8s/prod/release/kustomization.yaml | sed -n 's/.*newTag: *//p')
+          fi
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Not a vX.Y tag: '$tag'"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Argo syncs about 3 minutes after the merge; the script polls
+      # /api/health for up to 10 minutes until `release` shows the tag.
+      - name: Smoke test
+        env:
+          MONITOR_TOKEN: ${{ secrets.MONITOR_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: node scripts/smoke-prod.mjs --tag "$TAG" --wait 600
