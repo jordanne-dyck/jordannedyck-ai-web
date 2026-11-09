@@ -6,7 +6,7 @@ import type { Project } from '@/lib/projects';
 import {
   EMAIL, MAILTO_MAX, REPLY_TIME, mailtoHref, templateBrief, type Trigger, type Turn,
 } from '@/lib/concierge';
-import { LEAD_CONSENT } from '@/lib/leads';
+import { LEAD_CONSENT, leadLimitMessage } from '@/lib/leads';
 
 // A blank the visitor hasn't filled in yet, like "[what you'd like to talk about]".
 const BLANK = /\[[^\]\n]+\]/;
@@ -124,6 +124,7 @@ export function ConciergePanel({
     setSending(true);
     setSendError(null);
     let status = 0;
+    let limit: unknown = null;
     try {
       const res = await fetch('/api/lead', {
         method: 'POST',
@@ -139,6 +140,7 @@ export function ConciergePanel({
         }),
       });
       status = res.status;
+      if (status === 429) limit = ((await res.json().catch(() => ({}))) as { limit?: unknown }).limit;
     } catch {
       // status 0: shown below as "didn't go through".
     }
@@ -151,7 +153,7 @@ export function ConciergePanel({
         status === 400
           ? 'Check your name and email, and that the note has something in it.'
           : status === 429
-            ? 'Too many notes have been sent in the last 24 hours. Please send it by email instead.'
+            ? leadLimitMessage(limit)
             : "That didn't go through. Please send it by email instead.",
       );
     }

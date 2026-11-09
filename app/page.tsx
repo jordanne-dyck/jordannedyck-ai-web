@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { APICallError, DefaultChatTransport } from 'ai';
-import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Github, Linkedin, Mail, Phone } from 'lucide-react';
@@ -18,8 +18,9 @@ import { ProjectCard, ProjectPanel } from '@/app/components/ProjectCard';
 import { projectBySlug, type Project } from '@/lib/projects';
 import { Timeline } from '@/app/components/Timeline';
 import { showsTimeline, splitAtTimeline, withoutTimelineMarker } from '@/lib/timeline';
-import { BuildStory } from '@/app/components/BuildStory';
+import { AnswerTrace, BuildStory } from '@/app/components/BuildStory';
 import { splitAtStory, STORY_CARD } from '@/lib/build-story';
+import type { TraceData } from '@/lib/trace';
 import { ConciergePanel, formEnabled } from '@/app/components/Concierge';
 import { conciergeTrigger } from '@/lib/concierge';
 import './home.css';
@@ -96,6 +97,14 @@ function timelineOf(message: ChatUIMessage): { explicit: boolean } | null {
 function storyOf(message: ChatUIMessage): { from: 'chip' | 'typed' | 'card'; replay: boolean } | null {
   for (const p of message.parts) {
     if (p.type === 'data-story') return p.data;
+  }
+  return null;
+}
+// The trace part (lib/trace.ts): what happened to the question. Null on
+// answers from before it existed.
+function traceOf(message: ChatUIMessage): TraceData | null {
+  for (const p of message.parts) {
+    if (p.type === 'data-trace') return p.data;
   }
   return null;
 }
@@ -489,16 +498,22 @@ export default function Home() {
                   onOpenProject={(p, el) => showProject(p, el, 'timeline')}
                 />
               : null;
-            // The build story plays where its marker sits in the fixed lead.
+            // The build story's trace plays where its marker sits in the fixed
+            // lead, and shows the text after it once it reaches the writing stop.
             const story = message.role === 'user' ? null : storyOf(message);
-            const storyEl = story
+            const trace = message.role === 'user' ? null : traceOf(message);
+            const arrived = !(isLoading && message.id === messages[messages.length - 1]?.id);
+            const storyEl = (rest: ReactNode) => story
               ? <BuildStory
                   from={story.from}
                   replay={story.replay}
                   paused={paused}
-                  ready={!(isLoading && message.id === messages[messages.length - 1]?.id)}
+                  ready={arrived}
+                  trace={trace}
                   onTalk={el => openConcierge(el, 'story')}
-                />
+                >
+                  {rest}
+                </BuildStory>
               : null;
             const shown = sources ? placeMarkers(text, sources.segments).text : text;
             const [before, after] = story ? splitAtStory(shown) : splitAtTimeline(shown);
@@ -556,12 +571,12 @@ export default function Home() {
                     onCopy={() => track({ name: 'answer_copied', props: {} })}
                   >
                     {markdown(before)}
-                    {after !== null && (
+                    {after !== null && (story ? storyEl(markdown(after)) : (
                       <>
-                        {storyEl ?? timelineEl}
+                        {timelineEl}
                         {markdown(after)}
                       </>
-                    )}
+                    ))}
                     {sources && sources.sources.length > 0 && (
                       <div className="sources">
                         <span className="label">Sources</span>
@@ -572,6 +587,8 @@ export default function Home() {
                         </ol>
                       </div>
                     )}
+                    {/* The build story shows its trace open, above. */}
+                    {trace && !story && arrived && <AnswerTrace trace={trace} />}
                     {(() => {
                       const rowId = rowIdOf(message);
                       return rowId ? <Feedback rowId={rowId} /> : null;

@@ -397,21 +397,36 @@ html:has(.home) { scroll-behavior: smooth; }
 /* Smaller buttons for a mouse; touch keeps the 44px target */
 @media (pointer: fine) { .home .tl-list .chips button { min-height: 30px; } }
 
-/* Build story under its lead: the visitor's question down a vertical rail of
-   five stops (BuildStory.tsx). The rail fills behind the stop that is playing. */
-.home .story { margin: 22px 0 4px; }
+/* The trace (BuildStory.tsx, lib/trace.ts): the visitor's question down a
+   vertical rail of five stops. Pending is a hollow grey dot, the stop playing
+   is copper, done is a sage dot with a tick, skipped is a dashed ring. The
+   rail fills sage behind finished stops. */
+.home .story { margin: 4px 0 22px; }
+.home .st-kicker { margin: 0 0 4px; color: var(--soft); }
 .home .st-rail { list-style: none; margin: 0; padding: 0; }
 .home .st-stop { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; }
 .home .st-mark { display: flex; flex-direction: column; align-items: center; }
-.home .st-mark::before { content: ""; width: 12px; height: 12px; margin-top: 16px; border-radius: 50%; box-sizing: border-box;
-  border: 2px solid var(--soft); background: var(--bg); flex: none; transition: background .3s, border-color .3s, box-shadow .3s; }
+.home .st-mark::before { content: ""; display: grid; place-items: center; width: 16px; height: 16px; margin-top: 14px; border-radius: 50%; box-sizing: border-box;
+  border: 2px solid var(--soft); background: var(--bg); color: var(--bg); font-size: 10px; font-weight: 700; line-height: 1; flex: none;
+  transition: background .3s, border-color .3s, box-shadow .3s; }
 .home .st-mark i { width: 2px; flex: 1; min-height: 12px; background: var(--rule); transition: background .3s; }
 .home .st-stop:last-child .st-mark i { display: none; }
-.home .st-stop[data-passed] .st-mark::before, .home .st-stop[data-cur] .st-mark::before { background: var(--d1); border-color: var(--d1); }
-.home .st-stop[data-passed] .st-mark i { background: var(--d1); }
-.home .st-stop[data-cur] .st-mark::before { box-shadow: 0 0 0 4px rgba(201, 139, 94, .25); }
+.home .st-stop[data-state="current"] .st-mark::before { background: var(--d1); border-color: var(--d1); box-shadow: 0 0 0 4px rgba(201, 139, 94, .25); }
+.home .st-stop[data-state="done"] .st-mark::before { content: "✓"; background: var(--d2); border-color: var(--d2); }
+.home .st-stop[data-state="skipped"] .st-mark::before { border-style: dashed; }
+.home .st-stop[data-state="done"] .st-mark i, .home .st-stop[data-state="skipped"] .st-mark i { background: var(--d2); }
+.home .st-stop[data-state="skipped"] .st-title { color: var(--soft); }
 .home .st-stop[data-fork] .st-title { color: var(--d2); }
-.home .st-stop[data-fork][data-passed] .st-mark::before { background: var(--d2); border-color: var(--d2); }
+.home .st-line { margin: -4px 0 6px; font-size: 14px; line-height: 1.45; color: var(--d3); }
+.home .st-stop[data-state="skipped"] .st-line { color: var(--soft); }
+.home .st-evidence { display: table; margin-top: 6px; color: var(--d1); font-size: 13px; text-underline-offset: 3px; }
+/* Under ordinary answers: folded behind one line */
+.home .answer-trace { margin: 12px 0 0; }
+.home .answer-trace summary { cursor: pointer; color: var(--soft); min-height: 24px; padding: 4px 0; }
+.home .answer-trace summary:hover { color: var(--text); }
+.home .answer-trace summary:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
+.home .answer-trace[open] summary { margin-bottom: 4px; }
+@media (pointer: coarse) { .home .answer-trace summary { min-height: 44px; display: flex; align-items: center; } }
 .home .st-body { min-width: 0; padding-bottom: 6px; }
 /* The whole head is the tap target: 44px tall at least */
 .home .st-head { display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; background: none; color: var(--text);
@@ -419,7 +434,7 @@ html:has(.home) { scroll-behavior: smooth; }
 .home .st-title { font-weight: 500; font-size: 15px; }
 .home .st-parts { color: var(--soft); }
 .home .st-head:hover .st-title { text-decoration: underline; text-underline-offset: 3px; }
-.home .st-head:focus-visible, .home .st-talk:focus-visible, .home .st-meta a:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
+.home .st-head:focus-visible, .home .st-talk:focus-visible, .home .st-meta a:focus-visible, .home .st-evidence:focus-visible { outline: 2px solid var(--d1); outline-offset: 2px; }
 .home .st-detail { margin: 2px 0 10px; padding-left: 12px; border-left: 2px solid var(--d1); font-size: 14px; line-height: 1.5; color: var(--d3); }
 .home .st-detail p { margin: 0; }
 .home .st-stop[data-fork] .st-detail { border-left-color: var(--d2); }

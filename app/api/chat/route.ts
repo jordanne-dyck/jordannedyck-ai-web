@@ -17,16 +17,22 @@ import { pickProject, predictProject } from '@/lib/projects';
 import {
   asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '@/lib/timeline';
-import { asksForBuildStory, storyFromCard, STORY_LEAD, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
+import { asksForBuildStory, storyFromCard, storyLead, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
+import { gateSentence } from '@/lib/release-gate';
 import { asksForInstructions, FIXED_REFUSAL } from '@/lib/prompt-request';
 import { PROMPT_VERSION } from '@/lib/prompt-version';
 import { buildSources, citationLabels, parseCitations, stripCitationsTransform } from '@/lib/citations';
 import { rewriteQuery, REWRITE_MODEL } from '@/lib/query-rewrite';
 import { withCiteReminder } from '@/lib/cite-reminder';
 import { keepSignedTurns, signTurn } from '@/lib/turn-signature';
+import { fileCount, type TraceData } from '@/lib/trace';
 import type { ChatUIMessage, RetrievalData } from '@/lib/chat-message';
 
 const MODEL = 'gpt-4o';
+
+// The build story's lead, with the latest release's gate result fixed in at
+// build time (next.config.ts, lib/release-gate.ts).
+const STORY_LEAD_WITH_GATE = storyLead(gateSentence(process.env.RELEASE_GATE));
 
 // A hung backend or model ends in the error state, not an endless loader.
 // An answer is at most 1000 tokens, which gpt-4o streams well inside a minute.
@@ -236,11 +242,12 @@ export async function POST(req: NextRequest) {
   // Fails open: with Postgres down the check throws, and every chat used to
   // return a bare 500. chat_events can't be written then either, and
   // /api/health reports db:false (decided 2026-11-02).
+  const uncounted = { allowed: true as const, hourly: null, daily: null };
   const limit = isSynthetic
-    ? { allowed: true as const }
+    ? uncounted
     : await checkRateLimit(ipHash).catch((error) => {
         console.error('Rate limit check failed, allowing request:', error);
-        return { allowed: true as const };
+        return uncounted;
       });
   if (!limit.allowed) {
     logRedacted({
@@ -281,6 +288,23 @@ export async function POST(req: NextRequest) {
   const searchStart = Date.now();
   const { context, retrieval, meta, failure } = await searchExperience(rewrite.query);
   const retrievalMs = Date.now() - searchStart;
+
+  // What happened to this question so far, for the page (lib/trace.ts). The
+  // counts were taken before this question, so it is added to them.
+  const rewritten = rewrite.status === 'ok' && rewrite.query.trim().toLowerCase() !== query.trim().toLowerCase()
+    ? rewrite.query
+    : null;
+  const trace: TraceData = {
+    hourly: limit.allowed && limit.hourly !== null ? limit.hourly + 1 : null,
+    daily: limit.allowed && limit.daily !== null ? limit.daily + 1 : null,
+    chars: query.length,
+    rewritten,
+    search: retrieval.status,
+    passages: retrieval.chunks.length,
+    files: fileCount(retrieval.chunks),
+    searchMs: retrievalMs,
+    answer: 'model',
+  };
 
   const systemPrompt = buildSystemPrompt(context);
   // Only the model sees the reminder; the rewrite, labels and log use `messages`.
@@ -377,7 +401,7 @@ export async function POST(req: NextRequest) {
       : storyAsked
         ? {
             id: 'story',
-            answer: storyReplay ? STORY_REPLAY : STORY_LEAD,
+            answer: storyReplay ? STORY_REPLAY : STORY_LEAD_WITH_GATE,
             timeline: false,
             story: true,
             flags: {
@@ -396,6 +420,7 @@ export async function POST(req: NextRequest) {
           if (process.env.EMIT_RETRIEVAL || isSynthetic) {
             writer.write({ type: 'data-retrieval', data: retrieval });
           }
+          writer.write({ type: 'data-trace', id: 'trace', data: { ...trace, answer: 'fixed' } });
           writer.write({ type: 'text-start', id: fixed.id });
           writer.write({ type: 'text-delta', id: fixed.id, delta: answer });
           writer.write({ type: 'text-end', id: fixed.id });
@@ -473,6 +498,7 @@ export async function POST(req: NextRequest) {
         if (process.env.EMIT_RETRIEVAL || isSynthetic) {
           writer.write({ type: 'data-retrieval', data: retrieval });
         }
+        writer.write({ type: 'data-trace', id: 'trace', data: trace });
         // Resolved once onFinish has written its parts, or the call failed.
         // The finish part is sent after it, so the event id is never late.
         let settle = () => {};
@@ -517,6 +543,10 @@ export async function POST(req: NextRequest) {
               // before the database insert, so a slow insert can't hold it back.
               const sig = signTurn(sessionId, streamed);
               if (sig) writer.write({ type: 'data-turn-sig', data: { sig } });
+              // Same id: replaces the trace sent before the text.
+              if (firstTokenAt !== null) {
+                writer.write({ type: 'data-trace', id: 'trace', data: { ...trace, firstWordMs: firstTokenAt - requestStart } });
+              }
               if (process.env.EMIT_RETRIEVAL || isSynthetic) {
                 writer.write({ type: 'data-citations', data: { answer: raw, segments } });
               }

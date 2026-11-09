@@ -1,7 +1,7 @@
 // Unit tests for the concierge leads (lib/leads.ts): npm test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLeadInput, overLeadLimit, leadStats, isLeadStatus, isLeadId, MAX_NOTE, LEADS_SITE_PER_DAY } from '../lib/leads.ts';
+import { parseLeadInput, overLeadLimit, leadStats, isLeadStatus, isLeadId, MAX_NOTE, LEADS_SITE_PER_DAY, leadLimitMessage } from '../lib/leads.ts';
 
 const good = { name: '  Ada   Lovelace ', email: ' Ada@Example.COM ', note: 'Hi Jordanne,\r\n\r\nA role I am hiring for.' };
 
@@ -93,4 +93,12 @@ test('lead ids', () => {
   assert.equal(isLeadId('1234567890123456789'), false);
   assert.equal(isLeadId('1 OR 1=1'), false);
   assert.equal(isLeadId(42), false);
+});
+
+test('a refused note says whose limit it hit', () => {
+  assert.match(leadLimitMessage('visitor'), /^You've sent 3 notes/);
+  assert.match(leadLimitMessage('email'), /from this email address/);
+  assert.match(leadLimitMessage('site'), /The site has taken its 30 notes/);
+  assert.match(leadLimitMessage(undefined), /^Too many notes/);
+  for (const l of ['visitor', 'email', 'site', null]) assert.match(leadLimitMessage(l), /by email/);
 });
