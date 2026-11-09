@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
     const result = await insertLead(lead, hashIp(getClientIp(req)));
     if (!result.ok) {
       console.warn('Lead refused: limit', result.limit);
-      return NextResponse.json({ error: 'rate limited' }, { status: 429 });
+      // Which limit, so the panel can say whose it is (lib/leads.ts).
+      return NextResponse.json({ error: 'rate limited', limit: result.limit }, { status: 429 });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -3,11 +3,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import {
-  asksForBuildStory, splitAtStory, STOPS, STORY_CARD, STORY_LEAD, STORY_MARKER, STORY_REPLAY, storyFromCard, withoutStoryMarker,
+  asksForBuildStory, splitAtStory, STOPS, STORY_CARD, storyLead, STORY_MARKER, STORY_REPLAY, storyFromCard, withoutStoryMarker,
 } from '../lib/build-story.ts';
 import { asksForOverview, asksForTimeline } from '../lib/timeline.ts';
 import { SUGGESTED_QUESTIONS } from '../lib/suggested-questions.ts';
 import { projectBySlug } from '../lib/projects.ts';
+
+const STORY_LEAD = storyLead(null);
 
 // The must / must-not table in the plan (nimbalyst-local/plans/build-story.md, section 1).
 const MUST = [
@@ -76,13 +78,15 @@ test('the ai-resume card question opens the story from that card only', () => {
   assert.equal(storyFromCard('ai-resume', 'What would she change?'), false);
 });
 
-test('the lead holds the marker once, and the log never sees it', () => {
+test('the lead holds the marker once, first, and the log never sees it', () => {
   assert.equal(STORY_LEAD.split(STORY_MARKER).length, 2);
   assert.equal(STORY_REPLAY.split(STORY_MARKER).length, 2);
   assert.ok(!withoutStoryMarker(STORY_LEAD).includes('{{'));
+  // The trace comes first, as what just happened; the text follows it.
   const [before, after] = splitAtStory(STORY_LEAD);
-  assert.ok(before.startsWith("**What it is.**"));
-  assert.ok(after?.startsWith('**Why she built it.**'));
+  assert.equal(before, '');
+  assert.ok(after?.startsWith("**What it is.**"));
+  assert.match(after, /\*\*Why she built it\.\*\*[\s\S]*\*\*Built as a system\.\*\*[\s\S]*\*\*What's inside\*\*/);
   assert.deepEqual(splitAtStory('No marker here.'), ['No marker here.', null]);
 });
 
@@ -92,6 +96,26 @@ test('the lead and stops keep out the excluded claims', () => {
   const all = [STORY_LEAD, ...STOPS.map((s) => `${s.title} ${s.parts} ${s.detail}`)].join('\n');
   for (const re of [/180 days/i, /backup/i, /retention/i, /unit tests?/i, /0\.722|0\.972|pass rate/i, /\bpeter\b/i]) {
     assert.doesNotMatch(all, re);
+  }
+});
+
+test('the release-gate sentence goes in the Evals bullet only when there is one', () => {
+  assert.match(STORY_LEAD, /- \*\*Evals\.\*\* 90\+ test cases, with automated and human checks\.\n/);
+  const withGate = storyLead('In the release gate for v1.16 (6 Nov 2026), all passed.');
+  assert.match(withGate, /checks\. In the release gate for v1\.16/);
+});
+
+test('every stop links to its evidence in a public repo', () => {
+  for (const s of STOPS) {
+    assert.match(s.evidence.href, /^https:\/\/github\.com\/jordanne-dyck\/jordannedyck-ai(-web)?\/blob\/master\/\S+$/, s.title);
+    assert.ok(s.evidence.label, s.title);
+  }
+});
+
+test('local evidence files exist', () => {
+  for (const s of STOPS) {
+    const m = s.evidence.href.match(/jordannedyck-ai-web\/blob\/master\/(.+)$/);
+    if (m) assert.ok(existsSync(new URL(`../${m[1]}`, import.meta.url)), m[1]);
   }
 });
 

@@ -1,5 +1,6 @@
 import type { UIMessage } from 'ai';
 import type { Segment, SourcesData } from './citations';
+import type { TraceData } from './trace';
 
 // The message type /api/chat streams (AI SDK UI message stream, SSE). Besides
 // the answer text, an assistant message can carry these data parts:
@@ -13,6 +14,9 @@ import type { Segment, SourcesData } from './citations';
 //                   request. Slug only: no filename or chunk id
 //   data-timeline   the career timeline (lib/timeline.ts)
 //   data-story      the build story (lib/build-story.ts)
+//   data-trace      what happened to this question, stop by stop (lib/trace.ts);
+//                   every answer, before the text, sent again with the same
+//                   id once the answer has finished. Counts and timings only
 //   data-turn-sig   the answer's signature, sent back with it next turn
 //                   (lib/turn-signature.ts); only when TURN_SIGNING_KEY is set
 // They replace the AI SDK v4 `8:` message annotations (changed 2026-10-27).
@@ -39,6 +43,7 @@ export type ChatDataParts = {
   timeline: { explicit: boolean };
   // The build story (lib/build-story.ts), and how the question reached it.
   story: { from: 'chip' | 'typed' | 'card'; replay: boolean };
+  trace: TraceData;
   'turn-sig': { sig: string };
 };
 

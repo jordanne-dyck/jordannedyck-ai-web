@@ -42,30 +42,45 @@ export function storyFromCard(projectSlug: string | null, query: string): boolea
 // model is not called; retrieval still runs, for the log. Final with her OK,
 // 2026-11-08, with two fixes reported to her: the MCP line filled from
 // proj-ai-resume-001, and "test the site regularly".
-export const STORY_LEAD = [
-  "**What it is.** Jordanne's career as a live chat you can question. It runs as two parts:",
-  "- **jordannedyck.com**, the website you're on\n- **jordbot**, the search over her sources, the eval harness and a custom MCP server",
-  STORY_MARKER,
-  '**Why she built it.** Jordanne built jordbot after losing her job in late 2025. She saw a chance to put her digital skills to work on the job search itself: a resume that shows what she can do, instead of words on a page. The first working version took about five days. She has kept improving it since, with new features, bug fixes and better workflows.',
-  "**What's inside**",
-  [
-    '- **Human and digital.** jordbot answers what her sources cover. Anything for Jordanne herself, like hiring or availability, goes to her with a note drafted from the chat, so you never repeat yourself.',
-    '- **Composable.** The website, the search and the answers are separate parts, so one can change without the others. Extending jordbot to more surfaces like email, ad space or direct to a recruiter\'s own AI tools could come next.',
-    '- **Custom MCP server.** Lets an AI assistant like Claude search her knowledge base directly, so it can answer questions about her background mid-conversation.',
-    '- **Evals.** 90+ test cases, with automated and human checks.',
-    '- **Monitoring.** A [dashboard](https://jordannedyck.com/dashboard) shows chat requests, cost, topics etc. Automated checks test the site regularly to make sure everything is running.',
-    '- **The knowledge base.** A structured database of her career including roles, projects, experience, etc. in her own words.',
-    '- **UI.** An animated career timeline, project cards, numbered sources under every answer, this trace.',
-  ].join('\n'),
-].join('\n\n');
+//
+// Reordered 2026-11-09 (plans/build-story-live-trace.md): the trace first,
+// as what just happened to the question, then the text. "Built as a system"
+// added, and "Human and digital" cut, as the trace's last stop says it.
+// Drafted for Jordanne's OK. `gate` is the release-gate sentence
+// (lib/release-gate.ts), added to the Evals bullet when there is one.
+export function storyLead(gate: string | null): string {
+  return [
+    STORY_MARKER,
+    "**What it is.** Jordanne's career as a live chat you can question. It runs as two parts:",
+    "- **jordannedyck.com**, the website you're on\n- **jordbot**, the search over her sources, the eval harness and a custom MCP server",
+    '**Why she built it.** Jordanne built jordbot after losing her job in late 2025. She saw a chance to put her digital skills to work on the job search itself: a resume that shows what she can do, instead of words on a page. The first working version took about five days. She has kept improving it since, with new features, bug fixes and better workflows.',
+    // Systems thinking (Jordanne, 2026-11-09). Each claim is in the trace's
+    // stops: MRR (stop 2), the judge and the test cases (stop 4), the fork (stop 5).
+    "**Built as a system.** Each part has one job and its own measure, and the measures feed back into the build. Search is scored on its own, answers are checked claim by claim, and every defect found becomes a permanent test case that runs before each release. Where her sources end, jordbot hands you to Jordanne instead of guessing.",
+    "**What's inside**",
+    [
+      '- **Composable.** The website, the search and the answers are separate parts, so one can change without the others. Extending jordbot to more surfaces like email, ad space or direct to a recruiter\'s own AI tools could come next.',
+      '- **Custom MCP server.** Lets an AI assistant like Claude search her knowledge base directly, so it can answer questions about her background mid-conversation.',
+      `- **Evals.** 90+ test cases, with automated and human checks.${gate ? ` ${gate}` : ''}`,
+      '- **Monitoring.** A [dashboard](https://jordannedyck.com/dashboard) shows chat requests, cost, topics etc. Automated checks test the site regularly to make sure everything is running.',
+      '- **The knowledge base.** A structured database of her career including roles, projects, experience, etc. in her own words.',
+      '- **UI.** An animated career timeline, project cards, numbered sources under every answer, this trace.',
+    ].join('\n'),
+  ].join('\n\n');
+}
 
 // Asked again after the story has shown this visit: the trace again, without
 // repeating the lead.
 export const STORY_REPLAY = ["Here's the trace again.", STORY_MARKER].join('\n\n');
 
 // The five stops the visitor's question passes through. `parts` names the
-// pieces; `detail` is the decision behind the stop and how she knows it works.
-export type Stop = { title: string; parts: string; detail: string; fork?: true };
+// pieces; `detail` is the decision behind the stop and how she knows it works;
+// `evidence` is where a reader can check it, in the public repos. What
+// happened to this question is in the trace (lib/trace.ts, stopLine).
+export type Stop = { title: string; parts: string; detail: string; evidence: { label: string; href: string }; fork?: true };
+
+const WEB = 'https://github.com/jordanne-dyck/jordannedyck-ai-web/blob/master/';
+const AI = 'https://github.com/jordanne-dyck/jordannedyck-ai/blob/master/';
 
 export const STOPS: Stop[] = [
   {
@@ -73,6 +88,7 @@ export const STOPS: Stop[] = [
     title: 'Website checks it',
     parts: 'Next.js · rate limit · length cap',
     detail: '20 questions an hour and 100 a day per visitor, 2,000 characters each. Your IP is kept only as a salted hash.',
+    evidence: { label: 'The rate limit', href: `${WEB}lib/rate-limit.ts` },
   },
   {
     // lib/query-rewrite.ts; route.ts n_results 5; retrieval.py VECTOR_LOCK and
@@ -81,6 +97,7 @@ export const STOPS: Stop[] = [
     parts: 'Flask · FAISS · keyword + vector',
     detail:
       'A follow-up like "tell me more" is rewritten into a full question first. Then the top five passages, no more than three from one file. She tested two newer embedding models. Both ranked her sources worse (MRR down about 0.11), so she kept the old one.',
+    evidence: { label: 'The search code', href: `${AI}retrieval.py` },
   },
   {
     // EVALS.md:75-100 (ai); the 2026-10-19 blind sample (ai CLAUDE.local.md);
@@ -89,6 +106,7 @@ export const STOPS: Stop[] = [
     parts: 'gpt-4o · citations',
     detail:
       'Chosen in a four-model test. In her blind read Gemini Flash scored higher, but it missed the 15-second limit on 34 of 35 answers. gpt-4o: 1.88 s typical, under a cent an answer. When follow-up answers stopped citing, one reminder line took them from 17 of 36 cited to 36 of 36.',
+    evidence: { label: 'The model test, in EVALS.md', href: `${AI}EVALS.md` },
   },
   {
     // lib/classify.ts:10-16; app/dashboard; README.md:50-56 (ai), 29 regression cases
@@ -96,6 +114,7 @@ export const STOPS: Stop[] = [
     parts: 'judge · Postgres · dashboard',
     detail:
       'After you have your answer, a second model checks each cited claim against its source, so you never wait for it. Every question is logged, and the public dashboard shows the totals. Each defect found becomes a permanent test case: 29 so far.',
+    evidence: { label: 'The claim checker', href: `${WEB}lib/classify.ts` },
   },
   {
     // lib/concierge.ts (the concierge pilot)
@@ -103,6 +122,7 @@ export const STOPS: Stop[] = [
     parts: 'the concierge',
     detail:
       "jordbot answers what her sources cover. Anything that needs a person goes to Jordanne, with a note drafted from your conversation so you don't repeat yourself.",
+    evidence: { label: 'The concierge', href: `${WEB}lib/concierge.ts` },
     fork: true,
   },
 ];

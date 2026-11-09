@@ -1,11 +1,11 @@
 import { pool } from './db';
+import { DAILY_LIMIT, HOURLY_LIMIT } from './trace';
 
+// An allowed request carries the counts before it, for the trace
+// (lib/trace.ts): null when nothing was counted.
 export type RateLimitResult =
-  | { allowed: true }
+  | { allowed: true; hourly: number | null; daily: number | null }
   | { allowed: false; reason: 'hourly' | 'daily'; retryAfterSeconds: number };
-
-const HOURLY_LIMIT = 20;
-const DAILY_LIMIT = 100;
 
 // Counts requests by ip_hash in the last hour and last 24 hours, in one round-trip.
 // Excludes already-rate-limited rows so we don't trap clients in a feedback loop.
@@ -21,7 +21,7 @@ export async function checkRateLimit(ipHash: string): Promise<RateLimitResult> {
   // chat_events observability that feat/observability exists to add. Any deployed
   // environment sets DATABASE_URL, so production behaviour is unchanged.
   if (!process.env.DATABASE_URL) {
-    return { allowed: true };
+    return { allowed: true, hourly: null, daily: null };
   }
 
   const { rows } = await pool.query<{ hourly: number; daily: number }>(
@@ -41,5 +41,5 @@ export async function checkRateLimit(ipHash: string): Promise<RateLimitResult> {
   if (hourly >= HOURLY_LIMIT) {
     return { allowed: false, reason: 'hourly', retryAfterSeconds: 600 };
   }
-  return { allowed: true };
+  return { allowed: true, hourly, daily };
 }

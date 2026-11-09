@@ -57,7 +57,9 @@ export type AnalyticsEvent =
   | { name: 'story_shown'; props: { explicit: true; from: 'chip' | 'typed' | 'card'; replay: boolean } }
   | { name: 'story_step_opened'; props: { step: number } }
   | { name: 'story_control'; props: { action: 'play' | 'pause' | 'skip'; ms: number } }
-  | { name: 'story_link_clicked'; props: { target: 'dashboard' | 'repo_web' | 'repo_ai' | 'email' | 'concierge' } }
+  | { name: 'story_link_clicked'; props: { target: 'dashboard' | 'repo_web' | 'repo_ai' | 'email' | 'concierge' | 'evidence'; step?: number } }
+  // The folded trace under an ordinary answer (lib/trace.ts) opened.
+  | { name: 'trace_opened'; props: { answer: 'model' | 'fixed' } }
   // The concierge pilot (lib/concierge.ts): opening the panel, and why it was
   // offered; the note, and who drafted it; sending it. Never the note's text.
   | { name: 'concierge_opened'; props: { trigger: 'intent' | 'uncited' | 'none'; from: 'after_answer' | 'footer' | 'link' | 'bar' | 'hero' | 'error' | 'project' | 'story' } }

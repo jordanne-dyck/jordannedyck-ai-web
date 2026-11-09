@@ -35,6 +35,21 @@ export const LEADS_PER_VISITOR_PER_DAY = 3;
 export const LEADS_PER_EMAIL_PER_DAY = 3;
 export const LEADS_SITE_PER_DAY = 30;
 
+// The panel's message for a 429 from /api/lead, naming whose limit it is.
+// Unknown or missing: the general one.
+export function leadLimitMessage(limit: unknown): string {
+  if (limit === 'visitor') {
+    return `You've sent ${LEADS_PER_VISITOR_PER_DAY} notes in the last 24 hours, the most allowed. Please send this one by email.`;
+  }
+  if (limit === 'email') {
+    return `${LEADS_PER_EMAIL_PER_DAY} notes have come from this email address in the last 24 hours, the most allowed. Please send this one by email.`;
+  }
+  if (limit === 'site') {
+    return `The site has taken its ${LEADS_SITE_PER_DAY} notes for today. Please send yours by email.`;
+  }
+  return 'Too many notes have been sent in the last 24 hours. Please send it by email instead.';
+}
+
 const MAX_NAME = 100;
 const MAX_EMAIL = 254;
 export const MAX_NOTE = 4000;
