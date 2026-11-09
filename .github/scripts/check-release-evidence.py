@@ -11,8 +11,10 @@ that jordannedyck-ai/release_gate.py writes:
 The file must say "status": "pass", and this script re-checks why rather than
 trusting it: a full single-turn, multi-turn and dev e2e run named, every failing
 check signed off (a tier-1 one only as "checker miss: ...", or "not served: ..."
-when the e2e run passed that case), every QA item
-ticked, and for jordbot-web a tested commit that is on this branch.
+when the e2e run passed that case) on the run it failed in, every QA item
+ticked, the public docs approved by Jordanne at their master commit, COVERAGE.md
+regenerated, and no results-log entry left unreviewed, and for jordbot-web a
+tested commit that is on this branch.
 
 A rollback needs no evidence: a tag or FAISS_DIR that prod has run before is
 allowed through, so reverting a release PR is never blocked.
@@ -29,6 +31,10 @@ RELEASE = "k8s/prod/release/kustomization.yaml"
 API = "k8s/prod/deployment-api.yaml"
 IMAGE_RE = re.compile(r"-\s*name:\s*quay\.nekohouse\.ca:8443/peter/(jordbot(?:-web)?)\s*\n\s*newTag:\s*(\S+)")
 FAISS_RE = re.compile(r"name:\s*FAISS_DIR\s*\n\s*value:\s*(\S+)")
+# The docs a release brings up to date and Jord approves (2026-11-07). Mirrors
+# DOCS in jordannedyck-ai/release_gate.py; "ai" is the backend repo.
+REQUIRED_DOCS = [("ai", "README.md"), ("ai", "EVALS.md"), ("ai", "DECISIONS.md"),
+                 ("ai", "COVERAGE.md"), ("web", "README.md")]
 
 
 def git(*args, check=True):
@@ -73,6 +79,13 @@ def problems_in(path, want):
     for f in ev.get("failures", []):
         signoff = str(f.get("signoff") or "").strip()
         what = f"{f.get('kind')} {f.get('case')} {f.get('check')}"
+        # A sign-off holds only for the run it was given on (2026-11-08): the gate
+        # clears it on a new run and keeps the old one as "previous_signoff", which
+        # this check never reads. So each failure must come from the run named.
+        run = ((ev.get("evals") or {}).get(f.get("kind")) or {}).get("run_id")
+        if f.get("run_id") != run:
+            out.append(f"{what} is from run {f.get('run_id')!r}, not the {f.get('kind')} "
+                       f"run named ({run!r}); re-run release_gate.py")
         if not signoff:
             out.append(f"{what} failed and is not signed off")
         elif str(f.get("check", "")).startswith("T1.") and not tier1_ok(f, signoff.lower()):
@@ -81,6 +94,28 @@ def problems_in(path, want):
                        "with the e2e run passing that case, lets it through")
     if not ev.get("qa") or not all(q.get("done") is True for q in ev["qa"]):
         out.append("QA items not all ticked")
+    docs = {(d.get("repo"), d.get("path")): d for d in ev.get("docs") or []}
+    for repo, path in REQUIRED_DOCS:
+        d = docs.get((repo, path))
+        if d is None:
+            out.append(f"doc {repo}:{path} is not in the evidence; re-run release_gate.py")
+            continue
+        commit = str(d.get("commit") or "")
+        if d.get("approved") is not True:
+            out.append(f"doc {repo}:{path} is not approved by Jordanne")
+        if not re.fullmatch(r"[0-9a-f]{40}", commit):
+            out.append(f"doc {repo}:{path} commit {commit!r} is not a full commit id")
+        elif repo == "web":
+            # Checkable here: the approved README is on this branch and unchanged since.
+            if git("merge-base", "--is-ancestor", commit, "HEAD", check=False).returncode != 0:
+                out.append(f"approved {path} {commit[:7]} is not on this branch")
+            elif git("diff", "--quiet", commit, "HEAD", "--", path, check=False).returncode != 0:
+                out.append(f"{path} changed after Jordanne approved it at {commit[:7]}")
+    if ev.get("coverage_generated") is not True:
+        out.append("COVERAGE.md is not what coverage_report.py generates")
+    unrev = (ev.get("results_log") or {}).get("unreviewed")
+    if unrev != []:
+        out.append(f"results-log entries not reviewed by Jordanne: {unrev}")
     if want.get("image") == "jordbot-web":
         sha = ev.get("sha") or ""
         if not re.fullmatch(r"[0-9a-f]{40}", sha):
