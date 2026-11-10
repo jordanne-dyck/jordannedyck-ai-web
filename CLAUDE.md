@@ -16,6 +16,7 @@ A PR changes `k8s/dev/` or the prod side (`k8s/prod/`, `k8s/postgres/`), never b
 1. **Dev PR first.** App code, docs and the `k8s/dev/` change. It merges without Peter.
 2. **Test on dev.** Build, roll out and check it (the [dev loop](#dev-loop-jordbot-dev)).
 3. **Prod PR after.** Only once dev works: a separate PR with the `k8s/prod/` (or `k8s/postgres/`) change. This is the one Peter reviews. A release (`k8s/prod/release/kustomization.yaml`) is its own PR as always.
+4. **The prod PR names the dev check that passed**: the command, its result and the date, in the PR description. A feature that needs a secret or an outside service (mail, a new API key) counts as working on dev only once that path has run end to end there. No dev result, no prod PR (Jordanne, 2026-11-10: #112 turned the lead form on in prod before lead email had ever worked on dev).
 
 - The app code in the dev PR must keep working on prod's current manifests, because the next release builds from `master`. A new env var is optional or has a safe default until the prod PR lands.
 - Before opening or pushing any PR, check: `git diff --name-only origin/master...HEAD -- k8s/`. If it lists `k8s/dev/` and `k8s/prod/` or `k8s/postgres/`, split it before pushing.
