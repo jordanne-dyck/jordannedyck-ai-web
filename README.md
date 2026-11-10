@@ -6,6 +6,9 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 
 - **Answers questions about my work** in a streamed chat, with suggested questions to start from.
 - **Takes follow-ups.** A question like "how was that measured?" is answered in the context of the conversation.
+- **Shows a career timeline** for overview and past-jobs questions.
+- **Explains how the site was built**, with a live trace of the visitor's own question.
+- **Takes a note for Jordanne**: a visitor can leave their name, email and a message, and both get an email.
 - **Collects visitor feedback**: thumbs up or down on each answer.
 - **Shows public metrics** at `/dashboard`: volume, latency, spend and the questions people click.
 - **Gives me an admin view**: every conversation, plus an insights tab.
@@ -15,9 +18,9 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 
 1. The browser sends the conversation to `POST /api/chat`.
 2. The route checks the input (user and assistant turns only, 20 turns, 2,000 characters per message) and a per-IP rate limit (20 an hour, 100 a day).
-3. It sends the latest question to the backend's `/search`, which returns the 5 closest knowledge-base chunks.
-4. Those chunks go into the system prompt (`lib/system-prompt.ts`), and GPT-4o streams the answer back.
-5. Each request is logged to Postgres: question, answer, retrieval result, tokens, cost and latency. Rows are deleted after 180 days.
+3. Earlier answers count only if they carry the signature the site gave them. An unsigned answer is dropped before anything reads it.
+4. The route sends the conversation to the backend's `/chat`, which rewrites a follow-up into a standalone question, retrieves the 5 closest knowledge-base chunks, and streams GPT-4o's cited answer back. Questions about how the site was built get a fixed reply from the site, with no model call.
+5. Each request is logged to Postgres: question, answer, retrieval result, tokens, cost and latency. Rows are deleted after 180 days, notes to Jordanne after 365.
 
 ## Other pages
 
@@ -27,7 +30,7 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 
 ## Stack
 
-Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Vercel AI SDK 4 with the OpenAI provider, Postgres, Recharts. Runs on OpenShift; built with Shipwright.
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Vercel AI SDK 7 with the OpenAI provider, Postgres, Recharts. Runs on OpenShift; built with Shipwright.
 
 ## Run it locally
 
