@@ -102,7 +102,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Piece | Where | Detail |
 |---|---|---|
 | Chat event log | Postgres, table `chat_events` | One row per `/api/chat` request. Schema: `db/schema.sql`; the deployed schema is `k8s/*/postgres-schema.yaml`. See `k8s/postgres/README.md` |
-| Retention and backups | `k8s/postgres/*-cronjob.yaml` | 180 days and 14 days of backups, as stated in `app/page.tsx`. **Not deployed yet**; deploying them needs Peter |
+| Retention and backups | `k8s/prod/retention-cronjob.yaml`, `k8s/postgres/backup-cronjob.yaml` | Chats 180 days, leads 365 days, 14 days of backups, as stated in `app/page.tsx` and `lib/leads.ts`. Retention is synced by Argo in prod. **Backups not deployed yet**; deploying them needs Peter |
 | Public dashboard | `/dashboard` | Aggregates only |
 | Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret). Traffic filter: Real (default), Smoke tests (`flags ? 'smoke'`), All synthetic |
 | Health | `/api/health` | Public summary, including `prompt_version` and `release` (the image tag, `dev` on dev builds); `?deep=1` with `x-monitor-token` adds anomaly stats |
@@ -119,7 +119,7 @@ Frontend environment: `OPENAI_API_KEY`, `DATABASE_URL`, `IP_HASH_SALT`, `DASHBOA
 | `lib/` | Server code. `system-prompt.ts` must stay byte-identical to `SYSTEM_PROMPT` in `jordannedyck-ai/run_eval.py` |
 | `k8s/prod/` | Prod kustomize root. `release/kustomization.yaml` holds the two prod image tags |
 | `k8s/dev/` | Dev kustomize root, Shipwright Builds, `buildruns.yaml` |
-| `k8s/postgres/` | Migration Job and retention/backup CronJobs (not synced by Argo) |
+| `k8s/postgres/` | Migration Job and backup CronJob (not synced by Argo) |
 | `monitoring/` | Checkly checks |
 | `docs/archive/` | Finished plans, specs and old runbooks, kept for history. Don't follow their deploy steps |
 
@@ -345,7 +345,7 @@ Don't attempt these. Write Jordanne a short request for Peter: what you need, wh
 - New or changed secrets or environment values from Doppler, including key rotation.
 - RBAC, ServiceAccounts, or anything outside `jordbot` and `jordbot-dev`.
 - Structural changes under `k8s/prod/`, `k8s/postgres/` or `.github/`: new objects, env vars, resources, replicas, routes. These are PRs he must approve (CODEOWNERS). Never bundle a `k8s/dev/` change into them ([hard rule](#hard-rule-dev-and-prod-never-share-a-pr)).
-- Anything in prod beyond a release, a rollback or deleting a pod. That includes schema migrations, re-seeding the FAISS PVC and deploying the retention/backup CronJobs.
+- Anything in prod beyond a release, a rollback or deleting a pod. That includes schema migrations, re-seeding the FAISS PVC and deploying the backup CronJob.
 - The cluster, Argo CD, Quay, DNS or haproxy.
 
 ---

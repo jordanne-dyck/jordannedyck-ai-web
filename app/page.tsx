@@ -676,7 +676,7 @@ export default function Home() {
             />
             <button type="submit" disabled={isLoading || !input.trim()}>Send</button>
           </form>
-          {/* Retention matches k8s/postgres/retention-cronjob.yaml (180 days for
+          {/* Retention matches k8s/prod/retention-cronjob.yaml (180 days for
               chats, 365 for notes sent to Jordanne) and backup-cronjob.yaml (14
               nightly dumps). Change them together. */}
           <p className="fine label">

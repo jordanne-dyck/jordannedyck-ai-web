@@ -6,7 +6,7 @@
 // Kept free of '@/' imports so scripts/leads.test.mjs can load it.
 
 // Shown above the Send button. Pressing Send is the consent: no checkbox
-// (decided 2026-11-07). The period matches k8s/postgres/retention-cronjob.yaml.
+// (decided 2026-11-07). The period matches k8s/prod/retention-cronjob.yaml.
 export const LEAD_RETENTION_DAYS = 365;
 export const LEAD_CONSENT =
   'Jordanne uses your name, email and note only to reply to you. Kept for 1 year, then deleted. Never shared.';
