@@ -29,6 +29,12 @@ spec:
         - env:
             - name: FLASK_API_URL
               value: http://jordannedyck-ai:5000
+            # The backend's /chat writes the answers (engine/chat.py), the same
+            # pipeline the evals and dev e2e test. Needs a jordbot (backend) tag
+            # with /chat, and a jordbot-web tag with the switch (#107). Remove
+            # this to go back to route.ts's own pipeline.
+            - name: ANSWER_ENGINE
+              value: python
             - name: NODE_ENV
               value: production
             - name: DATABASE_URL
