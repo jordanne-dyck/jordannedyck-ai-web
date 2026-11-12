@@ -16,3 +16,4 @@ resources:
   - postgres.yaml
   - postgres-schema.yaml
   - builds.yaml
+  - backup-cronjob.yaml
