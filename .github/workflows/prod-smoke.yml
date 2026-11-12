@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: jordbot-web tag to check (default: the one in k8s/prod/release/kustomization.yaml)
+        description: 'jordbot-web tag to check (default: the one in k8s/prod/release/kustomization.yaml)'
         required: false
 
 permissions:
