@@ -48,6 +48,9 @@ jobs:
 
       # A new prod tag or FAISS_DIR needs releases/<name>.json from
       # jordannedyck-ai/release_gate.py: full evals, sign-offs, QA. Rollbacks pass.
+      - name: Release evidence check's own tests
+        run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
+
       - name: Prod change has release evidence
         run: python3 .github/scripts/check-release-evidence.py
 

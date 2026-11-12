@@ -9,9 +9,11 @@ that jordannedyck-ai/release_gate.py writes:
   releases/faiss-<folder>.json        for FAISS_DIR
 
 The file must say "status": "pass", and this script re-checks why rather than
-trusting it: a full single-turn, multi-turn and dev e2e run named, every failing
-check signed off (a tier-1 one only as "checker miss: ...", or "not served: ..."
-when the e2e run passed that case) on the run it failed in, every QA item
+trusting it: a full single-turn and multi-turn run named, and both dev e2e runs
+(single-turn "e2e" and, since 2026-11-12, multi-turn "e2e_multiturn"), every
+failing check signed off (a tier-1 one only as "checker miss: ...", or "not
+served: ..." when the e2e run passed that case, never for a failure in an e2e
+run itself) on the run it failed in, every QA item
 ticked, the public docs approved by Jordanne at their master commit, COVERAGE.md
 regenerated, and no results-log entry left unreviewed, and for jordbot-web a
 tested commit that is on this branch.
@@ -37,6 +39,11 @@ RELEASE = "k8s/prod/release/kustomization.yaml"
 API = "k8s/prod/deployment-api.yaml"
 IMAGE_RE = re.compile(r"-\s*name:\s*quay\.nekohouse\.ca:8443/peter/(jordbot(?:-web)?)\s*\n\s*newTag:\s*(\S+)")
 FAISS_RE = re.compile(r"name:\s*FAISS_DIR\s*\n\s*value:\s*(\S+)")
+# Mirrors E2E_KINDS in jordannedyck-ai/release_gate.py: the runs through the site
+# on dev. e2e_multiturn joined the gate 2026-11-09 (backend #42); required here
+# 2026-11-12.
+E2E_KINDS = ("e2e", "e2e_multiturn")
+REQUIRED_RUNS = ("single", "multiturn") + E2E_KINDS
 # The docs a release brings up to date and Jord approves (2026-11-07). Mirrors
 # DOCS in jordannedyck-ai/release_gate.py; "ai" is the backend repo.
 REQUIRED_DOCS = [("ai", "README.md"), ("ai", "EVALS.md"), ("ai", "DECISIONS.md"),
@@ -81,9 +88,10 @@ def ran_before(base, path, line):
 def tier1_ok(f, signoff):
     """'not served:' (2026-11-06): text the site never sends, e.g. A01's model
     refusal, which the site replaces with a fixed reply. It counts only when the
-    dev e2e run passed the same case, so the site's own answer was checked."""
+    dev e2e run passed the same case, so the site's own answer was checked. A
+    failure in either e2e run is text the site did serve, so never "not served"."""
     return signoff.startswith("checker miss") or (
-        signoff.startswith("not served") and f.get("kind") != "e2e"
+        signoff.startswith("not served") and f.get("kind") not in E2E_KINDS
         and f.get("e2e_case_passed") is True)
 
 
@@ -100,7 +108,7 @@ def problems_in(path, want):
             out.append(f"{k} is {ev.get(k)!r}, this PR sets {v!r}")
     if ev.get("status") != "pass":
         out.append(f"status is {ev.get('status')!r}: {ev.get('problems')}")
-    for kind in ("single", "multiturn", "e2e"):
+    for kind in REQUIRED_RUNS:
         if not (ev.get("evals") or {}).get(kind, {}) or not ev["evals"][kind].get("run_id"):
             out.append(f"no full {kind} run named")
     for f in ev.get("failures", []):
