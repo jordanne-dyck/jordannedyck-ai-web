@@ -11,15 +11,24 @@
 // --evidence  the release gate's file, for prompt_version
 //             (default: releases/jordbot-web-<tag>.json). "none" skips the check.
 // --wait      seconds to poll /api/health until `release` matches (default 0).
+// --require-mail  fail, not warn, when Mailgun didn't accept the lead's
+//             emails or a real lead is waiting unemailed. Off until prod's
+//             mail secret is confirmed (nimbalyst-local/plans/lead-notifications.md).
 //
-// Each run is 7 chats: 5 gpt-4o answers plus 2 fixed replies, a few cents.
-// Exit 1 on any failed check. Red on prod means CLAUDE.md "Rollback".
+// Each run is 9 chats: 5 gpt-4o answers plus 4 fixed replies (2 of them the
+// build story), one gpt-4o-mini note from /api/brief, and one synthetic lead
+// whose 2 emails go in Mailgun test mode (accepted, not delivered). A few cents.
+// The v1.17 checks (build story, lead form, note, /about image) are skipped
+// for a vX.Y tag below v1.17, so a rollback to v1.16 still runs clean.
+// Exit 1 on any failed check; warnings don't fail. Red on prod means
+// CLAUDE.md "Rollback".
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { FIXED_LEAD } from '../lib/timeline.ts';
 import { FIXED_REFUSAL } from '../lib/prompt-request.ts';
+import { STORY_REPLAY, storyLead } from '../lib/build-story.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { values: args } = parseArgs({
@@ -29,6 +38,7 @@ const { values: args } = parseArgs({
     release: { type: 'string' },
     evidence: { type: 'string' },
     wait: { type: 'string', default: '0' },
+    'require-mail': { type: 'boolean', default: false },
   },
 });
 const BASE = args.base.replace(/\/$/, '');
@@ -52,6 +62,20 @@ const check = (ok, what) => {
   log(`- ${ok ? 'PASS' : 'FAIL'} ${what}`);
   if (!ok) failures.push(what);
 };
+// Something to look at that doesn't mean the release is broken: listed in the
+// result, exit code unchanged.
+const warnings = [];
+const warnCheck = (ok, what) => {
+  log(`- ${ok ? 'PASS' : 'WARN'} ${what}`);
+  if (!ok) warnings.push(what);
+};
+// The lead's email checks: warnings until --require-mail.
+const mailCheck = args['require-mail'] ? check : warnCheck;
+
+// The v1.17 features. A vX.Y tag below v1.17 skips them (a rollback); any
+// other tag (a hand run against dev, "dev-check") runs them.
+const tagVersion = TAG.match(/^v(\d+)\.(\d+)$/);
+const HAS_V117 = !tagVersion || Number(tagVersion[1]) > 1 || (Number(tagVersion[1]) === 1 && Number(tagVersion[2]) >= 17);
 
 // One cookie jar for the whole run, as a browser has: the session cookie is
 // what each answer's signature is bound to.
@@ -81,12 +105,14 @@ async function health() {
 
 // The AI SDK UI message stream: `data: {...}` lines. Text is the joined
 // text-delta parts; every other part is kept by type (the last one wins).
-async function chat(messages) {
+// `extra` goes in the body beside the messages, as the page sends it
+// (storyShown, for the build story's replay).
+async function chat(messages, extra = {}) {
   const t0 = Date.now();
   const res = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: headers({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, ...extra }),
     signal: AbortSignal.timeout(90_000),
   });
   remember(res);
@@ -127,7 +153,7 @@ function show(label, q, r) {
   log('```');
   const sources = r.parts['data-sources']?.sources ?? [];
   log(`Sources: ${sources.length ? sources.map((s) => `[${s.n}] ${s.title}${s.section ? ` - ${s.section}` : ''}`).join('; ') : 'none'}  `);
-  for (const k of ['data-timeline', 'data-project', 'error']) {
+  for (const k of ['data-timeline', 'data-project', 'data-story', 'error']) {
     if (r.parts[k]) log(`${k}: \`${JSON.stringify(r.parts[k])}\`  `);
   }
   log('');
@@ -213,6 +239,100 @@ for (const [i, q] of questions.entries()) {
   convo.push({ role: 'assistant', content: r.text, ...(sig ? { sig } : {}) });
 }
 
+// ── v1.17: build story, lead form, note, /about ───────────────────────────
+if (!HAS_V117) {
+  log(`\n## v1.17 checks\n\n- SKIP ${TAG} is older than v1.17: no build story, lead form or /about image`);
+} else {
+  // The build story: Jordanne's fixed text, no model call. The image fixes in
+  // the newest release gate's sentence at build time (lib/release-gate.ts),
+  // so it is taken out before comparing with the approved lead.
+  log('\n## Build story');
+  const STORY_Q = 'How did Jordanne build this site?';
+  const GATE_RE = / In the release gate for [^\n]*?passed every check\.(?: Jordanne ruled on each of [^\n]*? before it shipped\.)?/;
+  r = await one('Build story: fixed lead and trace', STORY_Q);
+  basics('build story', r);
+  log(`Release-gate sentence in the story: ${r.text.match(GATE_RE)?.[0].trim() ?? 'none'}  `);
+  check(r.text.replace(GATE_RE, '') === storyLead(null), 'build story: text is the approved storyLead');
+  check(r.parts['data-story']?.replay === false, 'build story: data-story {"replay": false}');
+
+  // Asked again in the same visit: the page sends storyShown, and gets the trace alone.
+  r = await chat([{ role: 'user', content: STORY_Q }], { storyShown: true });
+  show('Build story: asked again', STORY_Q, r);
+  basics('story replay', r);
+  check(r.text === STORY_REPLAY, 'story replay: text is STORY_REPLAY exactly');
+  check(r.parts['data-story']?.replay === true, 'story replay: data-story {"replay": true}');
+
+  // The note the panel drafts from the conversation (gpt-4o-mini). Nothing is
+  // stored. Printed so a person reads it.
+  log('\n## Talk to Jordanne: drafted note\n');
+  const briefRes = await fetch(`${BASE}/api/brief`, {
+    method: 'POST',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ messages: convo.map(({ role, content }) => ({ role, content })) }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const brief = await briefRes.json().catch(() => ({}));
+  log(`POST /api/brief -> HTTP ${briefRes.status}\n`);
+  log('```text');
+  log(brief.brief || `(no note: ${JSON.stringify(brief)})`);
+  log('```');
+  check(briefRes.status === 200, `brief: HTTP ${briefRes.status}`);
+  check(typeof brief.brief === 'string' && brief.brief.trim().length > 0, 'brief: a note came back');
+
+  // The lead form. With the token the lead is synthetic: stored apart from real
+  // leads (no limits, not in the admin list or its stats, deleted after 7 days)
+  // and both emails go in Mailgun test mode, accepted but not delivered.
+  log('\n## Talk to Jordanne: lead form\n');
+  const formState = await fetch(`${BASE}/api/lead`, { headers: headers() }).then((x) => x.json()).catch(() => ({}));
+  log(`GET /api/lead -> \`${JSON.stringify(formState)}\`  `);
+  check(formState.enabled === true, 'lead form: GET /api/lead says enabled');
+  const leadRes = await fetch(`${BASE}/api/lead`, {
+    method: 'POST',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      name: 'Smoke test',
+      email: 'lead-check@example.com',
+      note: `Synthetic lead from scripts/smoke-prod.mjs, run ${TAG}, ${new Date().toISOString()}.`,
+      draftedBy: 'blank',
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const lead = await leadRes.json().catch(() => ({}));
+  log(`POST /api/lead -> HTTP ${leadRes.status} \`${JSON.stringify(lead)}\`  `);
+  check(leadRes.status === 200, `lead: HTTP ${leadRes.status}`);
+  check(typeof lead.id === 'string', 'lead: stored as synthetic (id back)');
+  mailCheck(lead.notified === true, `lead: email to Jordanne accepted by Mailgun (error: ${lead.error ?? 'none'})`);
+  mailCheck(lead.confirmed === true, `lead: confirmation accepted by Mailgun (error: ${lead.error ?? 'none'})`);
+
+  const deep = await fetch(`${BASE}/api/health?deep=1`, { headers: headers(), signal: AbortSignal.timeout(20_000) })
+    .then((x) => x.json())
+    .catch(() => ({}));
+  log(`health.leads -> \`${JSON.stringify(deep.leads)}\`  `);
+  check(!!deep.leads, 'lead: deep health has a leads block (LEADS_ENABLED on, leads query works)');
+  if (deep.leads) mailCheck(deep.leads.unnotified === 0, `lead: no real lead waiting unemailed (${deep.leads.unnotified})`);
+
+  // The /about share image.
+  log('\n## /about share image\n');
+  const aboutRes = await fetch(`${BASE}/about`, { headers: headers(), signal: AbortSignal.timeout(20_000) });
+  const aboutHtml = await aboutRes.text();
+  const og =
+    aboutHtml.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/)?.[1] ??
+    aboutHtml.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/)?.[1] ??
+    null;
+  log(`GET /about -> HTTP ${aboutRes.status}, og:image ${og ?? 'none'}  `);
+  check(aboutRes.status === 200, `/about: HTTP ${aboutRes.status}`);
+  check(!!og, '/about: has og:image');
+  if (og) {
+    // Fetched from the deployment under test: metadataBase makes the tag's URL
+    // the prod domain even on dev.
+    const imgUrl = new URL(new URL(og, BASE).pathname, BASE).toString();
+    const img = await fetch(imgUrl, { signal: AbortSignal.timeout(20_000) });
+    const type = img.headers.get('content-type') ?? '';
+    log(`GET ${imgUrl} -> HTTP ${img.status}, ${type}  `);
+    check(img.status === 200 && type.startsWith('image/'), `/about: og:image loads as an image (${img.status}, ${type})`);
+  }
+}
+
 // ── Result ────────────────────────────────────────────────────────────────
 log('\n## Result\n');
 if (failures.length) {
@@ -220,6 +340,10 @@ if (failures.length) {
   failures.forEach((f) => log(`- ${f}`));
 } else {
   log('**PASS.** Every check passed. Someone still has to read the answers above.');
+}
+if (warnings.length) {
+  log(`\n**${warnings.length} warning(s).** Not a broken release, so no rollback. Mail warnings mean Mailgun didn't accept the lead's emails: check prod's mail secret (Needs Peter), then run with --require-mail.\n`);
+  warnings.forEach((w) => log(`- ${w}`));
 }
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join('\n') + '\n');
 process.exit(failures.length ? 1 : 0);
