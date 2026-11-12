@@ -16,7 +16,7 @@ import { backendUrl } from '@/lib/backend';
 import { freeLabels, paidLabels, redactPii } from '@/lib/classify';
 import { pickProject, predictProject } from '@/lib/projects';
 import {
-  asksForCareerHistory, asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
+  asksForOverview, asksForTimeline, FIXED_LEAD, isTimelineReplay, TIMELINE_REPLAY, timelineFor, withoutTimelineMarker,
 } from '@/lib/timeline';
 import { asksForBuildStory, storyFromCard, storyLead, STORY_REPLAY, withoutStoryMarker } from '@/lib/build-story';
 import { gateSentence } from '@/lib/release-gate';
@@ -285,13 +285,14 @@ export async function POST(req: NextRequest) {
   const { turnIndex } = input;
   const { messages, unsigned } = keepSignedTurns(input.messages, sessionId);
 
-  // ANSWER_ENGINE=python: the backend's /chat writes the answer. Not for the
-  // build story, which the engine doesn't have yet; the refusal and the
-  // overview lead win over it, and the engine has those.
-  if (process.env.ANSWER_ENGINE === 'python' && !(storyAsked && !instructionsAsked && !timelineLead)) {
+  // ANSWER_ENGINE=python: the backend's /chat answers every turn, including
+  // the build story, which it decides and this route words.
+  if (process.env.ANSWER_ENGINE === 'python') {
     return answerFromEngine({
       requestStart, query, messages, unsigned, droppedRoles: input.droppedRoles, turnIndex,
       timelineShown: parseTimelineShown(body),
+      storyShown: parseStoryShown(body),
+      project: parseProjectSlug(body),
       sessionId, ipHash, userAgent, isSynthetic, smokeFlag, source, clientId, limit,
     });
   }
@@ -683,6 +684,8 @@ function answerFromEngine(ctx: {
   droppedRoles: string[];
   turnIndex: number;
   timelineShown: boolean;
+  storyShown: boolean;
+  project: string | null;
   sessionId: string;
   ipHash: string;
   userAgent: string | null;
@@ -744,7 +747,9 @@ function answerFromEngine(ctx: {
           response = await fetch(`${backendUrl()}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages, timeline_shown: ctx.timelineShown }),
+            body: JSON.stringify({
+              messages, timeline_shown: ctx.timelineShown, story_shown: ctx.storyShown, project: ctx.project,
+            }),
             signal: AbortSignal.timeout(ENGINE_TIMEOUT_MS),
           });
         } catch (error) {
@@ -764,14 +769,25 @@ function answerFromEngine(ctx: {
 
         const finish = async (meta: EngineMeta, done: EngineDone) => {
           const id = meta.fixed ?? 'text';
-          if (firstTokenAt === null) {
+          // The build story: the engine decided it and sent no text. The words
+          // are the site's (lib/build-story.ts; option D, decided 2026-11-09).
+          const story = meta.fixed === 'story'
+            ? { replay: done.flags.story_lead === 'replay', card: done.flags.story === 'card' }
+            : null;
+          if (story) {
+            const words = story.replay ? STORY_REPLAY : STORY_LEAD_WITH_GATE;
+            firstTokenAt = Date.now();
+            writer.write({ type: 'text-start', id });
+            writer.write({ type: 'text-delta', id, delta: words });
+            streamed = words;
+          } else if (firstTokenAt === null) {
             firstTokenAt = Date.now();
             writer.write({ type: 'text-start', id });
           }
           writer.write({ type: 'text-end', id });
           // The story placeholder is for the page only; the engine strips the
           // timeline one. The model can still copy one from an earlier answer.
-          const text = withoutStoryMarker(done.answer);
+          const text = withoutStoryMarker(story ? streamed : done.answer ?? '');
           const raw = done.answer_cited === null ? null : withoutStoryMarker(done.answer_cited);
           // Signs the text the visitor received (citations stripped, any
           // placeholder kept), which is what page.tsx sends back next turn.
@@ -785,12 +801,14 @@ function answerFromEngine(ctx: {
           }
           writer.write({ type: 'data-sources', data: done.sources });
           if (done.project) writer.write({ type: 'data-project', data: { slug: done.project } });
-          // A fixed overview reply always shows the timeline. A generated answer
-          // shows it every time for a past-jobs question (timelineFor in
-          // lib/timeline.ts), which the engine doesn't mark yet, so it is
-          // decided here.
-          const timelineExplicit = done.timeline ? done.timeline.explicit || asksForCareerHistory(query) : false;
+          // explicit, as the engine sent it: true for a fixed overview reply and
+          // for a past-jobs question, which the page shows every time.
+          const timelineExplicit = done.timeline?.explicit ?? false;
           if (done.timeline) writer.write({ type: 'data-timeline', data: { explicit: timelineExplicit } });
+          if (story) {
+            const from = story.card ? 'card' : ctx.source === 'button' ? 'chip' : 'typed';
+            writer.write({ type: 'data-story', data: { from, replay: story.replay } });
+          }
           const rowId = await logRedacted({
             ...baseEvent,
             flags: {
