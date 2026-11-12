@@ -103,7 +103,7 @@ Registry: `quay.nekohouse.ca:8443/peter/...`. `:dev` is overwritten by every dev
 | Piece | Where | Detail |
 |---|---|---|
 | Chat event log | Postgres, table `chat_events` | One row per `/api/chat` request. Schema: `db/schema.sql`; the deployed schema is `k8s/*/postgres-schema.yaml`. See `k8s/postgres/README.md` |
-| Retention and backups | `k8s/prod/retention-cronjob.yaml`, `k8s/postgres/backup-cronjob.yaml` | Chats 180 days, leads 365 days, 14 days of backups, as stated in `app/page.tsx` and `lib/leads.ts`. Retention is synced by Argo in prod. **Backups not deployed yet**; deploying them needs Peter |
+| Retention and backups | `k8s/prod/retention-cronjob.yaml`, `k8s/postgres/backup-cronjob.yaml` | Chats 180 days, leads 365 days, 14 days of backups, as stated in `app/page.tsx` and `lib/leads.ts`. Retention is synced by Argo in prod. Backups run in dev (`k8s/dev/backup-cronjob.yaml`, on `lvms-vg1`; check with `scripts/postgres-restore-check.sh`). **Prod backups not deployed yet**; deploying them needs Peter |
 | Public dashboard | `/dashboard` | Aggregates only |
 | Admin view | `/dashboard/admin` | Per-request drill-down, behind `DASHBOARD_ADMIN_PASSWORD` (Jordanne logs in herself; don't read it from the secret). Traffic filter: Real (default), Smoke tests (`flags ? 'smoke'`), All synthetic |
 | Health | `/api/health` | Public summary, including `prompt_version` and `release` (the image tag, `dev` on dev builds); `?deep=1` with `x-monitor-token` adds anomaly stats |

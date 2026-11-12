@@ -24,6 +24,27 @@ oc -n jordbot-dev create -f k8s/postgres/migration-job.yaml
 oc -n jordbot-dev wait --for=condition=complete job/postgres-migrate --timeout=120s
 ```
 
+## Backups
+`backup-cronjob.yaml` dumps the dev database at 06:00 UTC and keeps the newest
+14, on the `postgres-backups` PVC (`lvms-vg1`, the node's local disk, so not on
+the NFS server that holds `postgres-data`). Each dump has a `.counts` file with
+the row count of every table at backup time. Prod gets the same job in its own
+PR, reviewed by Peter.
+
+Verify by restoring, not by the job's status:
+
+```bash
+oc -n jordbot-dev create job --from=cronjob/postgres-backup postgres-backup-manual
+oc -n jordbot-dev wait --for=condition=complete job/postgres-backup-manual --timeout=600s
+oc -n jordbot-dev logs job/postgres-backup-manual   # dump size and row counts
+scripts/postgres-restore-check.sh jordbot-dev
+oc -n jordbot-dev delete job postgres-backup-manual
+```
+
+The script restores the newest dump into a throwaway Postgres pod (its own
+random password, no app secret), compares row counts table by table and
+prints `RESTORE OK` or `RESTORE MISMATCH`. It deletes the pod when done.
+
 ## Access
 - Internal route: `oc -n jordbot-dev get route jordbot-dev -o jsonpath='{.spec.host}'`
   (resolves on internal DNS only; not exposed on the public haproxy)
