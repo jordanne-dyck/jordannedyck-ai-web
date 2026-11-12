@@ -29,8 +29,9 @@ export function isLeadId(id: unknown): id is string {
 }
 
 // Abuse limits for /api/lead. The per-visitor limit keys on the IP hash,
-// which a client can dodge by setting x-forwarded-for (lib/ip.ts, known), so
-// the site-wide cap is what actually bounds the table.
+// which a client can dodge by setting x-forwarded-for until the environment
+// sets TRUSTED_PROXY_HOPS or CLIENT_IP_HEADER (lib/ip.ts), so the
+// site-wide cap is what actually bounds the table.
 export const LEADS_PER_VISITOR_PER_DAY = 3;
 export const LEADS_PER_EMAIL_PER_DAY = 3;
 export const LEADS_SITE_PER_DAY = 30;
