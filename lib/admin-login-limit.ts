@@ -14,13 +14,30 @@ export async function currentIpHash(): Promise<string> {
   return hashIp(getClientIp({ headers: await headers() }));
 }
 
+// An attempt is recorded as a failure BEFORE the password is checked, then the
+// failures are counted including it. Checking first and recording
+// after let parallel requests all pass the check at MAX_FAILURES - 1. Each
+// insert commits before its own count, so the k-th concurrent attempt sees at
+// least k rows: at most MAX_FAILURES attempts per window reach the password.
+//
+// Locked: the claimed row is deleted again, so refused attempts don't extend
+// the lockout (the same as before, when they were never recorded).
+// Not locked: the caller checks the password and calls settleLoginAttempt.
+//
 // With no database (local development) there is nothing to count against, so
-// logins are not limited. Every deployed environment sets DATABASE_URL.
-export async function isLockedOut(ipHash: string): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false;
-  // A database error must not make the login itself throw; recordLoginAttempt
-  // handles its errors the same way.
+// logins are not limited. Every deployed environment sets DATABASE_URL. A
+// database error must not make the login itself throw, so it lets the attempt
+// through, as before.
+export type LoginClaim = { locked: boolean; id: string | null };
+
+export async function claimLoginAttempt(ipHash: string): Promise<LoginClaim> {
+  if (!process.env.DATABASE_URL) return { locked: false, id: null };
   try {
+    const inserted = await pool.query<{ id: string }>(
+      `INSERT INTO admin_login_attempts (ip_hash, success) VALUES ($1, FALSE) RETURNING id::TEXT AS id`,
+      [ipHash],
+    );
+    const id = inserted.rows[0]?.id ?? null;
     const { rows } = await pool.query<{ failures: number }>(
       `SELECT COUNT(*)::INT AS failures
          FROM admin_login_attempts
@@ -28,21 +45,25 @@ export async function isLockedOut(ipHash: string): Promise<boolean> {
            AND created_at > NOW() - INTERVAL '${WINDOW_MINUTES} minutes'`,
       [ipHash],
     );
-    return (rows[0]?.failures ?? 0) >= MAX_FAILURES;
+    // This attempt is one of the counted failures, so the limit is
+    // "more than MAX_FAILURES", which equals the old ">= MAX_FAILURES before it".
+    if ((rows[0]?.failures ?? 0) > MAX_FAILURES) {
+      if (id) await pool.query(`DELETE FROM admin_login_attempts WHERE id = $1`, [id]);
+      return { locked: true, id: null };
+    }
+    return { locked: false, id };
   } catch (err) {
-    console.error('isLockedOut failed:', err);
-    return false;
+    console.error('claimLoginAttempt failed:', err);
+    return { locked: false, id: null };
   }
 }
 
-export async function recordLoginAttempt(ipHash: string, success: boolean): Promise<void> {
-  if (!process.env.DATABASE_URL) return;
+// A wrong password leaves the claimed row as a failure; a right one marks it.
+export async function settleLoginAttempt(claim: LoginClaim, success: boolean): Promise<void> {
+  if (!success || !claim.id || !process.env.DATABASE_URL) return;
   try {
-    await pool.query(`INSERT INTO admin_login_attempts (ip_hash, success) VALUES ($1, $2)`, [
-      ipHash,
-      success,
-    ]);
+    await pool.query(`UPDATE admin_login_attempts SET success = TRUE WHERE id = $1`, [claim.id]);
   } catch (err) {
-    console.error('recordLoginAttempt failed:', err);
+    console.error('settleLoginAttempt failed:', err);
   }
 }

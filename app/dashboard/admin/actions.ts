@@ -5,17 +5,19 @@ import { redirect } from 'next/navigation';
 import { adminLogin, adminLogout, isAdminAuthed } from '@/lib/auth';
 import { setLeadStatus } from '@/lib/lead-store';
 import { isLeadId, isLeadStatus } from '@/lib/leads';
-import { currentIpHash, isLockedOut, recordLoginAttempt } from '@/lib/admin-login-limit';
+import { claimLoginAttempt, currentIpHash, settleLoginAttempt } from '@/lib/admin-login-limit';
 
 export async function loginAction(formData: FormData) {
   const ipHash = await currentIpHash();
-  // Checked before the password, so a locked-out IP learns nothing from guessing.
-  if (await isLockedOut(ipHash)) {
+  // Claimed and counted before the password, so a locked-out IP learns nothing
+  // from guessing, and parallel guesses can't all slip under the limit.
+  const claim = await claimLoginAttempt(ipHash);
+  if (claim.locked) {
     redirect('/dashboard/admin?error=locked');
   }
   const password = String(formData.get('password') ?? '');
   const ok = await adminLogin(password);
-  await recordLoginAttempt(ipHash, ok);
+  await settleLoginAttempt(claim, ok);
   if (!ok) {
     redirect('/dashboard/admin?error=1');
   }
