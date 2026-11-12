@@ -3,7 +3,9 @@ import { emailAlert } from './alert-channels'
 
 new ApiCheck('dashboard', {
   name: 'Dashboard up',
-  frequency: Frequency.EVERY_30M,
+  // Hourly since 2026-11-12 (was every 30 minutes), to keep all checks near
+  // 8,000 runs a month on the free plan.
+  frequency: Frequency.EVERY_1H,
   alertChannels: [emailAlert],
   degradedResponseTime: 5000,
   maxResponseTime: 15000,

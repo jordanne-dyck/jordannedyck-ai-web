@@ -22,7 +22,9 @@ import { monitorTokenHeader, monitorTokenVariable } from './monitor-token'
 // that long; Checkly emails on the change, not on every run.
 new ApiCheck('abuse-thresholds', {
   name: 'Abuse and error thresholds',
-  frequency: Frequency.EVERY_15M,
+  // Every 30 minutes since 2026-11-12 (was 15), to keep all checks near 8,000
+  // runs a month on the free plan. An alert can now arrive up to 30 minutes late.
+  frequency: Frequency.EVERY_30M,
   alertChannels: [emailAlert],
   environmentVariables: [monitorTokenVariable],
   degradedResponseTime: 5000,
