@@ -26,16 +26,19 @@ export type EngineMeta = {
   retrieval_ms: number;
   top_category: string | null;
   cite_reminder: boolean;
-  // Which fixed reply this turn gets; null for a model answer.
-  fixed: 'refusal' | 'lead' | null;
+  // Which fixed reply this turn gets; null for a model answer. A story reply
+  // has no text events: the engine decides, and route.ts writes the words
+  // from lib/build-story.ts (option D, decided 2026-11-09).
+  fixed: 'refusal' | 'lead' | 'story' | null;
   // null for a fixed reply.
   model: string | null;
 };
 
 export type EngineDone = {
   type: 'done';
-  // The logged text: no citations, no timeline marker.
-  answer: string;
+  // The logged text: no citations, no timeline marker. null for the story,
+  // whose text the site holds.
+  answer: string | null;
   // The answer with its [chunk-id] citations; null for a fixed reply.
   answer_cited: string | null;
   segments: Segment[];
@@ -43,9 +46,11 @@ export type EngineDone = {
   sources: SourcesData;
   project: string | null;
   project_predicted: string | null;
-  // explicit for a fixed overview reply; reason is the row's timeline flag.
+  // explicit for a fixed overview reply and for a past-jobs question; reason
+  // is the row's timeline flag.
   timeline: { explicit: boolean; reason: string } | null;
-  // The fixed reply's row flags: fixed_refusal, or timeline and timeline_lead.
+  // The fixed reply's row flags: fixed_refusal, timeline and timeline_lead,
+  // or story ('card' | 'asked') and story_lead ('fixed' | 'replay').
   flags: Record<string, unknown>;
   free_labels: Record<string, unknown>;
   citation_labels: Record<string, unknown> | null;
