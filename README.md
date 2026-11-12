@@ -26,7 +26,7 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 
 - `/dashboard`: public request, latency and cost metrics.
 - `/dashboard/admin`: per-request log, password protected.
-- `/api/health`: database, OpenAI key and backend status, and the release tag, polled by Checkly (`monitoring/`). After each prod release, a GitHub Action waits for the new tag there and sends real chats (`scripts/smoke-prod.mjs`).
+- `/api/health`: database, OpenAI key and backend status, and the release tag, polled by Checkly (`monitoring/`). After each prod release, a GitHub Action waits for the new tag there and sends real chats, then checks the build story, the lead form and its emails, and the `/about` share image (`scripts/smoke-prod.mjs`).
 
 ## Stack
 

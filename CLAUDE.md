@@ -313,7 +313,7 @@ gh pr create --repo jordanne-dyck/jordannedyck-ai-web --fill
 
 ### 4. Verify: the prod-smoke Action
 
-The merge starts `.github/workflows/prod-smoke.yml`. Argo syncs within about 3 minutes; the Action polls `/api/health` for up to 10 minutes until `release` shows the new `jordbot-web` tag, then runs `scripts/smoke-prod.mjs` against https://jordannedyck.com: health, `prompt_version` against the evidence file, and 7 chats (fixed lead and timeline, the timeline part, a project card, the fixed refusal, a 3-turn follow-up conversation).
+The merge starts `.github/workflows/prod-smoke.yml`. Argo syncs within about 3 minutes; the Action polls `/api/health` for up to 10 minutes until `release` shows the new `jordbot-web` tag, then runs `scripts/smoke-prod.mjs` against https://jordannedyck.com: health, `prompt_version` against the evidence file, and 7 chats (fixed lead and timeline, the timeline part, a project card, the fixed refusal, a 3-turn follow-up conversation). From v1.17 it also checks the build story and its replay, the note `/api/brief` drafts, the lead form (`GET /api/lead` enabled, a synthetic lead stored, its two emails accepted by Mailgun in test mode, no real lead waiting unemailed) and the `/about` share image. A `vX.Y` tag below v1.17 skips these, so a rollback still runs clean.
 
 ```bash
 gh run list --repo jordanne-dyck/jordannedyck-ai-web --workflow prod-smoke.yml --limit 1
@@ -322,8 +322,10 @@ gh run view --repo jordanne-dyck/jordannedyck-ai-web <run-id>    # the answers a
 
 - **The release is verified only when the run is green and someone has read the answers in its summary.** A check that passes says the answer has the right shape, not that it is right.
 - **Red means prod is broken: go to [Rollback](#rollback).** The summary lists each failed check under the answers.
-- The smoke chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them. They show under **Smoke tests** in `/dashboard/admin`.
-- Run it again by hand from the Actions tab (`workflow_dispatch`, optional tag), or locally: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y`. Point it at dev with `--base $DEV`. Each run is 5 gpt-4o answers, a few cents.
+- **A WARN is not a rollback.** The lead's email checks warn instead of failing until prod's mail secret is confirmed (Needs Peter); a mail warning means check the secret. Once it is confirmed, add `--require-mail` to the workflow's command (a `.github/` change, so Peter reviews it). Test mode proves Mailgun accepted the emails, not that they reached an inbox.
+- The smoke chats are stored with `is_synthetic = TRUE` and `flags.smoke = <tag>`, so the public dashboard never counts them. They show under **Smoke tests** in `/dashboard/admin`. The smoke lead is synthetic: not in `/dashboard/admin/leads` or its stats, deleted after 7 days. Its note names the run's tag.
+- Run it again by hand from the Actions tab (`workflow_dispatch`, optional tag), or locally: `MONITOR_TOKEN=... node scripts/smoke-prod.mjs --tag vX.Y`. Point it at dev with `--base $DEV`. Each run is 5 gpt-4o answers and one gpt-4o-mini note, a few cents.
+- The email-only panel mode and the admin views (lead status buttons, gaps, the Smoke tests filter) are not in it: prod runs the form, and the admin is behind Jordanne's password. They stay in dev QA.
 - It checks the `jordbot-web` tag only. A backend-only release still runs the chats, but nothing waits for the backend rollout first: check `oc -n jordbot rollout status deploy/jordannedyck-ai` before reading the result.
 
 ## Rollback
