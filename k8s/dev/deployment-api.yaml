@@ -40,7 +40,39 @@ spec:
           ports:
             - containerPort: 5000
               protocol: TCP
-          resources: {}
+          # Probes and resources from measurements on 2026-11-12. gunicorn binds
+          # :5000 about 2 s before the worker has loaded the index, so TCP only
+          # proves the process is up; readiness asks /health, which the worker
+          # answers only once the index is loaded. /health calls OpenAI at most
+          # once a minute (5 s timeout), so readiness allows 6 s. Liveness stays on
+          # TCP so an OpenAI outage never restarts the pod.
+          startupProbe:
+            tcpSocket:
+              port: 5000
+            periodSeconds: 5
+            failureThreshold: 24  # 2 minutes to bind; the index loads in ~2 s today
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 10
+            timeoutSeconds: 6
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Measured peak ~137 MiB (dev, 2.8 days uptime). Provisional until 30-day
+          # peaks are in. No CPU limit: throttling would slow streamed answers.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
