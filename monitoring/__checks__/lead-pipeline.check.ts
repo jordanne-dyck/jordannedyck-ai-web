@@ -8,7 +8,7 @@ import { monitorTokenHeader, monitorTokenVariable } from './monitor-token'
 // (no limits, not in the admin list, deleted after 7 days), and both emails go
 // in Mailgun test mode, so Mailgun checks the key and domain and accepts them
 // without delivering. Two test-mode messages a run, 8 a day.
-// The 15-minute "real lead not emailed" alert is in abuse-thresholds.check.ts.
+// The 30-minute "real lead not emailed" alert is in abuse-thresholds.check.ts.
 // Dev, which Checkly can't reach: scripts/lead-check.mjs.
 new ApiCheck('lead-pipeline', {
   name: 'Lead pipeline: stored and emailed',
