@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
   env: { RELEASE_GATE: releaseGate() },
+  // The front proxy forwards prod requests with the OpenShift route host in
+  // x-forwarded-host, while the browser's Origin is the public domain. Next.js
+  // rejects a Server Action when the two differ, which broke the admin login.
+  // Only the public hosts are listed: the route host needs no entry, because
+  // there the Origin and x-forwarded-host already match.
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['jordannedyck.com', 'www.jordannedyck.com'],
+    },
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
