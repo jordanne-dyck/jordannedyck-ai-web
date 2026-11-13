@@ -37,6 +37,13 @@ spec:
               value: python
             - name: NODE_ENV
               value: production
+            # PostHog analytics (app/api/analytics-config). The project token is public
+            # by design: the browser gets it on every page load, and it can send
+            # events, not read them. EU region.
+            - name: POSTHOG_PROJECT_TOKEN
+              value: phc_qco9d4iBCQxQptgYCHXbvBfp2sYvNAToijuoSy2kN9QX
+            - name: POSTHOG_HOST
+              value: https://eu.i.posthog.com
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
