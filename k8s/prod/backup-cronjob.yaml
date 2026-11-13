@@ -1,0 +1,115 @@
+# Nightly pg_dump of the prod database, keeping the newest 14. Same job as
+# k8s/dev/backup-cronjob.yaml, which was restore-tested in jordbot-dev first.
+# Runs at 06:00 UTC, before the 07:30 retention job. Argo syncs it.
+#
+# Dumps go to a PVC on lvms-vg1 (the node's local disk), not nfs-csi, so losing
+# the NFS server that holds postgres-data does not also lose the backups. It
+# does not survive losing the node; an off-site copy is a separate step.
+#
+# Each dump has a .counts file beside it: row counts per table, taken before
+# and after the dump. scripts/postgres-restore-check.sh restores a dump into a
+# throwaway database and compares its counts with that file.
+#
+# The 14 is stated to visitors in app/page.tsx. Change both together.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backups
+  labels:
+    app: postgres
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: lvms-vg1
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    app: postgres
+spec:
+  schedule: "0 6 * * *"  # 06:00 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: quay.io/sclorg/postgresql-16-c9s:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  export PGPASSWORD="$POSTGRESQL_PASSWORD"
+                  db=(-h postgres -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE")
+                  counts() {
+                    psql "${db[@]}" -v ON_ERROR_STOP=1 -At -F ' ' -c "
+                      SELECT table_name,
+                             (xpath('/row/c/text()', query_to_xml(format(
+                               'SELECT count(*) AS c FROM %I.%I', table_schema, table_name),
+                               false, true, '')))[1]::text
+                      FROM information_schema.tables
+                      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+                      ORDER BY table_name;"
+                  }
+                  out="/backups/monitoring-$(date -u +%Y-%m-%d).dump"
+                  counts > /tmp/before
+                  pg_dump "${db[@]}" --format=custom --file="$out.partial"
+                  counts > /tmp/after
+                  mv "$out.partial" "$out"
+                  if [ "$(cat /tmp/before)" = "$(cat /tmp/after)" ]; then
+                    cp /tmp/before "$out.counts"
+                  else
+                    echo "rows changed during the dump; counts are approximate" >&2
+                    { echo "# approximate"; cat /tmp/after; } > "$out.counts"
+                  fi
+                  ls -l "$out" "$out.counts"
+                  cat "$out.counts"
+                  # Keep the newest 14 dumps and their counts files.
+                  ls -1t /backups/monitoring-*.dump | tail -n +15 | while read -r old; do
+                    rm -f -- "$old" "$old.counts"
+                  done
+              env:
+                - name: POSTGRESQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_USER
+                - name: POSTGRESQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRESQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: POSTGRES_DB
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: postgres-backups

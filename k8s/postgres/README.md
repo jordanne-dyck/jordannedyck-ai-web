@@ -6,20 +6,23 @@ one row per `/api/chat` request in `chat_events`, powering `/dashboard` and
 `/dashboard/admin`. Credentials (`postgres-credentials`, `app-database-url`)
 come from Doppler and are managed outside this repo.
 
-This folder holds the jobs that Argo CD does **not** sync:
+This folder holds the job that Argo CD does **not** sync:
 
 | File | What | Status |
 |---|---|---|
 | `migration-job.yaml` | Loads `postgres-schema` into the database | Run by hand after a schema change |
-| `backup-cronjob.yaml` | Nightly `pg_dump`, keeps 14 | Not deployed; storage is Peter's call (see the file header) |
 
-The retention CronJob moved to `k8s/prod/retention-cronjob.yaml`, so Argo CD
-syncs it in prod: chats and admin logins after 180 days, leads after 365. Dev
-has none.
+The retention CronJob is `k8s/prod/retention-cronjob.yaml`, synced by Argo CD in
+prod: chats and admin logins after 180 days, leads after 365. Dev has none.
+
+The backup CronJob is `k8s/prod/backup-cronjob.yaml` (and
+`k8s/dev/backup-cronjob.yaml`), synced by Argo CD: a nightly `pg_dump` at 06:00
+UTC, keeping 14, on a `postgres-backups` PVC on `lvms-vg1` (the node's local
+disk), so losing the NFS server that holds `postgres-data` does not also lose
+the backups. It does not survive losing the node; an off-site copy is not built.
 
 The retention and backup periods are stated to visitors in `app/page.tsx` and
-`lib/leads.ts`. Deploying the backup job (through `k8s/prod`, with Peter's
-review) is still open.
+`lib/leads.ts`. Change them together.
 
 ## Running a migration
 
@@ -41,16 +44,24 @@ oc -n jordbot wait --for=condition=complete job/postgres-migrate --timeout=120s
 
 ## Verifying a backup
 
-Verify by restoring, not by the job's status:
+Verify by restoring, not by the job's status. Each dump has a `.counts` file
+beside it with every table's row count at backup time.
+`scripts/postgres-restore-check.sh <namespace>` restores the newest dump into a
+throwaway Postgres pod (its own random password, no app secret), compares the
+counts table by table, prints `RESTORE OK` or `RESTORE MISMATCH`, and deletes
+the pod.
+
+In prod the agent cannot create Jobs or pods, so Peter runs this:
 
 ```bash
 oc -n jordbot create job --from=cronjob/postgres-backup postgres-backup-manual
-oc -n jordbot wait --for=condition=complete job/postgres-backup-manual --timeout=300s
-oc -n jordbot logs job/postgres-backup-manual      # shows the dump file and its size
+oc -n jordbot wait --for=condition=complete job/postgres-backup-manual --timeout=600s
+oc -n jordbot logs job/postgres-backup-manual      # dump size and row counts
+scripts/postgres-restore-check.sh jordbot
+oc -n jordbot delete job postgres-backup-manual
 ```
 
-Then restore that dump into a scratch database and compare
-`SELECT COUNT(*) FROM chat_events` against the live table.
+In dev, see `k8s/dev/README.md`.
 
 ## Notes
 

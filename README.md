@@ -52,7 +52,7 @@ lib/            server code: input checks, rate limit, logging, queries, system 
 db/schema.sql   chat_events table
 k8s/prod/       prod manifests (Argo CD); image tags in k8s/prod/release/
 k8s/dev/        dev manifests and Shipwright builds (Argo CD)
-k8s/postgres/   one-off jobs: schema migration, backups
+k8s/postgres/   one-off job: schema migration (backups are in k8s/prod and k8s/dev)
 monitoring/     Checkly checks
 docs/archive/   finished plans and old runbooks
 ```
