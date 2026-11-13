@@ -80,6 +80,14 @@ spec:
                 secretKeyRef:
                   key: IP_HASH_SALT
                   name: app-observability
+            # Client IP for the rate limits and admin lockout (lib/ip.ts). Dev is
+            # reached from the home LAN straight through the OpenShift router,
+            # which appends the address it saw to X-Forwarded-For (echo test
+            # 2026-11-12: sent "6.6.6.6", pod got "6.6.6.6, 10.10.20.1"). So the
+            # right-most entry is the only one the client can't write. Prod sits
+            # behind the public HAProxy as well and needs its own value.
+            - name: TRUSTED_PROXY_HOPS
+              value: "1"
             - name: MONITOR_TOKEN
               valueFrom:
                 secretKeyRef:
