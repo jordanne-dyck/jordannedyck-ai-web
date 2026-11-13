@@ -47,10 +47,35 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+      # Prod's monitor token comes from Doppler at run time (the same key the
+      # prod ExternalSecret app-observability maps to MONITOR_TOKEN), so a
+      # rotation in Doppler reaches this workflow without a copy on GitHub.
+      # Secret values are masked in the log; only step outputs are used, no
+      # inject-env-vars.
+      - name: Fetch monitor token from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534  # v2.0.0
+        with:
+          doppler-token: ${{ secrets.JORDBOT_DOPPLER_SA }}
+
+      - name: Check the token arrived
+        env:
+          DOPPLER_PROJECT: ${{ steps.doppler.outputs.DOPPLER_PROJECT }}
+          DOPPLER_CONFIG: ${{ steps.doppler.outputs.DOPPLER_CONFIG }}
+          HAS_TOKEN: ${{ steps.doppler.outputs.JORDBOT_MONITOR_TOKEN_PROD != '' }}
+        run: |
+          if [ -n "$DOPPLER_PROJECT$DOPPLER_CONFIG" ]; then
+            echo "Doppler project: ${DOPPLER_PROJECT:-?}, config: ${DOPPLER_CONFIG:-?}"
+          fi
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error::Doppler returned no JORDBOT_MONITOR_TOKEN_PROD for this token's project/config"
+            exit 1
+          fi
+
       # Argo syncs about 3 minutes after the merge; the script polls
       # /api/health for up to 10 minutes until `release` shows the tag.
       - name: Smoke test
         env:
-          MONITOR_TOKEN: ${{ secrets.MONITOR_TOKEN }}
+          MONITOR_TOKEN: ${{ steps.doppler.outputs.JORDBOT_MONITOR_TOKEN_PROD }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/smoke-prod.mjs --tag "$TAG" --wait 600
