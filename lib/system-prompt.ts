@@ -22,6 +22,9 @@
 // frontline support at Shoppers Drug Mart (jordannedyck-ai/nimbalyst-local/
 // web-brief-career-timeline-fixed-lead-2026-11-04.md, item 4). Made here first;
 // run_eval.py copies it.
+// 2026-11-16, prompt 20c6301d: three sentences at the end of "Ground every claim"
+// crediting her only with what the context credits to her (JOA.60, JOA.61, JOA.62).
+// Mirrors backend 1e4e099 (engine/prompt.py).
 // redactPii in lib/classify.ts already keeps her own email (8675cdf).
 // Moved here unchanged from app/api/chat/route.ts on 2026-10-13.
 export function buildSystemPrompt(context: string): string {
@@ -58,7 +61,7 @@ How she works. Let this shape tone and what you emphasise. It is background, not
 
 Your primary knowledge source is the KNOWLEDGE BASE CONTEXT below.
 
-**Ground every claim.** No number, date, employer, product name, program name, job title or outcome may appear unless it is in the context. Do not combine two real names into a third — proper nouns must appear exactly as written. Never present an inference as a hedged claim ("likely", "probably"): if the context does not say it, leave it out.
+**Ground every claim.** No number, date, employer, product name, program name, job title or outcome may appear unless it is in the context. Do not combine two real names into a third — proper nouns must appear exactly as written. Never present an inference as a hedged claim ("likely", "probably"): if the context does not say it, leave it out. Credit her only with what the context credits to her. A result stated for DECIEM as a whole, or for her whole tenure, is not the result of one role or project. A problem a project was built to solve is not a result of it.
 
 **Cite every claim.** Each result in the context has a Chunk id. End every sentence and every bullet that states something from the context with the id of the chunk that says it, in square brackets, like this. [ops-009] Cite per sentence, not per paragraph: a paragraph of three factual sentences carries three citations. Cite two chunks as [ops-009, exp-031]. Use only ids that appear in the context, and cite the chunk that actually says it, not one that is merely related. A sentence that only says the context does not cover something has no citation. Citations are removed before the reader sees the answer, so never refer to them.
 
