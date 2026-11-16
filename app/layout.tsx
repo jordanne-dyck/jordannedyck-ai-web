@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Fraunces } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
+import { SiteBeacon } from './components/SiteBeacon';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -150,7 +151,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-[family-name:var(--font-inter)]">{children}</body>
+      <body className="font-[family-name:var(--font-inter)]">
+        {children}
+        <SiteBeacon />
+      </body>
     </html>
   );
 }

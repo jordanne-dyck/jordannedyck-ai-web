@@ -112,6 +112,17 @@ export async function setLeadStatus(id: string, status: LeadStatus): Promise<voi
   );
 }
 
+// The visitor (jb_sid) who sent a lead, for the traffic dashboard's conversion
+// count. A separate statement, not part of the insert: until the migration adds
+// leads.session_id this fails, and the lead itself must not.
+export async function linkLeadVisitor(id: string, sessionId: string): Promise<void> {
+  try {
+    await pool.query(`UPDATE leads SET session_id = $2 WHERE id = $1`, [id, sessionId]);
+  } catch (err) {
+    console.warn('lead visitor link skipped:', (err as Error).message);
+  }
+}
+
 // What lib/notify.ts notifyLead() did for a lead. notified_at and confirmed_at
 // are set once and kept; notify_error holds the latest failure, or NULL.
 export async function recordNotify(id: string, r: NotifyResult): Promise<void> {

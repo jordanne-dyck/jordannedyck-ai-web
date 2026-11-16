@@ -1,5 +1,7 @@
 import { SAMPLE_EVENTS, SAMPLE_CONVERSATION, SAMPLE_FIXES, SAMPLE_GAPS, SAMPLE_LEADS } from '@/lib/demo-data';
 import { leadStats } from '@/lib/leads';
+import { sampleTraffic } from '@/lib/demo-traffic';
+import { TrafficView } from './TrafficView';
 import { LeadsView } from '../admin/components/LeadsView';
 import { STRONG_MATCH } from '@/lib/thresholds';
 import { TurnBadges } from '../admin/components/Badges';
@@ -12,6 +14,7 @@ const secs = (ms: number | null) => (ms == null ? '—' : `${(ms / 1000).toFixed
 // The private admin views, rendered with their real components but fed the
 // hand-written rows in lib/demo-data.ts. Nothing here reads the database.
 export function SampleAdmin() {
+  const sample = sampleTraffic();
   return (
     <section className="mt-10">
       <h2 className="text-xs uppercase tracking-wide text-zinc-500">Inside the admin view</h2>
@@ -19,6 +22,15 @@ export function SampleAdmin() {
         Sample data. These rows are made up and written by hand. They use the same components as the
         private admin pages, so this is what reviewing real traffic looks like. Real visitors&apos;
         questions never leave the admin view.
+      </div>
+
+      <div className="mt-4">
+        <h3 className="mb-1 text-sm font-medium text-zinc-300">Traffic</h3>
+        <p className="mb-3 text-xs text-zinc-500">
+          Visits, how many people use the bot, curated answers, ratings, how people reach out, and the paths they take.
+          Generated sample traffic, run through the same code as the real admin tab.
+        </p>
+        <TrafficView report={sample.report} insights={sample.insights} sample />
       </div>
 
       <Panel title="Event log" note="Every request, with its labels, timing, cost and the judge's verdict. Open details on a row.">
