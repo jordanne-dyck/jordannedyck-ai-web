@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { OWNER_COOKIE } from '@/lib/visit';
 import { redirect } from 'next/navigation';
 import { adminLogin, adminLogout, isAdminAuthed } from '@/lib/auth';
 import { setLeadStatus } from '@/lib/lead-store';
@@ -27,6 +29,20 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   await adminLogout();
   redirect('/dashboard/admin');
+}
+
+// /dashboard/admin/traffic: leave this browser out of the traffic counts, or
+// count it again. Sets jb_owner for a year; /api/visit marks its rows is_owner.
+// Visits from before the cookie was set stay counted.
+export async function setOwnerAction(formData: FormData) {
+  if (!(await isAdminAuthed())) redirect('/dashboard/admin');
+  const jar = await cookies();
+  if (formData.get('exclude') === '1') {
+    jar.set(OWNER_COOKIE, '1', { httpOnly: true, sameSite: 'lax', secure: true, maxAge: 60 * 60 * 24 * 365, path: '/' });
+  } else {
+    jar.delete(OWNER_COOKIE);
+  }
+  revalidatePath('/dashboard/admin/traffic');
 }
 
 // /dashboard/admin/leads: a lead's status. Checked here too, since a server

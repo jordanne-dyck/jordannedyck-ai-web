@@ -1,8 +1,9 @@
+import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIp, hashIp } from '@/lib/ip';
 import { purposeOf, REPLY_TIME } from '@/lib/concierge';
 import { parseLeadInput } from '@/lib/leads';
-import { insertLead, recordNotify } from '@/lib/lead-store';
+import { insertLead, linkLeadVisitor, recordNotify } from '@/lib/lead-store';
 import { isMonitorRequest } from '@/lib/monitor';
 import { notifyLead, type NotifyResult } from '@/lib/notify';
 import { projectBySlug } from '@/lib/projects';
@@ -58,6 +59,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'rate limited', limit: result.limit }, { status: 429 });
     }
     id = result.id;
+    const visitor = (await cookies()).get('jb_sid')?.value;
+    if (visitor && !synthetic) await linkLeadVisitor(id, visitor);
   } catch (err) {
     console.error('Lead insert failed:', err instanceof Error ? err.name : 'unknown');
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

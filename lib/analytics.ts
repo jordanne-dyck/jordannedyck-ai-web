@@ -1,6 +1,7 @@
 'use client';
 
 import posthog from 'posthog-js';
+import { siteEvent } from './site-beacon';
 
 // Client-side friction events (site-monitoring plan, Phase 2, decided
 // 2026-10-14). PostHog holds behaviour, never conversation text: autocapture
@@ -68,7 +69,10 @@ export type AnalyticsEvent =
 
 // `beacon` for events sent while the page is closing, when a normal request
 // would be cancelled.
+// The events the traffic dashboard counts are also sent to /api/visit
+// (lib/site-beacon.ts), whether or not PostHog loaded.
 export function track(event: AnalyticsEvent, opts: { beacon?: boolean } = {}): void {
+  siteEvent(event.name, event.props, opts.beacon);
   if (!ready) return;
   posthog.capture(event.name, event.props, opts.beacon ? { transport: 'sendBeacon' } : undefined);
 }
