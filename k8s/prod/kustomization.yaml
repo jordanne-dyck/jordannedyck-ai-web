@@ -18,5 +18,6 @@ resources:
   - postgres.yaml
   - postgres-schema.yaml
   - retention-cronjob.yaml
+  - backup-cronjob.yaml
 components:
   - release
