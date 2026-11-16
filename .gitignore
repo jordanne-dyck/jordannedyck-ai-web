@@ -61,3 +61,9 @@ monitoring/node_modules/
 
 # Raw cat photos: originals carry GPS EXIF. Only stripped, resized copies go in public/.
 cat-images/
+
+# Raw source images. Only the processed copies in public/cats and public/projects are committed.
+# cat-companion-images: generated cat art (originals for nimbalyst-local/cat-art).
+# project-card-images: full-size screenshots behind the project cards.
+cat-companion-images/
+project-card-images/
