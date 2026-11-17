@@ -14,10 +14,20 @@ test('T1.8 catches the M05 turn 2 hedge', () => {
 });
 
 test('T1.8 catches a guess at her current work', () => {
+  // "her role" became a subject when the pattern was synced with engine/labels.py
+  // (2026-11-17), so the span now starts at the subject; the backend gives the same.
   assert.deepEqual(speculationSpans('Her role likely focuses on digital strategies.'), [
-    'likely focuses',
+    'Her role likely',
   ]);
   assert.deepEqual(speculationSpans('She probably led the rollout.'), ['She probably']);
+});
+
+test('T1.8 catches the answer\'s own "which suggests" inference (R-20261117-07)', () => {
+  assert.deepEqual(
+    speculationSpans('The rollout cut handling time, which suggests a significant operational improvement.'),
+    ['which suggests'],
+  );
+  assert.deepEqual(speculationSpans('The data suggests a lift in repeat orders.'), []);
 });
 
 test('T1.8 passes grounded counterfactuals and facts', () => {
