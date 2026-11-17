@@ -89,10 +89,17 @@ def tier1_ok(f, signoff):
     """'not served:' (2026-11-06): text the site never sends, e.g. A01's model
     refusal, which the site replaces with a fixed reply. It counts only when the
     dev e2e run passed the same case, so the site's own answer was checked. A
-    failure in either e2e run is text the site did serve, so never "not served"."""
+    failure in either e2e run is text the site did serve, so never "not served".
+
+    'known:' (Jord, 2026-11-17): a known defect accepted for this release, only
+    when the sign-off names the results-log entry that measured its rate
+    (R-YYYYMMDD-NN). Any kind, e2e included: a known defect is text the site
+    serves. Mirrors KNOWN_RATE_RE in jordannedyck-ai/release_gate.py (e5b7b90).
+    signoff arrives lowercased, hence re.I."""
     return signoff.startswith("checker miss") or (
         signoff.startswith("not served") and f.get("kind") not in E2E_KINDS
-        and f.get("e2e_case_passed") is True)
+        and f.get("e2e_case_passed") is True) or (
+        signoff.startswith("known:") and bool(re.search(r"\bR-\d{8}-\d{2}\b", signoff, re.I)))
 
 
 def problems_in(path, want):
@@ -125,8 +132,9 @@ def problems_in(path, want):
             out.append(f"{what} failed and is not signed off")
         elif str(f.get("check", "")).startswith("T1.") and not tier1_ok(f, signoff.lower()):
             # A release needs every tier-1 check (jordannedyck-ai README).
-            out.append(f"{what} is tier 1: only 'checker miss: ...', or 'not served: ...' "
-                       "with the e2e run passing that case, lets it through")
+            out.append(f"{what} is tier 1: only 'checker miss: ...', 'not served: ...' "
+                       "with the e2e run passing that case, or 'known: ...' naming the "
+                       "results-log entry (R-YYYYMMDD-NN) lets it through")
     if not ev.get("qa") or not all(q.get("done") is True for q in ev["qa"]):
         out.append("QA items not all ticked")
     docs = {(d.get("repo"), d.get("path")): d for d in ev.get("docs") or []}
