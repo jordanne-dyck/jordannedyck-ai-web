@@ -87,14 +87,25 @@ export function gapAdmitted(answer: string): boolean {
 }
 
 // T1.8 — no speculation. MUST STAY IN SYNC with SPECULATION_RE in
-// jordannedyck-ai/run_eval.py, added 2026-11-01 (answer-gaps findings, option
+// jordannedyck-ai/engine/labels.py, added 2026-11-01 (answer-gaps findings, option
 // 2b) from M05 turn 2: "which likely supported loyalty indirectly". Narrow on
 // purpose: a broad hedge list matched 320 of 3,081 stored answers, most of them
 // grounded counterfactuals or facts like "twice as likely to buy again".
+// 2026-11-17: copied whole from engine/labels.py at backend 728b641. The web copy
+// had fallen behind: it lacked "jordanne" and "her role", the would/will/is/was/
+// has/had group, the past-tense alternative (M10, 2026-11-06), "suggests
+// jordanne/she/her" and "which/this/that suggests" (R-20261117-07).
 // Python's re.IGNORECASE is the 'i' flag; 'g' is for matchAll only.
 export const SPECULATION_RE = new RegExp(
-  String.raw`\b(?:she|her work|this role|the role|it|they|which|this)\s+(?:most\s+)?(?:likely|probably|presumably)\b` +
-    String.raw`|\blikely (?:focus|involv|includ|cover|span|centr|draw|leverag|enta|requir|reflect)\w*`,
+  String.raw`\bsuggests?\s+(?:that\s+)?(?:jordanne|she|her)\b` +
+    String.raw`|\b(?:which|this|that)\s+(?:also\s+)?suggests?\b` +
+    String.raw`|` +
+    String.raw`\b(?:jordanne|she|her work|her role|this role|the role|it|they|which|this)\s+` +
+    String.raw`(?:(?:would|will|is|was|has|had)\s+)?(?:most\s+)?(?:likely|probably|presumably)\b` +
+    String.raw`|\blikely (?:to )?(?:focus|involv|includ|cover|span|centr|draw|leverag|enta|requir|reflect)\w*` +
+    String.raw`|(?<!\bas )(?<!\bmore )(?<!\bmost )(?<!\bless )(?<!\bwould )(?<!\bwill )` +
+    String.raw`\b(?:likely|probably|presumably)\s+(?:\w+ed|reached|drove|grew|made|had|led|won|built|brought` +
+    String.raw`|saw|took|was|were|did)\b`,
   'gi',
 );
 
