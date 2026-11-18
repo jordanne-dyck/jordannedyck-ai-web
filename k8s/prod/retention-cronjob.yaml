@@ -1,4 +1,5 @@
-# Deletes chat_events and admin_login_attempts rows older than 180 days and
+# Deletes chat_events, admin_login_attempts, page_views and site_events rows
+# older than 180 days and
 # leads older than 365 days, once a day. The periods are stated to visitors
 # under the chat input in app/page.tsx and in lib/leads.ts (LEAD_CONSENT).
 # Change them together. Argo syncs it with the rest of k8s/prod.
@@ -35,7 +36,8 @@ spec:
                     -v ON_ERROR_STOP=1 \
                     -c "DELETE FROM chat_events WHERE created_at < NOW() - INTERVAL '180 days';" \
                     -c "DELETE FROM admin_login_attempts WHERE created_at < NOW() - INTERVAL '180 days';" \
-                    -c "DELETE FROM leads WHERE created_at < NOW() - INTERVAL '365 days';"
+                    -c "DELETE FROM leads WHERE created_at < NOW() - INTERVAL '365 days';" \
+                    -c "DO \$\$ BEGIN IF to_regclass('page_views') IS NOT NULL THEN DELETE FROM page_views WHERE created_at < NOW() - INTERVAL '180 days'; END IF; IF to_regclass('site_events') IS NOT NULL THEN DELETE FROM site_events WHERE created_at < NOW() - INTERVAL '180 days'; END IF; END \$\$;"
               env:
                 - name: POSTGRESQL_USER
                   valueFrom:
