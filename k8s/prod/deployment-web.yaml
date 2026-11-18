@@ -82,6 +82,13 @@ spec:
                 secretKeyRef:
                   key: IP_HASH_SALT
                   name: app-observability
+            # Client IP for the rate limits and admin lockout (lib/ip.ts): the
+            # number of proxies that append to X-Forwarded-For. The public
+            # HAProxy adds one entry with the real visitor address, and the
+            # OpenShift router appends one more, so the visitor is second from
+            # the right.
+            - name: TRUSTED_PROXY_HOPS
+              value: "2"
             - name: MONITOR_TOKEN
               valueFrom:
                 secretKeyRef:
