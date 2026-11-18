@@ -11,7 +11,8 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 - **Takes a note for Jordanne**: a visitor can leave their name, email and a message, and both get an email.
 - **Collects visitor feedback**: thumbs up or down on each answer.
 - **Shows public metrics** at `/dashboard`: volume, latency, spend and the questions people click.
-- **Gives me an admin view**: every conversation, plus an insights tab.
+- **Gives me an admin view**: every conversation, plus an insights tab and a traffic tab.
+- **Counts its own visits**: a first-party page-view beacon feeds the traffic tab, so the share of visitors who used the bot still holds when an ad blocker stops PostHog.
 - **Reports its own health** at `/api/health`, which Checkly checks every 10 minutes.
 
 ## How a question is answered
@@ -26,6 +27,13 @@ The frontend for [jordannedyck.com](https://jordannedyck.com): a chat interface 
 
 - `/dashboard`: public request, latency and cost metrics.
 - `/dashboard/admin`: per-request log, password protected.
+- `/dashboard/admin/traffic`: visits, how many visitors used the bot, ratings, conversions and paths over 7, 30 or 90 days, each against the period before. Bots and my own browsers are left out: the tab's "Leave this browser out" button sets a cookie that marks that browser's visits as mine.
+
+### The page-view beacon
+
+The page sends each page view to `/api/visit` (`lib/site-beacon.ts`). It records the path, the referring host (not the full URL), any utm tags, device type, and how long the page was visible. It also records the clicks the dashboard counts, by event name. Page text and anything a visitor types are never sent. Admin pages are not recorded.
+
+A view carries the same `jb_sid` visitor cookie as the chat, so a visit joins to that visitor's chats in `chat_events`. Rows go into `page_views` and `site_events` and are deleted after 180 days, like chats. `/api/visit` always answers 204, so a database error never reaches a visitor.
 - `/api/health`: database, OpenAI key and backend status, and the release tag, polled by Checkly (`monitoring/`). After each prod release, a GitHub Action waits for the new tag there and sends real chats, then checks the build story, the lead form and its emails, and the `/about` share image (`scripts/smoke-prod.mjs`).
 
 ## Stack
