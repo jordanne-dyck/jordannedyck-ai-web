@@ -159,6 +159,63 @@ data:
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS notify_error TEXT;
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_synthetic BOOLEAN NOT NULL DEFAULT FALSE;
+
+    -- Site traffic (traffic dashboard, 2026-11-16). One row per page view, sent by
+    -- app/components/SiteBeacon.tsx through /api/visit. visitor_id is the jb_sid
+    -- cookie, the same id as chat_events.session_id, so a visit joins its chats.
+    -- No IP address, no page text. Deleted after 180 days with chat_events
+    -- (k8s/prod/retention-cronjob.yaml); the period is stated on the home page.
+    CREATE TABLE IF NOT EXISTS page_views (
+      id             BIGSERIAL PRIMARY KEY,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      -- Random id made in the browser, so the leave beacon can add engaged time.
+      view_id        TEXT NOT NULL UNIQUE,
+      visitor_id     TEXT NOT NULL,
+      -- '/', '/about', '/dashboard' or '/other'. Admin pages are never recorded.
+      path           TEXT NOT NULL,
+      -- Host of the referring site only (linkedin.com), never the full URL.
+      referrer_host  TEXT,
+      utm_source     TEXT,
+      utm_medium     TEXT,
+      utm_campaign   TEXT,
+      -- 'mobile' | 'desktop', from the user agent. The user agent is not stored.
+      device         TEXT,
+      -- Time the tab was visible, from the leave beacon. NULL if it never arrived.
+      engaged_ms     INTEGER,
+      -- Known crawler or headless browser user agent.
+      is_bot         BOOLEAN NOT NULL DEFAULT FALSE,
+      -- Jordanne's own browsers (jb_owner cookie, set from /dashboard/admin/traffic).
+      is_owner       BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_page_views_created_at
+      ON page_views (created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_page_views_visitor
+      ON page_views (visitor_id, created_at);
+
+    -- Clicks the dashboard counts that aren't chat requests: contact links, the
+    -- concierge panel, the build story, project cards. Mirrored from lib/analytics.ts
+    -- track(), names from its AnalyticsEvent type; props are the same small values
+    -- PostHog gets, never text a visitor typed.
+    CREATE TABLE IF NOT EXISTS site_events (
+      id          BIGSERIAL PRIMARY KEY,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      visitor_id  TEXT NOT NULL,
+      view_id     TEXT,
+      path        TEXT,
+      name        TEXT NOT NULL,
+      props       JSONB NOT NULL DEFAULT '{}',
+      is_bot      BOOLEAN NOT NULL DEFAULT FALSE,
+      is_owner    BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_site_events_created_at
+      ON site_events (created_at DESC);
+
+    -- The visitor who sent a lead (jb_sid), so the traffic dashboard can count
+    -- conversions. NULL on leads from before 2026-11-16.
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS session_id TEXT;
 kind: ConfigMap
 metadata:
   name: postgres-schema
