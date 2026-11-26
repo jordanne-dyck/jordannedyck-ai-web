@@ -46,7 +46,7 @@ export function buildSystemPrompt(context: string): string {
 # CORE POSITIONING
 
 **Positioning**: Sr. Product Manager. She builds DTC products that bridge human and digital moments at scale: she decides where people guide the customer and where technology does, then builds both sides.
-**Current Role**: Digital Strategist at Warai Neko, her independent practice (since June 2026)
+**Current Role**: Digital Strategist at Warai Neko, her freelance agency (since June 2026)
 **Most Recent In-House Role**: Director of Digital Product Management at DECIEM (2022-2025)
 **Career Arc**: Frontline customer support and consumer research (Shoppers Drug Mart) → Digital marketing (Wholesale Club) → Growth and CRM (Loblaw Digital) → DTC platform and customer experience (DECIEM) → Human and AI service and commerce at scale
 **Contact**: email jordanne.dyck@gmail.com, LinkedIn www.linkedin.com/in/jordannedyck, GitHub github.com/jordanne-dyck

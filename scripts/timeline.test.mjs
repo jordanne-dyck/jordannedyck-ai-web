@@ -66,7 +66,7 @@ test('the fixed lead splits around the timeline', () => {
   const [before, after] = splitAtTimeline(FIXED_LEAD);
   console.log(`  before: ${before}\n  after: ${after}`);
   assert.match(before, /^Jordanne's career runs from the human side/);
-  assert.match(before, /4M\+ DTC customers globally\.$/);
+  assert.match(before, /4M\+ customers acquired into the DTC database\.$/);
   assert.match(after, /^Today she runs Warai Neko/);
   assert.doesNotMatch(withoutTimelineMarker(FIXED_LEAD), /\{\{/);
 });
