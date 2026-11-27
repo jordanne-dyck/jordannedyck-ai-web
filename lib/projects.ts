@@ -67,7 +67,7 @@ export const PROJECTS: Project[] = [
   {
     // From experience/independent-practice.md, not projects/: shown for the
     // consulting chunks only (see CHUNK_PROJECTS). Also on the timeline, as
-    // her independent practice (decided 2026-11-04).
+    // her freelance agency (Jord, 2026-11-26, reversing 2026-11-04).
     slug: 'warai-neko',
     title: 'Warai Neko',
     when: '2026 – present',
@@ -93,7 +93,7 @@ export const PROJECTS: Project[] = [
     role: 'Founder & lead',
     tags: 'Innovation lab, strategy, AI',
     problem:
-      'DECIEM was growing 80% a year. Teams chased ideas nobody had validated, with no way to decide what was worth building.',
+      'DECIEM was scaling fast. Teams chased ideas nobody had validated, with no way to decide what was worth building.',
     built:
       'An internal venture to rapidly validate ambiguous opportunities and scale only what proved value',
     results: [
@@ -181,7 +181,6 @@ export const PROJECTS: Project[] = [
     built:
       'A multi-year roadmap to one-to-one personalization across every channel, built on the Salesforce stack already in place, with the measurement to back it: rebuilt GA4 and Tag Manager tracking and retention segmentation she wrote in Python.',
     results: [
-      'Targets set up front: 40% higher customer lifetime value, 25% higher conversion',
       'Found the gap: mobile was 76% of users but 67% of revenue',
     ],
     questions: ['Why build on the existing stack?', 'How did she segment for retention?'],
@@ -203,7 +202,7 @@ export const PROJECTS: Project[] = [
     results: [
       '5:1 ROI on growth marketing, recognised at Google Marketing Live 2022',
       "The Ordinary became the world's #1 Googled skincare brand",
-      '$150M+ DTC business with 4M+ customer accounts',
+      '$150M+ DTC business with 4M+ customers acquired',
     ],
     questions: ['How did she make it #1 on Google?', 'Why was paid social the main channel?'],
     images: ['/projects/growth-and-acquisition/search-trends.webp'],
@@ -216,11 +215,11 @@ export const PROJECTS: Project[] = [
     role: 'Digital transformation lead & product strategist',
     tags: 'Platform migration, Commerce Cloud',
     problem:
-      "A custom-built e-commerce platform couldn't keep up with 80% yearly growth across 150+ countries.",
+      "A custom-built e-commerce platform couldn't keep up with rapid growth across 150+ countries.",
     built:
       'The move from a custom in-house platform to an enterprise-grade DTC ecosystem launched in 8 months.',
     results: [
-      '99.95% uptime, 40% faster page loads, 18% higher conversion',
+      '99.95% uptime',
       'Engineering time on new work: 30% → 70%',
       '$150M+ annual revenue across 150+ countries',
       '100+ new features launched',

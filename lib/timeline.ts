@@ -66,7 +66,7 @@ export const CAREER: Employer[] = [
   },
   {
     org: 'Loblaw Digital',
-    line: 'Growth and CRM across the Loblaw digital portfolio, 16M+ loyalty customers',
+    line: 'Growth and CRM across the Loblaw digital portfolio, inside PC Optimum (16M+ members)',
     roles: [
       { title: 'Growth Marketing Manager', start: '2018-08', end: '2019-05' },
       { title: 'Specialist, Demand Generation', short: 'Demand Generation', start: '2016-02', end: '2018-07' },
@@ -152,7 +152,7 @@ export const MOMENTS: Moment[] = [
     view: ['2013-08', '2017-08'],
     when: '2016',
     head: 'Into digital',
-    text: 'Growth and CRM across the Loblaw digital portfolio, {16}M+ loyalty customers',
+    text: 'Growth and CRM across the Loblaw digital portfolio, inside PC Optimum ({16}M+ members)',
   },
   {
     at: '2019-06',
@@ -268,11 +268,12 @@ const MARKER_RE = /[ \t]*\{\{\s*timeline\s*\}\}[ \t]*/i;
 // (decided 2026-11-04, option D). Generated overviews broke the shape, walked
 // through her jobs and went uncited (backend results log R-20261104-17). The
 // model is not called for these. Text final with her OK, 2026-11-04; the 4M+ is
-// DTC customers, as exp-042 says.
+// customers acquired into the DTC database, not current DTC customers (Jord,
+// 2026-11-26, Q5).
 export const FIXED_LEAD = [
-  "Jordanne's career runs from the human side of helping customers to the digital side. She started in bilingual frontline support at Shoppers Drug Mart's call centre, and has since built the systems that decide where people help customers and where technology does: at DECIEM, Regimen Builder, the AI Personal Shopper and automated service that cut resolution time 86%, while annual DTC revenue grew to $150M+ with 4M+ DTC customers globally.",
+  "Jordanne's career runs from the human side of helping customers to the digital side. She started in bilingual frontline support at Shoppers Drug Mart's call centre, and has since built the systems that decide where people help customers and where technology does: at DECIEM, Regimen Builder, the AI Personal Shopper and automated service that cut resolution time 86%, while annual DTC revenue grew to $150M+, with 4M+ customers acquired into the DTC database.",
   TIMELINE_MARKER,
-  'Today she runs Warai Neko, her independent practice, bringing that work to small businesses while continuing to refine her AI building skills with this AI-powered resume and portfolio system among other hobby projects.',
+  'Today she runs Warai Neko, her freelance agency, bringing that work to small businesses while continuing to refine her AI building skills with this AI-powered resume and portfolio system among other hobby projects.',
 ].join('\n\n');
 
 // A question naming the timeline after it has shown this visit: the timeline
