@@ -1,6 +1,7 @@
-// Horizontal bars for a short ranked list (button questions).
-export function BarList({ items }: { items: { label: string; value: number }[] }) {
-  const max = Math.max(1, ...items.map((i) => i.value));
+// Horizontal bars for a short ranked list (button questions). Pass `max` when
+// two lists sit together and their bars should share one scale.
+export function BarList({ items, max: shared }: { items: { label: string; value: number }[]; max?: number }) {
+  const max = Math.max(1, shared ?? 0, ...items.map((i) => i.value));
   return (
     <div className="space-y-2">
       {items.map((it) => (

@@ -61,6 +61,7 @@ export const SITE_EVENTS: Record<string, readonly string[]> = {
   project_opened: ['slug', 'from'],
   timeline_shown: ['explicit'],
   story_shown: ['from', 'replay'],
+  story_link_clicked: ['target', 'step'],
   concierge_opened: ['trigger', 'from'],
   brief_sent: ['channel', 'edited'],
   contact_clicked: ['where', 'channel'],

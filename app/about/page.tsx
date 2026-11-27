@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Github, Linkedin } from 'lucide-react';
+import { TrackedLink } from '@/app/components/TrackedLink';
 import { AboutMotion } from './AboutMotion';
 import { RandomCat } from './RandomCat';
 import '../home.css';
@@ -148,14 +149,15 @@ export default function AboutPage() {
           <span className="fcontact">
             {/* As text, like the home footer: sending goes through the panel. */}
             <span className="email">{EMAIL}</span>
-            <a href="/jordanne-dyck.vcf" download>Save contact</a>
-            <a href="tel:6474542244">647-454-2244</a>
-            <a className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+            {/* TrackedLink is a plain <a> that also records the click. */}
+            <TrackedLink where="about" channel="vcard" href="/jordanne-dyck.vcf" download>Save contact</TrackedLink>
+            <TrackedLink where="about" channel="phone" href="tel:6474542244">647-454-2244</TrackedLink>
+            <TrackedLink where="about" channel="linkedin" className="icon" href={LINKEDIN} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
               <Linkedin aria-hidden="true" />
-            </a>
-            <a className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+            </TrackedLink>
+            <TrackedLink where="about" channel="github" className="icon" href={GITHUB} target="_blank" rel="noopener noreferrer" aria-label="GitHub">
               <Github aria-hidden="true" />
-            </a>
+            </TrackedLink>
           </span>
           <Link href="/">Home</Link>
         </nav>

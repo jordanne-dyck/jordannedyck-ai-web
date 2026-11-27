@@ -11,8 +11,12 @@
 //   or 30 minutes of silence on rows without one).
 // - Curated: the conversation got the build story or the career timeline, or
 //   the visitor opened a project card during it.
-// - Reached out: sent a lead, clicked an email/LinkedIn/phone/GitHub/vCard
-//   contact, or emailed or copied a drafted note.
+// - Reached out: sent the contact form (a row in leads). Nothing else. An
+//   email Jordanne receives is also a lead, but the site cannot see one arrive,
+//   so nothing here counts it. A click on a link is not reaching out.
+// - Looked you up: clicked through to LinkedIn or GitHub, opened the public
+//   dashboard page, clicked the email link or the phone number, saved the
+//   contact card, or copied or emailed a drafted note.
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const VISIT_GAP_MS = 30 * 60 * 1000;
@@ -54,10 +58,14 @@ export type ConversationSummary = {
   curated: CuratedKind[];
   up: number;
   down: number;
+  lookedUp: boolean;
   reachedOut: boolean;
   source: string | null;
   device: string | null;
 };
+
+export type FunnelKey = 'visited' | 'asked' | 'curated' | 'looked' | 'panel' | 'reached';
+export type ContactCount = { key: string; label: string; count: number };
 
 export type TrafficReport = {
   days: number;
@@ -66,20 +74,23 @@ export type TrafficReport = {
     visitors: Pair; newVisitors: Pair; returningVisitors: Pair; visits: Pair; pageViews: Pair;
     bounceRate: Pair; avgEngagedSec: Pair; usedBotRate: Pair; conversations: Pair; questions: Pair;
     curatedRate: Pair; thumbsUpRate: Pair; rated: Pair; avgQuestions: Pair;
-    reachedOutRate: Pair; leads: Pair; contactClicks: Pair;
+    lookedUpRate: Pair; reachedOutRate: Pair; leads: Pair;
   };
-  daily: { day: string; visitors: number; pageViews: number; conversations: number; questions: number; reachedOut: number }[];
+  daily: { day: string; visitors: number; pageViews: number; conversations: number; questions: number; lookedUp: number; reachedOut: number }[];
   pages: { path: string; views: number; visitors: number; landings: number; bounceRate: number | null; avgEngagedSec: number | null }[];
   curated: { conversations: number; any: number; story: number; timeline: number; project: number; projectCardShown: number };
   chatLength: { label: string; count: number }[];
   convoVsAnswer: {
     kind: 'single' | 'multi'; label: string; conversations: number;
-    thumbsUpRate: number | null; rated: number; curatedRate: number | null; reachedOutRate: number | null;
+    thumbsUpRate: number | null; rated: number; curatedRate: number | null;
+    lookedUpRate: number | null; reachedOutRate: number | null;
   }[];
-  funnel: { label: string; visitors: number }[];
-  sources: { source: string; visitors: number; usedBotRate: number | null; reachedOutRate: number | null }[];
+  // Each step has a key that stays the same if its label is reworded.
+  funnel: { key: FunnelKey; label: string; visitors: number }[];
+  sources: { source: string; visitors: number; usedBotRate: number | null; lookedUpRate: number | null; reachedOutRate: number | null }[];
   devices: { device: string; visitors: number; bounceRate: number | null; usedBotRate: number | null }[];
-  contacts: { channel: string; count: number }[];
+  // Counts in the current window, in two groups (see the definitions above).
+  contacts: { reachedOut: ContactCount[]; lookedUp: ContactCount[] };
   flows: { steps: string[]; visits: number }[];
   recentConversations: ConversationSummary[];
 };
@@ -118,6 +129,12 @@ export function sourceOf(utm: string | null, referrer: string | null): string {
 
 const CONTACT_STEP: Record<string, string> = {
   email: 'Clicked email', linkedin: 'Clicked LinkedIn', github: 'Clicked GitHub', phone: 'Clicked phone', vcard: 'Saved contact card',
+};
+
+// The "looked you up" kinds, in the order they are listed when counts tie.
+const LOOKED_LABEL: Record<string, string> = {
+  linkedin: 'LinkedIn', github: 'GitHub', dashboard: 'Public dashboard', email: 'Email link',
+  phone: 'Phone number', vcard: 'Contact card', note_copied: 'Note copied', note_emailed: 'Note emailed',
 };
 
 // Which visit a timestamp belongs to: the latest one that started before it.
@@ -189,15 +206,21 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
   }
   const visits = [...visitsBy.values()].flat();
 
-  // Conversations, and the visitor's clicks during them.
+  // Conversations, and the visitor's clicks during them. Three lists of times
+  // per visitor: sent the contact form, looked Jordanne up, and opened the
+  // contact panel.
   const convos = buildConversations(input.chats);
   const reachedAt = new Map<string, number[]>();
-  const intentAt = new Map<string, number[]>();
+  const lookedAt = new Map<string, number[]>();
+  const panelAt = new Map<string, number[]>();
   const push = (m: Map<string, number[]>, k: string, at: number) => m.set(k, [...(m.get(k) ?? []), at]);
-  const contactCounts = new Map<string, number>();
-  const contactClicksIn = (s: number, e: number) =>
-    input.events.filter((ev) => ev.name === 'contact_clicked' && ev.at >= s && ev.at < e).length;
+  const lookedCounts = new Map<string, number>();
+  const addLooked = (visitor: string, at: number, kind: string) => {
+    push(lookedAt, visitor, at);
+    if (at >= curStart) lookedCounts.set(kind, (lookedCounts.get(kind) ?? 0) + 1);
+  };
 
+  for (const v of input.views) if (v.path === '/dashboard') addLooked(v.visitor, v.at, 'dashboard');
   for (const ev of input.events) {
     const visit = visitAt(visitsBy.get(ev.visitor), ev.at);
     if (visit && ev.name !== 'stream_abandoned') visit.acted = true;
@@ -205,31 +228,40 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
     if (ev.name === 'project_opened') step = 'Project card';
     if (ev.name === 'concierge_opened') {
       step = 'Contact panel';
-      push(intentAt, ev.visitor, ev.at);
+      push(panelAt, ev.visitor, ev.at);
     }
     if (ev.name === 'contact_clicked') {
       const ch = String(ev.props.channel ?? 'email');
       step = CONTACT_STEP[ch] ?? 'Clicked contact';
-      push(intentAt, ev.visitor, ev.at);
-      push(reachedAt, ev.visitor, ev.at);
-      if (ev.at >= curStart) contactCounts.set(ch, (contactCounts.get(ch) ?? 0) + 1);
+      addLooked(ev.visitor, ev.at, ch);
     }
-    if (ev.name === 'brief_sent' && ev.props.channel !== 'form') {
+    // A drafted note emailed or copied. The form (channel 'form') is the lead
+    // row below, not this event.
+    if (ev.name === 'brief_sent' && (ev.props.channel === 'email' || ev.props.channel === 'copy')) {
       step = 'Sent note';
-      push(reachedAt, ev.visitor, ev.at);
-      if (ev.at >= curStart) contactCounts.set(`note (${ev.props.channel})`, (contactCounts.get(`note (${ev.props.channel})`) ?? 0) + 1);
+      addLooked(ev.visitor, ev.at, ev.props.channel === 'email' ? 'note_emailed' : 'note_copied');
+    }
+    // Build story links to GitHub and to email. Its other links are left out:
+    // the contact panel opening and the /dashboard page view are recorded on
+    // their own, and the evidence links go to source files.
+    if (ev.name === 'story_link_clicked') {
+      if (ev.props.target === 'repo_web' || ev.props.target === 'repo_ai') {
+        step = 'Clicked code repo';
+        addLooked(ev.visitor, ev.at, 'github');
+      }
+      if (ev.props.target === 'email') {
+        step = CONTACT_STEP.email;
+        addLooked(ev.visitor, ev.at, 'email');
+      }
     }
     if (step && visit) visit.steps.push({ at: ev.at, label: step });
   }
   for (const l of input.leads) {
     if (!l.session) continue;
     push(reachedAt, l.session, l.at);
-    push(intentAt, l.session, l.at);
+    push(panelAt, l.session, l.at);
     const visit = visitAt(visitsBy.get(l.session), l.at);
     if (visit) visit.steps.push({ at: l.at, label: 'Sent lead' });
-  }
-  if (input.leads.some((l) => l.at >= curStart)) {
-    contactCounts.set('lead form', input.leads.filter((l) => l.at >= curStart).length);
   }
   for (const c of convos) {
     for (const ev of input.events) {
@@ -248,6 +280,8 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
   }
   const reachedOutAfter = (visitor: string, from: number, to: number) =>
     (reachedAt.get(visitor) ?? []).some((at) => at >= from && at < to);
+  const lookedUpAfter = (visitor: string, from: number, to: number) =>
+    (lookedAt.get(visitor) ?? []).some((at) => at >= from && at < to);
 
   // One window's totals.
   function window(s: number, e: number) {
@@ -258,6 +292,7 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
     const cs = convos.filter((c) => c.start >= s && c.start < e);
     const chatters = new Set(cs.map((c) => c.session));
     const asked = [...visitors].filter((id) => chatters.has(id));
+    const looked = [...visitors].filter((id) => lookedUpAfter(id, s, e));
     const reached = [...visitors].filter((id) => reachedOutAfter(id, s, e));
     const engaged = views.map((v) => v.engagedMs).filter((x): x is number => x != null);
     const up = cs.reduce((a, c) => a + c.up, 0);
@@ -278,9 +313,9 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
       thumbsUpRate: ratio(up, up + down),
       rated: up + down,
       avgQuestions: mean(cs.map((c) => c.turns.length)),
+      lookedUpRate: ratio(looked.length, visitors.size),
       reachedOutRate: ratio(reached.length, visitors.size),
       leads,
-      contactClicks: contactClicksIn(s, e),
     };
   }
   const cur = window(curStart, now + 1);
@@ -295,22 +330,22 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
   const curVisitors = new Set(curVisits.map((v) => v.visitor));
   const chatters = new Set(curConvos.map((c) => c.session));
 
-  // Daily series, oldest first.
+  // Daily series, oldest first. Looked you up and reached out count what
+  // happened that day, not visitors.
+  const lookedTimes = [...lookedAt.values()].flat();
   const daily: TrafficReport['daily'] = [];
   for (let d = days - 1; d >= 0; d--) {
     const day = dayOf(now - d * DAY_MS);
     const vs = curViews.filter((v) => dayOf(v.at) === day);
     const cs = curConvos.filter((c) => dayOf(c.start) === day);
-    const reachedOut =
-      input.events.filter((ev) => dayOf(ev.at) === day && (ev.name === 'contact_clicked' || (ev.name === 'brief_sent' && ev.props.channel !== 'form'))).length +
-      input.leads.filter((l) => dayOf(l.at) === day).length;
     daily.push({
       day,
       visitors: new Set(vs.map((v) => v.visitor)).size,
       pageViews: vs.length,
       conversations: cs.length,
       questions: cs.reduce((a, c) => a + c.turns.length, 0),
-      reachedOut,
+      lookedUp: lookedTimes.filter((at) => dayOf(at) === day).length,
+      reachedOut: input.leads.filter((l) => dayOf(l.at) === day).length,
     });
   }
 
@@ -357,18 +392,21 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
       thumbsUpRate: ratio(up, up + down),
       rated: up + down,
       curatedRate: ratio(cs.filter((c) => c.curated.size > 0).length, cs.length),
+      lookedUpRate: ratio(cs.filter((c) => lookedUpAfter(c.session, c.start, c.end + DAY_MS)).length, cs.length),
       reachedOutRate: ratio(cs.filter((c) => reachedOutAfter(c.session, c.start, c.end + DAY_MS)).length, cs.length),
     };
   });
 
   const curatedVisitors = new Set(curConvos.filter((c) => c.curated.size > 0).map((c) => c.session));
   const has = (m: Map<string, number[]>, id: string) => (m.get(id) ?? []).some((at) => at >= curStart);
-  const funnel = [
-    { label: 'Visited', visitors: curVisitors.size },
-    { label: 'Asked the bot', visitors: [...curVisitors].filter((id) => chatters.has(id)).length },
-    { label: 'Got a curated answer', visitors: [...curVisitors].filter((id) => curatedVisitors.has(id)).length },
-    { label: 'Opened a way to contact', visitors: [...curVisitors].filter((id) => has(intentAt, id)).length },
-    { label: 'Reached out', visitors: [...curVisitors].filter((id) => has(reachedAt, id)).length },
+  // The panel step counts a lead too: the form is inside the panel.
+  const funnel: TrafficReport['funnel'] = [
+    { key: 'visited', label: 'Visited', visitors: curVisitors.size },
+    { key: 'asked', label: 'Asked the bot', visitors: [...curVisitors].filter((id) => chatters.has(id)).length },
+    { key: 'curated', label: 'Got a curated answer', visitors: [...curVisitors].filter((id) => curatedVisitors.has(id)).length },
+    { key: 'looked', label: 'Looked you up', visitors: [...curVisitors].filter((id) => has(lookedAt, id)).length },
+    { key: 'panel', label: 'Opened the contact panel', visitors: [...curVisitors].filter((id) => has(panelAt, id)).length },
+    { key: 'reached', label: 'Reached out', visitors: [...curVisitors].filter((id) => has(reachedAt, id)).length },
   ];
 
   // Sources and devices: from each visitor's first visit in the window.
@@ -384,6 +422,7 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
       source,
       visitors: ids.length,
       usedBotRate: ratio(ids.filter((id) => chatters.has(id)).length, ids.length),
+      lookedUpRate: ratio(ids.filter((id) => has(lookedAt, id)).length, ids.length),
       reachedOutRate: ratio(ids.filter((id) => has(reachedAt, id)).length, ids.length),
     }))
     .sort((a, b) => b.visitors - a.visitors)
@@ -416,7 +455,15 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
     .sort((a, b) => b.visits - a.visits)
     .slice(0, 10);
 
-  const contacts = [...contactCounts].map(([channel, count]) => ({ channel, count })).sort((a, b) => b.count - a.count);
+  // Reached out has one kind, the contact form: every lead in the window.
+  const leadsNow = input.leads.filter((l) => l.at >= curStart).length;
+  const contacts: TrafficReport['contacts'] = {
+    reachedOut: leadsNow ? [{ key: 'form', label: 'Contact form', count: leadsNow }] : [],
+    lookedUp: [...new Set([...Object.keys(LOOKED_LABEL), ...lookedCounts.keys()])]
+      .map((key) => ({ key, label: LOOKED_LABEL[key] ?? key, count: lookedCounts.get(key) ?? 0 }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count),
+  };
 
   const recentConversations: ConversationSummary[] = [...curConvos]
     .sort((a, b) => b.start - a.start)
@@ -431,6 +478,7 @@ export function buildTrafficReport(input: TrafficInput): TrafficReport {
         curated: [...c.curated],
         up: c.up,
         down: c.down,
+        lookedUp: lookedUpAfter(c.session, c.start, c.end + DAY_MS),
         reachedOut: reachedOutAfter(c.session, c.start, c.end + DAY_MS),
         source: v?.source ?? null,
         device: v?.device ?? null,
