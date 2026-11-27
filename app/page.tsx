@@ -469,8 +469,7 @@ export default function Home() {
           <div className="intro">
             <h2>Ask me anything<br />about Jordanne&apos;s work.</h2>
             <p>
-              I answer from her resume and project notes. Try how she decided where people guide and where technology does at
-              DECIEM, the AI she shipped to production, or Regimen Builder.
+              I answer from her resume and project notes. Pick a question below or ask your own.
             </p>
           </div>
         )}
