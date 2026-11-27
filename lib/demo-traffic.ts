@@ -104,11 +104,22 @@ export function sampleTraffic(days = 30, now = Date.now()): { report: TrafficRep
           });
           if (r() < 0.12) events.push({ at: at + 5000, visitor, name: 'project_opened', props: { from: 'card' } });
         }
+        // Some who see the build story click through to the code.
+        if (story && r() < 0.3) {
+          events.push({ at: at + 8000, visitor, name: 'story_link_clicked', props: { target: r() < 0.6 ? 'repo_web' : 'repo_ai' } });
+        }
         const intent = r() < (turns > 1 ? 0.22 : 0.08);
         if (intent) {
           at += 30000;
           events.push({ at, visitor, name: 'concierge_opened', props: { from: 'after_answer' } });
-          if (r() < 0.35) leads.push({ at: at + 90000, session: visitor });
+          // In the panel: send the form (a lead), email or copy the note, or leave.
+          const sends = r();
+          if (sends < 0.35) {
+            leads.push({ at: at + 90000, session: visitor });
+            events.push({ at: at + 90000, visitor, name: 'brief_sent', props: { channel: 'form', edited: false } });
+          } else if (sends < 0.5) {
+            events.push({ at: at + 60000, visitor, name: 'brief_sent', props: { channel: sends < 0.45 ? 'email' : 'copy', edited: false } });
+          }
         }
       }
       if (r() < 0.3) {
@@ -116,7 +127,7 @@ export function sampleTraffic(days = 30, now = Date.now()): { report: TrafficRep
         view(landing === '/about' ? '/' : '/about', 10000 + Math.floor(r() * 90000));
       }
       if (r() < 0.07) {
-        events.push({ at: at + 10000, visitor, name: 'contact_clicked', props: { channel: pick(r, [['email', 3], ['linkedin', 4], ['vcard', 1]]) } });
+        events.push({ at: at + 10000, visitor, name: 'contact_clicked', props: { where: 'footer', channel: pick(r, [['linkedin', 5], ['github', 3], ['vcard', 1], ['phone', 1]]) } });
       }
     }
   }

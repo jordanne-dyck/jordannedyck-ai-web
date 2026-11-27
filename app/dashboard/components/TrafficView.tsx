@@ -86,6 +86,17 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
   const t = r.totals;
   const days = r.days;
   const visited = r.funnel[0]?.visitors ?? 0;
+  const leads = t.leads.cur ?? 0;
+  // The three most common kinds, then the rest as one number. No-break spaces
+  // keep a count on the same line as its name.
+  const looked = r.contacts.lookedUp;
+  const lookedRest = looked.slice(3).reduce((a, c) => a + c.count, 0);
+  const lookedHint = looked.length
+    ? [...looked.slice(0, 3).map((c) => `${c.count} ${c.label}`), ...(lookedRest ? [`${lookedRest} other`] : [])]
+        .map((s) => s.replace(/ /g, '\u00a0'))
+        .join(' · ')
+    : 'None in this range';
+  const contactMax = Math.max(0, ...r.contacts.reachedOut.map((c) => c.count), ...looked.map((c) => c.count));
 
   return (
     <div className="space-y-6">
@@ -108,7 +119,7 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
         </Panel>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Visitors" pair={t.visitors} kind="count" days={days} hint={`${num(t.newVisitors.cur)} new · ${num(t.returningVisitors.cur)} returning`} />
         <Stat label="Page views" pair={t.pageViews} kind="count" days={days} hint={`${num(t.visits.cur)} visits`} />
         <Stat label="Bounce rate" pair={t.bounceRate} kind="rate" days={days} lowerIsBetter hint="One page, no click, no question" />
@@ -118,7 +129,8 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
         <Stat label="Questions per conversation" pair={t.avgQuestions} kind="decimal" days={days} />
         <Stat label="Curated experience" pair={t.curatedRate} kind="rate" days={days} hint="Story, timeline or project card" />
         <Stat label="Thumbs up" pair={t.thumbsUpRate} kind="rate" days={days} hint={`of ${num(t.rated.cur)} rated answers`} />
-        <Stat label="Reached out" pair={t.reachedOutRate} kind="rate" days={days} hint={`${num(t.leads.cur)} leads · ${num(t.contactClicks.cur)} contact clicks`} />
+        <Stat label="Looked you up" pair={t.lookedUpRate} kind="rate" days={days} hint={lookedHint} />
+        <Stat label="Reached out" pair={t.reachedOutRate} kind="rate" days={days} hint={`${leads} contact form ${leads === 1 ? 'send' : 'sends'}`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -137,6 +149,7 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
             series={[
               { key: 'conversations', label: 'Conversations', color: '#34d399' },
               { key: 'questions', label: 'Questions', color: '#a1a1aa' },
+              { key: 'lookedUp', label: 'Looked you up', color: '#8b5cf6' },
               { key: 'reachedOut', label: 'Reached out', color: '#fbbf24' },
             ]}
           />
@@ -148,7 +161,7 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
           {r.funnel.map((f, i) => {
             const prev = i ? r.funnel[i - 1].visitors : null;
             return (
-              <div key={f.label} className="grid grid-cols-[minmax(0,12rem)_1fr_5rem_5rem] items-center gap-3 text-xs text-zinc-300">
+              <div key={f.key} className="grid grid-cols-[minmax(0,12rem)_1fr_5rem_5rem] items-center gap-3 text-xs text-zinc-300">
                 <span>{f.label}</span>
                 <span className="h-3 overflow-hidden rounded bg-zinc-800">
                   <span className="block h-full bg-sky-400" style={{ width: `${visited ? (f.visitors / visited) * 100 : 0}%` }} />
@@ -170,8 +183,8 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
         </Panel>
         <Panel title="Where visitors came from" note="From the first visit in the range. 'tag:' is a ?utm_source on the link.">
           <Table
-            head={['Source', 'Visitors', 'Used bot', 'Reached out']}
-            rows={r.sources.map((s) => [s.source, s.visitors, pct(s.usedBotRate), pct(s.reachedOutRate)])}
+            head={['Source', 'Visitors', 'Used bot', 'Looked you up', 'Reached out']}
+            rows={r.sources.map((s) => [s.source, s.visitors, pct(s.usedBotRate), pct(s.lookedUpRate), pct(s.reachedOutRate)])}
           />
         </Panel>
         <Panel title="Device">
@@ -180,12 +193,19 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
             rows={r.devices.map((d) => [d.device === 'mobile' ? 'Phone or tablet' : 'Desktop', d.visitors, pct(d.bounceRate), pct(d.usedBotRate)])}
           />
         </Panel>
-        <Panel title="How people reach out" note="Lead form sends, contact-link clicks and drafted notes emailed or copied.">
-          {r.contacts.length ? (
-            <BarList items={r.contacts.map((c) => ({ label: c.channel, value: c.count }))} />
-          ) : (
-            <p className="text-xs text-zinc-500">None in this range.</p>
-          )}
+        <Panel title="Reached out and looked you up" note="Reached out is a contact form send. Looked you up is a click on a profile or contact link, the public dashboard opened, or a drafted note copied or emailed. The bars share one scale.">
+          <div className="space-y-4">
+            {([['Reached out', r.contacts.reachedOut], ['Looked you up', looked]] as const).map(([name, items]) => (
+              <div key={name}>
+                <h4 className="mb-2 text-xs uppercase tracking-wide text-zinc-500">{name}</h4>
+                {items.length ? (
+                  <BarList items={items.map((c) => ({ label: c.label, value: c.count }))} max={contactMax} />
+                ) : (
+                  <p className="text-xs text-zinc-500">None in this range.</p>
+                )}
+              </div>
+            ))}
+          </div>
         </Panel>
       </div>
 
@@ -204,9 +224,16 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
           <BarList items={r.chatLength.map((c) => ({ label: c.label, value: c.count }))} />
         </Panel>
         <Panel title="Conversation vs one answer" note="Does a second question change the outcome?">
+          {/* One column per kind, one row per number: six columns do not fit a panel this narrow. */}
           <Table
-            head={['', 'Count', 'Thumbs up', 'Curated', 'Reached out']}
-            rows={r.convoVsAnswer.map((c) => [c.label, c.conversations, `${pct(c.thumbsUpRate)} (${c.rated})`, pct(c.curatedRate), pct(c.reachedOutRate)])}
+            head={['', ...r.convoVsAnswer.map((c) => c.label)]}
+            rows={[
+              ['Count', ...r.convoVsAnswer.map((c) => c.conversations)],
+              ['Thumbs up', ...r.convoVsAnswer.map((c) => `${pct(c.thumbsUpRate)} (${c.rated})`)],
+              ['Curated', ...r.convoVsAnswer.map((c) => pct(c.curatedRate))],
+              ['Looked you up', ...r.convoVsAnswer.map((c) => pct(c.lookedUpRate))],
+              ['Reached out', ...r.convoVsAnswer.map((c) => pct(c.reachedOutRate))],
+            ]}
           />
         </Panel>
       </div>
@@ -239,6 +266,7 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
                 <th className="px-2 py-1.5 text-right">Questions</th>
                 <th className="px-2 py-1.5">Curated</th>
                 <th className="px-2 py-1.5">Rating</th>
+                <th className="px-2 py-1.5">Looked you up</th>
                 <th className="px-2 py-1.5">Reached out</th>
                 <th className="px-2 py-1.5">Source</th>
               </tr>
@@ -255,6 +283,7 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
                   <td className="px-2 py-1.5 text-right tabular-nums">{c.questions}</td>
                   <td className="px-2 py-1.5 text-xs">{c.curated.map((k) => CURATED_NAME[k]).join(', ') || '—'}</td>
                   <td className="px-2 py-1.5 text-xs">{c.up || c.down ? `${c.up} up · ${c.down} down` : '—'}</td>
+                  <td className="px-2 py-1.5 text-xs">{c.lookedUp ? 'Yes' : '—'}</td>
                   <td className="px-2 py-1.5 text-xs">{c.reachedOut ? 'Yes' : '—'}</td>
                   <td className="px-2 py-1.5 text-xs text-zinc-400">{c.source ?? '—'}{c.device ? ` · ${c.device}` : ''}</td>
                 </tr>
@@ -267,7 +296,10 @@ export function TrafficView({ report: r, insights, sample = false }: { report: T
       <p className="text-xs text-zinc-500">
         A visitor is one browser cookie, kept 30 days: someone on two devices counts twice, and someone returning after
         30 days counts as new. Bots and your own excluded browsers are left out. Visits are recorded from the day this
-        tracking shipped; chat numbers include earlier conversations.
+        tracking shipped; chat numbers include earlier conversations. Reached out means the visitor sent the contact
+        form, and nothing else. Looked you up means they clicked through to LinkedIn or GitHub, opened the public
+        dashboard, clicked the email link or the phone number, saved the contact card, or copied or emailed a drafted
+        note. An email that reaches you is also a lead, but the site cannot see one arrive, so it is not counted.
       </p>
     </div>
   );

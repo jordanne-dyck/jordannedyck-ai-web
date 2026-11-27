@@ -16,6 +16,7 @@ import { BarList } from './components/BarList';
 import { TopicsChart } from './components/TopicsChart';
 import { QualitySection } from './components/QualitySection';
 import { SampleAdmin } from './components/SampleAdmin';
+import { TrackedLink } from '@/app/components/TrackedLink';
 import { getPublicQuality } from '@/lib/public-quality';
 
 export const dynamic = 'force-dynamic';
@@ -178,12 +179,14 @@ export default async function DashboardPage() {
         <footer className="mt-10 text-xs text-zinc-500">
           Built as a portfolio piece. Source:
           {' '}
-          <a
+          <TrackedLink
+            where="dashboard"
+            channel="github"
             href="https://github.com/jordanne-dyck/jordannedyck-ai-web"
             className="underline hover:text-zinc-300"
           >
             jordannedyck-ai-web
-          </a>
+          </TrackedLink>
           . Questions and answers are stored with emails and phone numbers removed.
           IP addresses are stored only as a one-way hash. Real questions are shown only
           in the private admin view; the rows under &ldquo;Inside the admin view&rdquo; are made up.

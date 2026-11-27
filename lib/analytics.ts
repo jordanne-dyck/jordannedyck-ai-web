@@ -50,8 +50,10 @@ export type AnalyticsEvent =
   | { name: 'answer_copied'; props: Record<string, never> }
   | { name: 'feedback'; props: { vote: 'up' | 'down'; has_note: boolean } }
   // Home page acquisition: the first-screen button, and every route to contact her.
+  // The About page and the public dashboard send contact_clicked too, to the
+  // site's own beacon only (app/components/TrackedLink.tsx).
   | { name: 'hero_ask_clicked'; props: Record<string, never> }
-  | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer'; channel: 'email' | 'linkedin' | 'github' | 'phone' | 'vcard' } }
+  | { name: 'contact_clicked'; props: { where: 'hero' | 'after_answer' | 'footer' | 'about' | 'dashboard'; channel: 'email' | 'linkedin' | 'github' | 'phone' | 'vcard' } }
   | { name: 'answer_retried'; props: Record<string, never> }
   // The build story (lib/build-story.ts): shown, a stop opened by the visitor,
   // the clip's controls, and its links out. `step` counts from 1.

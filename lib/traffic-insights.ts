@@ -1,4 +1,4 @@
-import type { TrafficReport } from './traffic-report';
+import type { FunnelKey, TrafficReport } from './traffic-report';
 
 // Rules that turn the traffic report into things to look at (2026-11-16).
 // Each fires only above a minimum sample, and says what it's based on. They
@@ -16,6 +16,13 @@ export type TrafficInsight = {
 };
 
 const pct = (x: number | null) => (x == null ? '—' : `${Math.round(x * 100)}%`);
+
+// Funnel steps whose visitors all took the step before as well.
+const NARROWS: ReadonlySet<FunnelKey> = new Set(['asked', 'curated', 'reached']);
+
+// Form sends needed before conversations are compared with single answers.
+// One or two is not a pattern.
+const MIN_FORM_SENDS = 3;
 
 export function trafficInsights(r: TrafficReport): TrafficInsight[] {
   const out: TrafficInsight[] = [];
@@ -127,25 +134,33 @@ export function trafficInsights(r: TrafficReport): TrafficInsight[] {
     });
   }
 
-  // Conversion.
+  // Conversion. Reaching out is the contact form sent, within a day of the
+  // conversation.
   if (single && multi && single.conversations >= 10 && multi.conversations >= 10 && single.reachedOutRate != null && multi.reachedOutRate != null) {
-    if (multi.reachedOutRate >= Math.max(single.reachedOutRate * 1.5, single.reachedOutRate + 0.05)) {
+    const sent = (c: typeof single) => Math.round((c.reachedOutRate ?? 0) * c.conversations);
+    const counts = `The contact form was sent after ${sent(multi)} of ${multi.conversations} conversations and ${sent(single)} of ${single.conversations} single answers.`;
+    const enough = sent(multi) + sent(single) >= MIN_FORM_SENDS;
+    if (enough && multi.reachedOutRate >= Math.max(single.reachedOutRate * 1.5, single.reachedOutRate + 0.05)) {
       out.push({
         area: 'Conversion', tone: 'good',
         headline: `Conversations reach out ${pct(multi.reachedOutRate)}, single answers ${pct(single.reachedOutRate)}`,
-        detail: 'Getting a second question matters more than polishing the first answer: follow-up chips and endings that invite one.',
+        detail: `${counts} Getting a second question matters more than polishing the first answer: follow-up chips and endings that invite one.`,
       });
-    } else if (single.reachedOutRate >= multi.reachedOutRate * 1.5 && single.reachedOutRate > 0) {
+    } else if (enough && single.reachedOutRate >= multi.reachedOutRate * 1.5 && single.reachedOutRate > 0) {
       out.push({
         area: 'Conversion', tone: 'watch',
         headline: `Single answers reach out more often than conversations (${pct(single.reachedOutRate)} against ${pct(multi.reachedOutRate)})`,
-        detail: 'Long conversations may be people who don’t find what they need. Read the longer ones.',
+        detail: `${counts} Long conversations may be people who don’t find what they need. Read the longer ones.`,
       });
     }
   }
   for (let i = 1; i < r.funnel.length; i++) {
     const from = r.funnel[i - 1];
     const to = r.funnel[i];
+    // Only steps that are part of the one before. The other two are not: a
+    // visitor can look you up without a curated answer, and open the contact
+    // panel without looking you up.
+    if (!NARROWS.has(to.key)) continue;
     if (from.visitors >= 20 && to.visitors / from.visitors < 0.2) {
       out.push({
         area: 'Conversion', tone: 'watch',
@@ -155,13 +170,13 @@ export function trafficInsights(r: TrafficReport): TrafficInsight[] {
       break;
     }
   }
-  const intent = r.funnel.find((f) => f.label === 'Opened a way to contact')?.visitors ?? 0;
-  const reached = r.funnel.find((f) => f.label === 'Reached out')?.visitors ?? 0;
-  if (intent >= 10 && reached / intent < 0.3) {
+  const panel = r.funnel.find((f) => f.key === 'panel')?.visitors ?? 0;
+  const reached = r.funnel.find((f) => f.key === 'reached')?.visitors ?? 0;
+  if (panel >= 10 && reached / panel < 0.3) {
     out.push({
       area: 'Conversion', tone: 'act',
-      headline: `${intent} visitors opened a way to contact you, ${reached} went through with it`,
-      detail: 'Most drop inside the contact panel. Check the form length and the consent wording on a phone.',
+      headline: `${panel} visitors opened the contact panel, ${reached} sent the form`,
+      detail: 'The rest left the panel without sending it. Some may have copied the note or emailed it themselves: that counts as looked you up. Check the form length and the consent wording on a phone.',
       href: '/dashboard/admin/leads',
     });
   }

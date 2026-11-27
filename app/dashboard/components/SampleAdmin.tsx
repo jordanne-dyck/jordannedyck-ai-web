@@ -27,8 +27,8 @@ export function SampleAdmin() {
       <div className="mt-4">
         <h3 className="mb-1 text-sm font-medium text-zinc-300">Traffic</h3>
         <p className="mb-3 text-xs text-zinc-500">
-          Visits, how many people use the bot, curated answers, ratings, how people reach out, and the paths they take.
-          Generated sample traffic, run through the same code as the real admin tab.
+          Visits, how many people use the bot, curated answers, ratings, who looked Jordanne up, who reached out, and
+          the paths they take. Generated sample traffic, run through the same code as the real admin tab.
         </p>
         <TrafficView report={sample.report} insights={sample.insights} sample />
       </div>
